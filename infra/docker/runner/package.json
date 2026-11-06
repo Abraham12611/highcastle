@@ -1,0 +1,6 @@
+{
+  "name": "highcastle-runner-image",
+  "private": true,
+  "type": "module",
+  "description": "Runtime marker for the ephemeral HighCastle runner image — no dependencies by design."
+}
