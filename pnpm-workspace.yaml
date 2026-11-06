@@ -1,0 +1,23 @@
+# HighCastle pnpm workspace.
+# Lane ownership: docs/delivery/02_PARALLEL_WORKSTREAMS.md — check the allowlist
+# before adding a package or editing another lane's directory.
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm blocks dependency postinstall scripts by default; allowlist only the
+# toolchain binaries that need one. Add entries deliberately, not wholesale.
+onlyBuiltDependencies:
+  - esbuild
+
+# Shared toolchain versions. Reference with "catalog:" in a package's
+# dependencies so every lane compiles/tests/lints with the same versions.
+catalog:
+  typescript: 5.9.3
+  "@types/node": 24.19.2
+  vitest: 5.1.0
+  tsx: 4.23.15
+  eslint: 9.39.5
+  "@eslint/js": 9.39.5
+  typescript-eslint: 8.72.1
+  prettier: 3.9.10
