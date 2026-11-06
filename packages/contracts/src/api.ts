@@ -39,6 +39,16 @@ export function ok<T>(data: T, requestId?: string) {
 
 // --- Error envelope ---
 
+/**
+ * Safe details never carry secrets, tokens, cookies, raw model text, or
+ * nested structures (no objects/arrays): flat string/number/boolean fields
+ * only, so error responses cannot smuggle evidence or credentials.
+ */
+export const SafeErrorDetailsSchema = z.record(
+  z.union([z.string(), z.number(), z.boolean()]),
+);
+export type SafeErrorDetails = z.infer<typeof SafeErrorDetailsSchema>;
+
 export const ApiErrorSchema = z
   .object({
     error: z
@@ -46,7 +56,7 @@ export const ApiErrorSchema = z
         code: ApiErrorCodeSchema,
         message: z.string().min(1).max(500),
         requestId: RequestIdSchema,
-        details: z.record(z.unknown()).optional(),
+        details: SafeErrorDetailsSchema.optional(),
       })
       .strict(),
   })
@@ -57,7 +67,7 @@ export function fail(
   code: z.infer<typeof ApiErrorCodeSchema>,
   message: string,
   requestId: string,
-  details?: Record<string, unknown>,
+  details?: SafeErrorDetails,
 ): ApiError {
   return {
     error: {
@@ -89,9 +99,3 @@ export const API_ERROR_HTTP_STATUS: Record<
   quota_exceeded: 429,
   idempotency_conflict: 409,
 };
-
-/** Safe details never carry secrets, tokens, cookies, or raw model text. */
-export const SafeErrorDetailsSchema = z.record(
-  z.union([z.string(), z.number(), z.boolean()]),
-);
-export type SafeErrorDetails = z.infer<typeof SafeErrorDetailsSchema>;

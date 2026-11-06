@@ -42,6 +42,19 @@ construction, not convention:
 - `SandboxRequest` targets an allowlisted service alias (`target-lab`) with
   an opaque credential *reference*; secret values never enter a contract.
 
+## Runtime enforcement (read this before trusting a parse)
+
+Schemas validate **shape**, never **isolation**. A passing `SandboxRequest`
+parse does not mean the runner is contained, and a stored `ContainmentEvent`
+with `runtimeEnforced: true` is the controller's attestation that a runtime
+mechanism (network policy, mount restriction, capability drop, cgroup limit)
+produced an observed denial — it is not proof by itself. L14 must enforce
+containment in the runtime and prove it with black-box tests (forbidden egress
+actually denied, host file actually unreadable, runaway process actually
+killed, container actually destroyed); L19 re-verifies on the Vultr host.
+Treat any `allowed: true` containment record or any schema-only claim of
+isolation as a defect, not evidence.
+
 ## Lane interfaces
 
 - **L02 (db):** mirror entity schemas (`Project`, `Target`, `Environment`,

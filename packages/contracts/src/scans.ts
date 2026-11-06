@@ -12,6 +12,7 @@ import {
   AttemptIdSchema,
   AuthorizationScopeIdSchema,
   EnvironmentIdSchema,
+  FindingIdSchema,
   ProjectIdSchema,
   ScanEventIdSchema,
   ScanIdSchema,
@@ -126,47 +127,36 @@ const ScanEventBaseSchema = z
   })
   .strict();
 
-/** `test.executed` always references the attempt that ran. */
-const TestExecutedEventSchema = ScanEventBaseSchema.extend({
-  eventType: z.literal("test.executed"),
-  attemptId: AttemptIdSchema,
-});
-
-/** `finding.confirmed` always references the finding that was upserted. */
-const FindingConfirmedEventSchema = ScanEventBaseSchema.extend({
-  eventType: z.literal("finding.confirmed"),
-  payloadRedacted: z
-    .record(z.unknown())
-    .and(z.object({ findingId: z.string().uuid() })),
-});
-
-export const ScanEventSchema = z
-  .union([
-    TestExecutedEventSchema,
-    FindingConfirmedEventSchema,
-    ScanEventBaseSchema,
-  ])
-  .superRefine((event, ctx) => {
-    // The union falls through to the base variant, so re-assert the
-    // per-type requirements here: they are load-bearing for L17 replay.
+/**
+ * Specialized event types carry load-bearing references for L17 replay
+ * (`test.executed` -> the attempt that ran, `finding.confirmed` -> the
+ * finding that was upserted). A plain union lets invalid specialized events
+ * fall through to the base variant, so every per-type requirement is
+ * enforced completely here — presence AND shape, never presence alone.
+ */
+export const ScanEventSchema = ScanEventBaseSchema.superRefine(
+  (event, ctx) => {
     if (event.eventType === "test.executed" && event.attemptId == null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "test.executed requires attemptId",
       });
     }
-    if (
-      event.eventType === "finding.confirmed" &&
-      (event.payloadRedacted == null ||
-        typeof event.payloadRedacted !== "object" ||
-        !("findingId" in event.payloadRedacted))
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "finding.confirmed requires payloadRedacted.findingId",
-      });
+    if (event.eventType === "finding.confirmed") {
+      const parsed = z
+        .object({ findingId: FindingIdSchema })
+        .catchall(z.unknown())
+        .safeParse(event.payloadRedacted);
+      if (!parsed.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "finding.confirmed requires payloadRedacted.findingId as a UUID",
+        });
+      }
     }
-  });
+  },
+);
 export type ScanEvent = z.infer<typeof ScanEventSchema>;
 
 /** Events are appended with strictly increasing seq per scan. */

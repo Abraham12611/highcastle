@@ -175,8 +175,11 @@ export const ContainmentEventSchema = z
     deniedOperation: z.string().min(1).max(200),
     /**
      * A containment event records a DENIAL. `allowed` is always false and
-     * `runtimeEnforced` always true: the block was enforced by the runtime,
-     * not merely claimed by a policy message.
+     * `runtimeEnforced` always true: the controller attests the block was
+     * produced by an actual runtime mechanism (network policy, mount
+     * restriction, capability drop, cgroup limit) and observed in runner
+     * output — not merely claimed by a policy message. The schema cannot
+     * prove isolation; L14's black-box tests and L19's host verification do.
      */
     allowed: z.literal(false),
     runtimeEnforced: z.literal(true),

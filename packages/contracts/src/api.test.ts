@@ -28,6 +28,39 @@ describe("API envelopes", () => {
     expect(ApiErrorSchema.parse(err).error.code).toBe("policy_denied");
   });
 
+  it("accepts flat safe details", () => {
+    const parsed = ApiErrorSchema.parse(
+      fail("quota_exceeded", "Too many scans", "req-2", {
+        packId: "bola-invoice-v1",
+        limit: 8,
+        retried: false,
+      }),
+    );
+    expect(parsed.error.details).toEqual({
+      packId: "bola-invoice-v1",
+      limit: 8,
+      retried: false,
+    });
+  });
+
+  it("rejects nested objects and arrays in error details", () => {
+    const base = {
+      error: {
+        code: "internal",
+        message: "boom",
+        requestId: "req-3",
+        details: { nested: { secret: "x" } },
+      },
+    };
+    expect(() => ApiErrorSchema.parse(base)).toThrow();
+    expect(() =>
+      ApiErrorSchema.parse({
+        ...base,
+        error: { ...base.error, details: { list: ["a", "b"] } },
+      }),
+    ).toThrow();
+  });
+
   it("maps every error code to its documented HTTP status", () => {
     const codes = ApiErrorCodeSchema.options;
     expect(Object.keys(API_ERROR_HTTP_STATUS).sort()).toEqual([...codes].sort());

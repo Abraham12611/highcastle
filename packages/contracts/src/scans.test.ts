@@ -109,6 +109,67 @@ describe("ScanEventSchema", () => {
       }),
     ).toThrow();
   });
+
+  it("rejects finding.confirmed with an invalid findingId UUID", () => {
+    expect(() =>
+      ScanEventSchema.parse({
+        ...base,
+        eventType: "finding.confirmed",
+        phase: "verifying",
+        actorType: "oracle",
+        attemptId: null,
+        payloadRedacted: { findingId: "not-a-uuid" },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects finding.confirmed with a missing findingId", () => {
+    expect(() =>
+      ScanEventSchema.parse({
+        ...base,
+        eventType: "finding.confirmed",
+        phase: "verifying",
+        actorType: "oracle",
+        attemptId: null,
+        payloadRedacted: { note: "no reference" },
+      }),
+    ).toThrow();
+    expect(() =>
+      ScanEventSchema.parse({
+        ...base,
+        eventType: "finding.confirmed",
+        phase: "verifying",
+        actorType: "oracle",
+        attemptId: null,
+      }),
+    ).toThrow();
+  });
+
+  it("accepts finding.confirmed with a valid findingId UUID", () => {
+    const parsed = ScanEventSchema.parse({
+      ...base,
+      eventType: "finding.confirmed",
+      phase: "verifying",
+      actorType: "oracle",
+      attemptId: null,
+      payloadRedacted: {
+        findingId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      },
+    });
+    expect(parsed.eventType).toBe("finding.confirmed");
+  });
+
+  it("rejects test.executed with a malformed attemptId", () => {
+    expect(() =>
+      ScanEventSchema.parse({
+        ...base,
+        eventType: "test.executed",
+        phase: "executing",
+        actorType: "runner",
+        attemptId: "attempt-1",
+      }),
+    ).toThrow();
+  });
 });
 
 describe("toScanSummary", () => {
