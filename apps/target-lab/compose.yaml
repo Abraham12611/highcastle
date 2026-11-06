@@ -1,0 +1,38 @@
+# Local convenience only — runs BOTH revisions side by side on an isolated
+# lab network. Ports are bound to loopback so nothing is exposed off-host.
+# Canonical service aliases for the test pack (L15):
+#   vulnerable: http://target-lab-vulnerable:3000  (inside highcastle-lab net)
+#   patched:    http://target-lab-patched:3000
+name: highcastle-target-lab
+
+services:
+  target-lab-vulnerable:
+    build:
+      context: .
+      args:
+        LAB_REVISION: lab-v1-vulnerable
+        SOURCE_GIT_SHA: ${SOURCE_GIT_SHA:-}
+    image: highcastle/target-lab:lab-v1-vulnerable
+    ports:
+      - "127.0.0.1:3010:3000"
+    networks:
+      - lab
+    restart: unless-stopped
+
+  target-lab-patched:
+    build:
+      context: .
+      args:
+        LAB_REVISION: lab-v2-patched
+        SOURCE_GIT_SHA: ${SOURCE_GIT_SHA:-}
+    image: highcastle/target-lab:lab-v2-patched
+    ports:
+      - "127.0.0.1:3020:3000"
+    networks:
+      - lab
+    restart: unless-stopped
+
+networks:
+  lab:
+    name: highcastle-lab
+    driver: bridge
