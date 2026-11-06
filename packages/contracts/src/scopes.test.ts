@@ -34,6 +34,12 @@ describe("CreateAuthorizationScopeRequestSchema", () => {
     for (const hosts of [
       ["https://target-lab.internal/api"],
       ["*"],
+      ["169.254.169.254"],
+      ["127.0.0.1"],
+      ["2130706433"],
+      ["0177.0.0.1"],
+      ["0x7f000001"],
+      ["0x7f.1"],
       ["a".repeat(300)],
     ]) {
       expect(() =>

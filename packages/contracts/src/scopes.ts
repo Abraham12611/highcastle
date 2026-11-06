@@ -25,11 +25,20 @@ import { IsoUtcDateTimeSchema, ScopeHashSchema } from "./common.js";
 
 const HOSTNAME_RE = /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$/;
 
+/**
+ * Refuse numeric IPv4 and alternate numeric address spellings at the schema
+ * boundary. DNS-resolved IPs, redirects and rebinding are still checked by
+ * L04's deterministic scope gate and L14's network enforcement.
+ */
 const HostnameSchema = z
   .string()
   .min(1)
   .max(253)
-  .regex(HOSTNAME_RE, "Must be a bare hostname, not a URL");
+  .regex(HOSTNAME_RE, "Must be a bare hostname, not a URL")
+  .refine(
+    (host) => !host.split(".").every((part) => /^(?:[0-9]+|0x[0-9a-f]+)$/i.test(part)),
+    "Numeric IP literals and alternate IP-like host spellings are not allowed",
+  );
 
 const ScopedPathSchema = z
   .string()
