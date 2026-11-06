@@ -6,7 +6,8 @@
     "rootDir": "src",
     "declaration": true,
     "declarationMap": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "paths": {}
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "src/testkit/**"]
