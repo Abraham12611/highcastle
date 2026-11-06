@@ -1,0 +1,50 @@
+{
+  "name": "@highcastle/db",
+  "version": "0.1.0",
+  "description": "HighCastle PostgreSQL persistence — Drizzle schema, immutable migrations, tenant-scoped repositories, transactions and demo seed. Lane L02.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "drizzle",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:pg": "HIGHCASTLE_TEST_BACKEND=pg vitest run",
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate-cli.ts"
+  },
+  "dependencies": {
+    "@highcastle/contracts": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11",
+    "eslint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  }
+}
