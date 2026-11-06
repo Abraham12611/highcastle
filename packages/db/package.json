@@ -18,10 +18,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:pg": "HIGHCASTLE_TEST_BACKEND=pg vitest run",
+    "build": "pnpm --filter @highcastle/contracts build && tsc -p tsconfig.build.json",
+    "typecheck": "pnpm --filter @highcastle/contracts build && tsc --noEmit",
+    "test": "pnpm --filter @highcastle/contracts build && vitest run",
+    "test:pg": "pnpm --filter @highcastle/contracts build && HIGHCASTLE_TEST_BACKEND=pg vitest run",
     "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate-cli.ts"
