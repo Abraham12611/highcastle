@@ -16,5 +16,15 @@ Validations and unit tests pass; tenant authorization and scope enforced; safety
 ## Authorized testing only
 Do not use HighCastle to scan other people's public sites, create unrestricted exploit scripts, or deploy untrusted code on the Vultr host. Hackathon test target is intentionally vulnerable synthetic lab. Report possible vulnerabilities responsibly at `SECURITY.md`.
 
+## Workspace conventions (foundation, lane L01)
+
+- pnpm workspace: `apps/*` and `packages/*`. A new package needs a `package.json` named `@highcastle/<name>` and joins automatically — no root edits.
+- Depend on sibling packages with `"@highcastle/<name>": "workspace:*"` and consume the package's declared exports; do not reach into `src` via relative paths.
+- Shared toolchain versions (typescript, vitest, eslint, tsx, prettier, @types/node) are pinned once in the `catalog:` block of `pnpm-workspace.yaml` — reference them as `"pkg": "catalog:"`.
+- Every package exposes the same script names where they apply: `dev`, `build`, `lint`, `typecheck`, `test`. Root `pnpm -r` scripts pick them up automatically.
+- TypeScript strict everywhere; extend `tsconfig.base.json` and set only module-specific options (`module`, `moduleResolution`, `jsx`, `lib`, `paths`).
+- `test:e2e`, `test:security` and `db:migrate` are reserved placeholders that fail closed until their owning lanes land the real implementations — do not make them exit 0 without real checks.
+- Example for L03: create `packages/contracts/package.json` (`@highcastle/contracts`, exports pointing at built or source entry per agreed convention), then `apps/web`/`apps/worker` add `"@highcastle/contracts": "workspace:*"`.
+
 ## Current status
-Documentation-first bootstrap. Planned scripts in AGENTS.md need to be created by L01 before invoking them.
+Repository foundation implemented by lane L01 (pnpm workspace, Next.js web shell, worker shell, CI). Other lanes build on it per `docs/delivery/02_PARALLEL_WORKSTREAMS.md`.

@@ -1,0 +1,27 @@
+{
+  "name": "highcastle",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HighCastle — AI-assisted application-security platform (hackathon MVP monorepo).",
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "test:e2e": "node scripts/not-implemented.mjs test:e2e L20 \"Playwright E2E is an F4 deliverable and needs the deployed app plus frozen contracts.\"",
+    "test:security": "node scripts/not-implemented.mjs test:security L04+L19 \"Containment and scope tests need packages/security (L04) and the sandbox runner (L14).\"",
+    "db:migrate": "node scripts/not-implemented.mjs db:migrate L02 \"Drizzle migrations live in packages/db, owned by L02.\""
+  },
+  "devDependencies": {
+    "prettier": "catalog:"
+  }
+}

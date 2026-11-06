@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/*
+ * Foundation shell styles only. HighCastle design tokens (Nocturne Signal
+ * palette, fortress mark, typography) are owned by lane L06 in packages/ui —
+ * do not hardcode a design system here.
+ */
