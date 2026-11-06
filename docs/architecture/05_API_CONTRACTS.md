@@ -131,4 +131,4 @@ Events persisted before publish, unique seq; auth verified at initial subscripti
 - API tests include cross-workspace access, forged scope, duplicate idempotency key, invalid pack, stale revision, lost session and arbitrary host.
 
 ## Contract owners
-L02 owns schema; L03 API/auth; L07 contracts; L08 inference schema; L09 sandbox runner protocol; L10 test pack; L11 verifier; L12 event stream. Interfaces freeze at Foundation Gate F1 before parallel implementations.
+L02 owns the database schema and migrations; L03 owns shared Zod contracts and event/API types; L04 owns core scope/authorization primitives; L05 owns auth UI/integration; L12 owns the Vultr inference adapter; L14 owns the sandbox runner protocol and controller; L15 owns bounded test packs and deterministic oracles; L17 owns durable events/SSE; L18 owns HTTP API route implementations. Shared contract interfaces freeze at Foundation Gate F1 before broad parallel implementation. Changes require coordinator signoff.
