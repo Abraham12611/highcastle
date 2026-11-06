@@ -6,7 +6,11 @@
     "types": ["node"],
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true,
+    "baseUrl": ".",
+    "paths": {
+      "@highcastle/contracts": ["../contracts/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts", "vitest.config.ts", "eslint.config.mjs"]
 }
