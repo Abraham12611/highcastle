@@ -6,8 +6,8 @@
 
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { createRequestListener } from "../src/app.ts";
-import type { LabRevision } from "../src/types.ts";
+import { createRequestListener } from "../app.ts";
+import type { LabRevision } from "../types.ts";
 
 export const ALICE_TOKEN = "lab-token-alice";
 export const BOB_TOKEN = "lab-token-bob";
@@ -29,10 +29,6 @@ export async function startLab(revision: LabRevision): Promise<RunningLab> {
 
 export function bearer(token: string): Record<string, string> {
   return { authorization: `Bearer ${token}` };
-}
-
-export async function getJson(res: Response): Promise<unknown> {
-  return res.json() as Promise<unknown>;
 }
 
 export interface InvoiceBody {

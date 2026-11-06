@@ -16,7 +16,15 @@
 
 import type { Actor, Invoice } from "./types.ts";
 
-export const FIXTURE_VERSION = "lab-fixtures-1.0.0" as const;
+/**
+ * SemVer fixture version — MUST stay MAJOR.MINOR.PATCH. It is stored verbatim
+ * in `scans.fixture_version`, which `packages/contracts` validates with
+ * `SemVerSchema` (L03). Bump it whenever fixture content changes.
+ */
+export const FIXTURE_VERSION = "1.0.0" as const;
+
+/** Human-readable name of this fixture set, surfaced by /api/meta for debugging. */
+export const FIXTURE_SET = "alice-bob-invoices" as const;
 
 export const SESSION_COOKIE = "lab_session" as const;
 

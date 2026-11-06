@@ -9,16 +9,20 @@
   },
   "scripts": {
     "dev": "node src/server.ts --revision=lab-v1-vulnerable",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node src/server.ts",
     "start:vulnerable": "node src/server.ts --revision=lab-v1-vulnerable",
     "start:patched": "node src/server.ts --revision=lab-v2-patched",
-    "build": "echo 'target-lab runs .ts directly via node type-stripping; nothing to compile'",
-    "test": "node --test",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@types/node": "24.19.2",
-    "typescript": "5.9.3"
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
   }
 }

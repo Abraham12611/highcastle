@@ -13,7 +13,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { ErrorCode, LabRevision, ResponseMeta } from "./types.ts";
-import { ACTORS, actorForToken, FixtureStore, FIXTURE_VERSION, sessionIdFor, SESSION_COOKIE, TENANTS } from "./fixtures.ts";
+import { ACTORS, actorForToken, FixtureStore, FIXTURE_SET, FIXTURE_VERSION, sessionIdFor, SESSION_COOKIE, TENANTS } from "./fixtures.ts";
 import { resolveActor } from "./auth.ts";
 
 export interface LabConfig {
@@ -99,6 +99,7 @@ function handleMeta(ctx: Context): void {
     service: "highcastle-target-lab",
     revision: ctx.config.revision,
     fixtureVersion: FIXTURE_VERSION,
+    fixtureSet: FIXTURE_SET,
     ...(ctx.config.sourceSha ? { sourceSha: ctx.config.sourceSha } : {}),
     authentication: {
       scheme: "fixture bearer token or lab_session cookie",
@@ -156,16 +157,6 @@ function handleWhoami(ctx: Context): void {
   sendJson(ctx.res, 200, { actor, meta: ctx.meta });
 }
 
-function handleReset(ctx: Context): void {
-  ctx.store.reset();
-  sendJson(ctx.res, 200, {
-    status: "reset",
-    fixtureVersion: FIXTURE_VERSION,
-    fixtures: { invoices: ctx.store.count() },
-    meta: ctx.meta,
-  });
-}
-
 function handleGetInvoice(ctx: Context, id: string): void {
   const actor = resolveActor(ctx.req);
   if (!actor) {
@@ -201,7 +192,6 @@ const ROUTES: Route[] = [
   { method: "POST", pattern: /^\/api\/auth\/login$/, handler: (ctx) => handleLogin(ctx) },
   { method: "POST", pattern: /^\/api\/auth\/logout$/, handler: (ctx) => handleLogout(ctx) },
   { method: "GET", pattern: /^\/api\/auth\/whoami$/, handler: (ctx) => handleWhoami(ctx) },
-  { method: "POST", pattern: /^\/api\/fixtures\/reset$/, handler: (ctx) => handleReset(ctx) },
   {
     method: "GET",
     pattern: /^\/api\/invoices\/([^/]+)$/,

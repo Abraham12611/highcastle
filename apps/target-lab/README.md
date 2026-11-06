@@ -30,9 +30,38 @@ Revision identity is reported in every response via the
 `X-Target-Lab-Revision` header, in every JSON body under `meta.revision`, and
 by `GET /health` / `GET /api/meta`. `SOURCE_GIT_SHA` (build arg / env) is echoed
 by `/api/meta` when baked at build time; L19 records the immutable image digest
-per revision at deployment.
+per revision at deployment (the scan snapshot pins it via
+`SandboxRequest.targetImageDigest`).
 
-## Fixtures (`lab-fixtures-1.0.0`, deterministic)
+## `target-lab` alias → revision mapping (contract for L14/L15/L19)
+
+`packages/contracts` `TargetServiceAliasSchema` permits **exactly one** value:
+`"target-lab"`. Scopes and `SandboxRequest`s never name a hostname or a
+per-revision service; the trusted controller/deployment resolves the alias:
+
+```
+scope/sandbox contract:  targetServiceAlias = "target-lab"
+                         targetImageDigest  = sha256:<pinned per attempt>
+                                 │
+deployment resolution:   target-lab  →  container on `highcastle-lab` net
+                                        running the image behind that digest
+```
+
+- **Scan time:** the `target-lab` service runs image
+  `highcastle/target-lab:lab-v1-vulnerable` (digest pinned in the scan snapshot).
+- **Replay time:** the patched image `highcastle/target-lab:lab-v2-patched` is
+  rolled out **under the same `target-lab` alias**; the replay snapshot pins
+  the new digest. The oracle must never infer revision from the hostname —
+  the ground truth is `GET /health` → `revision` + the pinned image digest.
+- Local `compose.yaml` exposes `target-lab` (vulnerable, `127.0.0.1:3030`) and
+  `target-lab-patched` (`127.0.0.1:3031`) side by side **for local verification
+  only**; `target-lab-patched` is not a scope-legal alias.
+
+## Fixtures (version `1.0.0`, deterministic)
+
+`fixtureVersion` is a strict **SemVer** — it is stored verbatim in
+`scans.fixture_version`, which `packages/contracts` `SemVerSchema` validates.
+The fixture set itself is named `alice-bob-invoices` (`/api/meta.fixtureSet`).
 
 | Actor | userId | tenantId | Owns | Fixture credential (lab-only) |
 |---|---|---|---|---|
@@ -40,8 +69,8 @@ per revision at deployment.
 | `bob` | `user_B` | `tenant_B` | `invoice_B` (`INV-2026-0002`, $542.50) | `lab-token-bob` |
 
 Fixture emails use the reserved `.test` TLD. Full invoice payload shape is in
-`src/fixtures.ts` and asserted by tests. `POST /api/fixtures/reset` restores the
-canonical seed byte-for-byte; a fresh process is always identical.
+`src/fixtures.ts` and asserted by tests. Fixtures are **read-only** — there is
+no HTTP mutation surface; a fresh process always serves identical bytes.
 
 ### Synthetic authentication
 
@@ -54,7 +83,10 @@ Two interchangeable lab credentials — both deterministic, both fake:
 
 Token values are **trusted lab config** for the test pack (documented here and
 in the pack contract); they are never returned by any endpoint, so the
-unauthenticated→401 boundary is real even on the vulnerable revision.
+unauthenticated→401 boundary is real even on the vulnerable revision. For the
+sandbox contract, `actorCredentialRef` (e.g. `ref:synthetic:alice`) is resolved
+by the controller to the corresponding fixture credential — the token string
+itself never appears in contracts or events.
 
 ## API
 
@@ -70,7 +102,6 @@ All responses are `application/json`; every response carries
 | POST | `/api/auth/logout` | any | `200 {"status":"logged_out"}` + expired cookie |
 | GET | `/api/auth/whoami` | required | `200 {"actor"}` or `401` |
 | GET | `/api/invoices/:id` | required | `200 {"invoice","meta"}` or error envelope |
-| POST | `/api/fixtures/reset` | none | `200 {"status":"reset","fixtures":{"invoices":2}}` |
 
 Error envelope, all revisions: `{"error":{"code","message"},"meta":{"revision","requestId"}}`
 with codes `UNAUTHENTICATED` (401), `INVOICE_NOT_FOUND` (404),
@@ -99,50 +130,58 @@ GET /api/invoices/invoice_XXX  Authorization: Bearer lab-token-alice
 → 404 {"error":{"code":"INVOICE_NOT_FOUND", ...}}          (both revisions)
 ```
 
-## Run locally (Node ≥ 22.18, zero runtime dependencies)
+## Run locally (workspace member; Node ≥ 22.18, zero runtime dependencies)
 
 ```bash
+# from repo root, after `pnpm install`
+pnpm --filter @highcastle/target-lab dev            # vulnerable → http://127.0.0.1:3030
+pnpm --filter @highcastle/target-lab run start:patched -- --port=3031
+
+# or directly
 cd apps/target-lab
-npm ci                 # dev-only deps: typescript + @types/node
-
-npm run start:vulnerable   # → http://127.0.0.1:3000
-npm run start:patched      # same port; run one at a time or override:
-
-node src/server.ts --revision=lab-v1-vulnerable --port=3010 &
-node src/server.ts --revision=lab-v2-patched   --port=3020 &
+node src/server.ts --revision=lab-v1-vulnerable             # → 127.0.0.1:3030
+node src/server.ts --revision=lab-v2-patched --port=3031    # → 127.0.0.1:3031
 ```
+
+**Port note:** the lab's default port is **3030** — `pnpm dev` runs every
+workspace `dev` script in parallel and the Next.js web app owns port 3000.
+Container images set `PORT=3000` explicitly; that port is internal to the
+isolated lab network and is not the host's Next.js port.
 
 Environment equivalents: `TARGET_LAB_REVISION`, `PORT`, `HOST`,
 `SOURCE_GIT_SHA`. Default bind is `127.0.0.1` (loopback) — nothing is exposed
 off-host unless `HOST` is changed, which Docker does explicitly.
 
-## Tests
+## Checks (CI: `pnpm -r` at root runs these per package)
 
 ```bash
-cd apps/target-lab
-npm ci
-npm run check          # = tsc --noEmit (strict) + node --test
+pnpm --filter @highcastle/target-lab lint        # eslint flat config
+pnpm --filter @highcastle/target-lab typecheck   # tsc --noEmit (strict)
+pnpm --filter @highcastle/target-lab test        # vitest run
+pnpm --filter @highcastle/target-lab build       # tsc -p tsconfig.build.json → dist/
 ```
 
-`test/` boots the real HTTP listener on an ephemeral port and asserts actual
+`src/test/` boots the real HTTP listener on an ephemeral port and asserts actual
 wire behavior — no mocks:
 
 - `vulnerable.test.ts` — P1 baseline 200; **S1 Alice→`invoice_B` returns 200
   with `ownerId:"user_B"`, `tenantId:"tenant_B"`, Bob's protected fields**
   (the BOLA reproduces); symmetric for Bob; works over cookie session too;
-  unauthenticated still 401; unknown id 404.
+  unauthenticated still 401; invalid token 401; unknown id 404.
 - `patched.test.ts` — P1 baseline 200; S1 Alice→`invoice_B` returns
-  `404 INVOICE_NOT_FOUND`, byte-shape identical to a truly missing id; Bob
-  denied `invoice_A`; Bob still reads his own.
-- `contract.test.ts` — runs the same matrix on **both** revisions: health,
-  readiness, meta manifest (asserts no token/session values leak), envelopes,
-  login/logout/whoami, reset, determinism across restart, 404/405/400 paths.
+  `404 INVOICE_NOT_FOUND`, shape-identical to a truly missing id; Bob denied
+  `invoice_A`; Bob still reads his own.
+- `contract.test.ts` — same matrix on **both** revisions: health, readiness,
+  meta manifest (asserts no token/session values leak + SemVer
+  `fixtureVersion`), envelopes, login/logout/whoami, read-only fixture
+  determinism across restarts, absent reset route, 404/405/400 paths.
 
 ## Docker
 
 Build context is `apps/target-lab/`; `LAB_REVISION` is a **required** build arg
 (build fails without it). Runtime is `node:24-alpine`, non-root `node` user,
-`HEALTHCHECK` on `/health`, `EXPOSE 3000`, no secrets, no host mounts.
+`HEALTHCHECK` on `/health`, `EXPOSE 3000`, no secrets, no volumes, no install
+step (Node 24 strips types from the shipped `.ts` sources).
 
 ```bash
 cd apps/target-lab
@@ -155,8 +194,8 @@ docker build --build-arg LAB_REVISION=lab-v2-patched \
   --build-arg SOURCE_GIT_SHA=$(git rev-parse HEAD) \
   -t highcastle/target-lab:lab-v2-patched .
 
-docker run --rm -p 127.0.0.1:3010:3000 highcastle/target-lab:lab-v1-vulnerable
-docker run --rm -p 127.0.0.1:3020:3000 highcastle/target-lab:lab-v2-patched
+docker run --rm -p 127.0.0.1:3030:3000 highcastle/target-lab:lab-v1-vulnerable
+docker run --rm -p 127.0.0.1:3031:3000 highcastle/target-lab:lab-v2-patched
 ```
 
 Or run both revisions side by side on an isolated network:
@@ -164,26 +203,29 @@ Or run both revisions side by side on an isolated network:
 ```bash
 cd apps/target-lab
 docker compose up --build -d
-# vulnerable → http://127.0.0.1:3010   in-net alias http://target-lab-vulnerable:3000
-# patched    → http://127.0.0.1:3020   in-net alias http://target-lab-patched:3000
+# target-lab (vulnerable) → http://127.0.0.1:3030   in-net alias http://target-lab:3000
+# target-lab-patched      → http://127.0.0.1:3031   in-net alias http://target-lab-patched:3000
 # docker compose down   to stop and remove
 ```
 
 Compose binds ports to loopback only. For the real deployment (L19), attach the
-runner network to `highcastle-lab` and drop the published ports entirely —
-the lab must be reachable **only** from the executor network.
+runner network to `highcastle-lab`, drop the published ports entirely, and roll
+the patched image out under the same `target-lab` alias for replay — the lab
+must be reachable **only** from the executor network.
 
 ## Contract assumptions for other lanes
 
-**For L15 (test-pack / oracle), pack `bola-invoice-v1`:**
+**For L15 (test-pack / oracle, `bola-invoice-v1`):**
 
-- Base URLs: `http://target-lab-vulnerable:3000` and
-  `http://target-lab-patched:3000` on the `highcastle-lab` network
-  (loopback `127.0.0.1:3010`/`:3020` when run via `compose.yaml`).
+- Scope/sandbox naming: `targetServiceAlias: "target-lab"` only; revision is
+  conveyed by `targetImageDigest` in the snapshot, not by the alias.
+- Base URLs for local dev: `http://127.0.0.1:3030` (vulnerable) /
+  `http://127.0.0.1:3031` (patched); in-net `http://target-lab:3000`.
 - Fixture identities: Alice `user_A`/`tenant_A`, Bob `user_B`/`tenant_B`;
-  invoices `invoice_A`/`invoice_B`; credentials `lab-token-alice`/`lab-token-bob`.
+  invoices `invoice_A`/`invoice_B`; `fixtureVersion` `1.0.0` (SemVer);
+  credentials `lab-token-alice`/`lab-token-bob` behind `actorCredentialRef`.
 - P0 revision check: `GET /health` → `revision` field equals the scan-snapshot
-  revision; `fixtureVersion` equals `lab-fixtures-1.0.0`.
+  revision and `fixtureVersion` equals `1.0.0`.
 - P1 baseline: `GET /api/invoices/invoice_A` with Alice's credential → `200`,
   `invoice.ownerId == "user_A"`.
 - S1: same Alice credential, `GET /api/invoices/invoice_B`.
@@ -192,57 +234,29 @@ the lab must be reachable **only** from the executor network.
     (optionally `customer.name == "Bob Fixture"`, `amountCents == 54250`).
   - `not_reproduced`: `403` or `404` denial (this lab emits `404`).
   - Anything else (5xx, timeout, contract drift, missing baseline) → `inconclusive`.
-- Only `GET` is needed for invoices; `POST` exists only for login/logout/reset.
+- Only `GET` is needed for invoices; `POST` exists only for login/logout.
   Pack `permittedMethods: ["GET"]` is satisfied for the security assertion.
 
 **For L03 (contracts):** revision enum `{lab-v1-vulnerable, lab-v2-patched}`;
-error-code enum listed above; success envelope `{invoice, meta}`; error
-envelope `{error:{code,message}, meta:{revision, requestId}}`; invoice object
-schema in `src/fixtures.ts` / `src/types.ts`. If `packages/contracts` later
-publishes a `TargetLabFixture` type, this package can adopt it — the shapes are
-intentionally stable.
+`fixtureVersion` conforms to `SemVerSchema`; error-code enum listed above;
+success envelope `{invoice, meta}`; error envelope
+`{error:{code,message}, meta:{revision, requestId}}`; invoice object schema in
+`src/fixtures.ts` / `src/types.ts`.
 
-**For L14/L19 (sandbox/deployment):** service aliases and network above; the
-image runs non-root, needs no env secrets, no volumes, no egress. Record the
-image digest per revision at deploy time (spec requirement for attempt
-evidence). The lab listens for HTTP only — terminate TLS upstream if ever
-exposed beyond the lab net (it should not be).
-
-## Integration notes (L01 bootstrap is in-flight)
-
-The committed `develop` head (9dc72d1) is docs-only; the L01 pnpm-workspace
-bootstrap exists in-flight but is not yet merged. This package is therefore
-**self-contained on purpose**: own `package.json` + `package-lock.json`
-(dev-only deps `typescript`, `@types/node`), plain `node`/`npm` commands, no
-imports of root config. It already conforms to the workspace layout so the
-merge is mechanical:
-
-- Package name/location match the workspace glob (`apps/*`,
-  `@highcastle/target-lab`) and the standard script names exist
-  (`dev`, `build`, `test`, `typecheck`); `build` is a truthful no-op because
-  Node runs `.ts` via type-stripping — there is no compile step.
-- devDep versions mirror the planned catalog (`typescript` 5.9.3,
-  `@types/node` 24.x). After L01 merges, swap them for `"catalog:"` refs,
-  delete `package-lock.json`, and let pnpm own the lockfile (root-owned, L01).
-- `tsconfig.json` is standalone for now; it mirrors `tsconfig.base.json`
-  strictness and can switch to `extends: "../../tsconfig.base.json"` once that
-  file is committed (keeping `module`/`moduleResolution: NodeNext`,
-  `allowImportingTsExtensions`, `erasableSyntaxOnly`, `noEmit`, `types: ["node"]`).
-- Tests use the built-in `node:test` runner (zero deps, real HTTP against the
-  listener on an ephemeral port). Migrating to the workspace vitest pin later
-  is optional — assertions are plain `node:assert` either way. `lint` is
-  intentionally absent until the shared eslint config lands (L01); honest gap.
-- Root-level compose/deploy wiring belongs to L19; `compose.yaml` here is
-  local-only. No GitHub Action exists yet — `npm run check` is the CI-ready
-  command.
-- `SOURCE_GIT_SHA` is optional provenance for `/api/meta`; L19 should inject it
-  at image build and record the immutable image digest per revision.
+**For L14/L19 (sandbox/deployment):** alias mapping above; the image runs
+non-root, needs no env secrets, no volumes, no egress. Record the image digest
+per revision at deploy time (required by `SandboxRequest.targetImageDigest`).
+The lab listens for HTTP only — terminate TLS upstream if ever exposed beyond
+the lab net (it should not be).
 
 ## Safety notes
 
 - The vulnerable revision is *intentionally* broken — that is the product
   requirement, not a bug to file. It is still contained: auth is required,
-  fixtures are synthetic, and the process never makes outbound requests.
+  fixtures are synthetic and read-only, and the process never makes outbound
+  requests.
 - No real PII, credentials, emails, URLs, or payment data. `.test` emails only.
+- No state-mutating HTTP surface beyond login/logout (which only set/clear a
+  deterministic cookie) — the runner cannot poison fixtures for other attempts.
 - Do not add endpoints that fetch arbitrary URLs or execute input — the lab is
   a fixed, known target by design.

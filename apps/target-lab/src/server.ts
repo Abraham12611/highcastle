@@ -6,8 +6,12 @@
  * non-zero so the vulnerable build can never be started implicitly.
  *
  * Usage:
- *   node src/server.ts --revision=lab-v1-vulnerable [--port=3000] [--host=127.0.0.1]
- *   TARGET_LAB_REVISION=lab-v2-patched PORT=3000 HOST=0.0.0.0 node src/server.ts
+ *   node src/server.ts --revision=lab-v1-vulnerable [--port=3030] [--host=127.0.0.1]
+ *   TARGET_LAB_REVISION=lab-v2-patched PORT=3030 HOST=0.0.0.0 node src/server.ts
+ *
+ * Default local port is 3030 so `pnpm dev` never collides with the Next.js
+ * web app on port 3000. Container images set PORT=3000 explicitly — the port
+ * is internal to the isolated lab network.
  */
 
 import { createServer } from "node:http";
@@ -49,7 +53,7 @@ function usage(): string {
     "  node src/server.ts --revision=<REVISION> [--port=PORT] [--host=HOST]",
     "",
     `  REVISION (required): ${LAB_REVISIONS.join(" | ")}`,
-    "  PORT: listening port (env PORT, default 3000)",
+    "  PORT: listening port (env PORT, default 3030 — web app owns 3000)",
     "  HOST: bind address (env HOST, default 127.0.0.1)",
     "  TARGET_LAB_REVISION env var is an accepted alternative to --revision",
   ].join("\n");
@@ -71,7 +75,7 @@ if (!isLabRevision(revisionInput)) {
 }
 const revision: LabRevision = revisionInput;
 
-const port = Number(cli.port ?? process.env.PORT ?? "3000");
+const port = Number(cli.port ?? process.env.PORT ?? "3030");
 if (!Number.isInteger(port) || port < 0 || port > 65535) {
   process.stderr.write(`ERROR: invalid port: ${cli.port ?? process.env.PORT}\n`);
   process.exit(1);

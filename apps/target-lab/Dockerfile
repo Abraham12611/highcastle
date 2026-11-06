@@ -3,11 +3,12 @@
 #
 # Build exactly one revision per image; the revision is a REQUIRED build arg so
 # a vulnerable image can never be produced implicitly:
-#   docker build --build-arg LAB_REVISION=lab-v1-vulnerable -t highcastle/target-lab:lab-v1-vulnerable .
-#   docker build --build-arg LAB_REVISION=lab-v2-patched   -t highcastle/target-lab:lab-v2-patched   .
+#   docker build --build-arg LAB_REVISION=lab-v1-vulnerable -t highcastle/target-lab:lab-v1-vulnerable apps/target-lab
+#   docker build --build-arg LAB_REVISION=lab-v2-patched   -t highcastle/target-lab:lab-v2-patched   apps/target-lab
 #
 # Optional provenance: --build-arg SOURCE_GIT_SHA=$(git rev-parse HEAD)
-# Deployment (L19) records the immutable image digest per revision.
+# Deployment (L19) records the immutable image digest per revision; the scan
+# snapshot pins that digest (SandboxRequest.targetImageDigest).
 
 FROM node:24-alpine
 
@@ -26,10 +27,12 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-# Zero runtime dependencies: Node >=22.18 runs .ts via native type stripping.
+# Zero runtime dependencies: Node 24 runs .ts via native type stripping, so the
+# image ships exactly the reviewed sources — no install step in the image.
 COPY package.json ./
 COPY src ./src
-COPY test ./test
+# src/test/** is excluded via .dockerignore; tests run in workspace CI, not in
+# the shipped image.
 
 USER node
 EXPOSE 3000
