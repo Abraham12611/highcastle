@@ -241,7 +241,59 @@ export async function runAttempt(
     attemptId: attempt.id,
   });
 
-  // --- independent verification (L15 port) ------------------------------
+  // --- independent verification ----------------------------------------
+  // Priority: an adjudication produced INSIDE a trusted executor (L15's
+  // runBolaPack adjudicates on real parsed legs) wins; else parse runner
+  // observations through the oracle; else inconclusive.
+  if (run.adjudication) {
+    const adjudication = run.adjudication;
+    await store.recordAttemptVerdict(workspaceId, attempt.id, {
+      oracleVersion: adjudication.oracleVersion,
+      verdict: adjudication.verdict,
+      reasonCode: adjudication.reasons[0]?.split(" ")[0] ?? null,
+      positiveControlPassed:
+        adjudication.baseline === "pass" ? true : adjudication.baseline === "fail" ? false : null,
+      negativeSecurityConditionMet:
+        adjudication.securityCheck === "pass"
+          ? true
+          : adjudication.securityCheck === "fail"
+            ? false
+            : null,
+    });
+    await store.createEvidenceArtifact({
+      workspaceId,
+      scanId,
+      attemptId: attempt.id,
+      artifactKind: "oracle",
+      storageKind: "db",
+      storageKey: `oracle/attempt/${attempt.id}/adjudication`,
+      sha256: sha256Hex(JSON.stringify(adjudication)),
+      byteSize: JSON.stringify(adjudication).length,
+      contentType: "application/json",
+    });
+    await emit(deps, {
+      workspaceId,
+      scanId,
+      eventType: "scan.stage.updated",
+      phase: "verifying",
+      actorType: "oracle",
+      safeSummary: `oracle adjudicated ${adjudication.verdict} (trusted executor)`,
+      payloadRedacted: {
+        verdict: adjudication.verdict,
+        baseline: adjudication.baseline,
+        securityCheck: adjudication.securityCheck,
+        preconditionsOk: adjudication.preconditionsOk,
+      },
+      attemptId: attempt.id,
+    });
+    const updated = await store.getAttempt(workspaceId, attempt.id);
+    return {
+      attempt: updated ?? attempt,
+      outcome: "completed",
+      adjudication,
+      reproduced: adjudication.verdict === "reproduced",
+    };
+  }
   if (run.observations === null) {
     // The runner ran but could not hand parsed observations to the oracle —
     // see AttemptObservations contract-gap note. Honest inconclusive.

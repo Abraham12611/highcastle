@@ -503,6 +503,13 @@ export type SandboxRunOutcome =
       /** Validated runner result; null when the runner produced none. */
       result: SandboxResult | null;
       /**
+       * Oracle adjudication produced inside a trusted executor (L15's
+       * `runBolaPack` adjudicates on real parsed legs in-process). When
+       * present, flows use it directly — it is oracle output, not a
+       * runner-supplied boolean.
+       */
+      adjudication?: AttemptAdjudication;
+      /**
        * Parsed per-leg observations for the oracle — null when the runner
        * protocol cannot supply them (see AttemptObservations note). A null
        * here makes the attempt inconclusive BY CONSTRUCTION; no code path
@@ -529,7 +536,12 @@ export interface ReapReport {
 export interface SandboxExecutor {
   execute(
     request: SandboxRequest,
-    ctx: { workspaceId: string; signal?: AbortSignal | undefined },
+    ctx: {
+      workspaceId: string;
+      signal?: AbortSignal | undefined;
+      /** Scan's pinned lab revision (expectedRevision for the pack run). */
+      expectedRevision?: string | undefined;
+    },
   ): Promise<SandboxRunOutcome>;
   cancel(runnerId: RunnerInstanceId, reason: string): Promise<void>;
   reconcileOrphans(now?: Date): Promise<ReapReport>;

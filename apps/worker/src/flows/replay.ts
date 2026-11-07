@@ -103,9 +103,7 @@ export async function executeReplayJob(
   const replayAttempts = replayScanId
     ? await deps.store.listAttempts(workspaceId, replayScanId)
     : [];
-  const replayAttempt = replayAttempts.sort(
-    (a, b) => b.attemptNumber - a.attemptNumber,
-  )[0];
+  const replayAttempt = replayAttempts.sort((a, b) => b.attemptNumber - a.attemptNumber)[0];
   const artifact = await deps.store.createEvidenceArtifact({
     workspaceId,
     scanId: eventScanIdOf(replayScanId, replay),

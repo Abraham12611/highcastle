@@ -27,8 +27,12 @@ import {
   type ScanStatus,
 } from "@highcastle/contracts";
 import { ScanStateConflictError } from "../adapters/errors.js";
-import type { AttemptAdjudication,
-  AttemptRecord, HypothesisInput, PlanDecision } from "../adapters/ports.js";
+import type {
+  AttemptAdjudication,
+  AttemptRecord,
+  HypothesisInput,
+  PlanDecision,
+} from "../adapters/ports.js";
 import type { OrchestratorDeps } from "./deps.js";
 import { emit } from "./events.js";
 import { runAttempt, type ApprovedPlan, type AttemptRunResult } from "./execute-attempt.js";

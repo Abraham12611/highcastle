@@ -46,18 +46,12 @@ import type {
   UpsertFindingResult,
 } from "./ports.js";
 
-const NONTERMINAL_RUNNER = [
-  "destroyed",
-  "cleanup_verified",
-  "forced_stop",
-  "error",
-] as const;
+const NONTERMINAL_RUNNER = ["destroyed", "cleanup_verified", "forced_stop", "error"] as const;
 
 export class DbOrchestratorStore implements OrchestratorStore {
   constructor(private readonly db: Database) {}
 
-  getScan = (ws: string, id: string) =>
-    getScan(this.db, ws, id) as Promise<never>;
+  getScan = (ws: string, id: string) => getScan(this.db, ws, id) as Promise<never>;
   transitionScan = (ws: string, id: string, t: ScanTransitionInput) =>
     transitionScan(this.db, ws, id, t as never) as Promise<never>;
   requestScanCancel = (ws: string, id: string) =>
@@ -80,8 +74,11 @@ export class DbOrchestratorStore implements OrchestratorStore {
     listAttempts(this.db, ws, scanId) as Promise<AttemptRecord[]>;
   updateAttemptStatus = (ws: string, id: string, status: AttemptRecord["status"]) =>
     updateAttemptStatus(this.db, ws, id, status) as Promise<AttemptRecord>;
-  recordAttemptVerdict = (ws: string, id: string, v: Parameters<OrchestratorStore["recordAttemptVerdict"]>[2]) =>
-    recordAttemptVerdict(this.db, ws, id, v) as Promise<AttemptRecord>;
+  recordAttemptVerdict = (
+    ws: string,
+    id: string,
+    v: Parameters<OrchestratorStore["recordAttemptVerdict"]>[2],
+  ) => recordAttemptVerdict(this.db, ws, id, v) as Promise<AttemptRecord>;
 
   async findAttemptByPlanHash(ws: string, scanId: string, planHash: string) {
     const rows = await this.db
@@ -107,21 +104,17 @@ export class DbOrchestratorStore implements OrchestratorStore {
     const rows = await this.db
       .select()
       .from(agentProposals)
-      .where(
-        and(
-          eq(agentProposals.scanId, scanId),
-          eq(agentProposals.workspaceId, ws),
-        ),
-      )
+      .where(and(eq(agentProposals.scanId, scanId), eq(agentProposals.workspaceId, ws)))
       .orderBy(desc(agentProposals.createdAt))
       .limit(1);
     return (rows[0] ?? null) as never;
   }
 
-  upsertFindingFromVerdict = async (input: Parameters<OrchestratorStore["upsertFindingFromVerdict"]>[0]): Promise<UpsertFindingResult> =>
+  upsertFindingFromVerdict = async (
+    input: Parameters<OrchestratorStore["upsertFindingFromVerdict"]>[0],
+  ): Promise<UpsertFindingResult> =>
     upsertFindingFromVerdict(this.db, input as never) as Promise<UpsertFindingResult>;
-  getFinding = (ws: string, id: string) =>
-    getFinding(this.db, ws, id) as Promise<never>;
+  getFinding = (ws: string, id: string) => getFinding(this.db, ws, id) as Promise<never>;
   createReplay = (input: Parameters<OrchestratorStore["createReplay"]>[0]) =>
     createReplay(this.db, input as never) as Promise<never>;
   getReplay = (ws: string, id: string) => getReplay(this.db, ws, id) as Promise<never>;
@@ -133,7 +126,9 @@ export class DbOrchestratorStore implements OrchestratorStore {
     return createScan(this.db, {
       ...input,
       scanType: "replay_verification",
-    } as never) as Promise<never> as Promise<Awaited<ReturnType<OrchestratorStore["createReplayScan"]>>>;
+    } as never) as Promise<never> as Promise<
+      Awaited<ReturnType<OrchestratorStore["createReplayScan"]>>
+    >;
   }
 
   createEvidenceArtifact = (input: Parameters<OrchestratorStore["createEvidenceArtifact"]>[0]) =>
@@ -159,7 +154,9 @@ export class DbOrchestratorStore implements OrchestratorStore {
 export class DbScanEventPublisher implements ScanEventPublisher {
   constructor(private readonly db: Database) {}
   publish = (input: PublishScanEventInput) =>
-    appendScanEvent(this.db, input as never) as Promise<never> as ReturnType<ScanEventPublisher["publish"]>;
+    appendScanEvent(this.db, input as never) as Promise<never> as ReturnType<
+      ScanEventPublisher["publish"]
+    >;
 }
 
 /** Wire the production store + event publisher from env. */

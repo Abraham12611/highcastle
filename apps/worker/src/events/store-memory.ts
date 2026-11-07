@@ -1,14 +1,6 @@
-import type {
-  ScanEvent,
-  ScanId,
-  WorkspaceId,
-} from "@highcastle/contracts";
+import type { ScanEvent, ScanId, WorkspaceId } from "@highcastle/contracts";
 import { EventStoreError } from "./errors.js";
-import type {
-  AppendEventInput,
-  EventStore,
-  ListEventsOptions,
-} from "./ports.js";
+import type { AppendEventInput, EventStore, ListEventsOptions } from "./ports.js";
 
 /**
  * In-memory `EventStore` for unit tests and local development. Same

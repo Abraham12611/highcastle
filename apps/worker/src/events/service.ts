@@ -1,7 +1,4 @@
-import {
-  ScanEventCursorSchema,
-  ScanEventSchema,
-} from "@highcastle/contracts";
+import { ScanEventCursorSchema, ScanEventSchema } from "@highcastle/contracts";
 import { EventValidationError } from "./errors.js";
 import type {
   AppendEventInput,
@@ -11,11 +8,7 @@ import type {
   Session,
 } from "./ports.js";
 import type { ScanAuthorization } from "./ports.js";
-import type {
-  ScanEvent,
-  ScanId,
-  WorkspaceId,
-} from "@highcastle/contracts";
+import type { ScanEvent, ScanId, WorkspaceId } from "@highcastle/contracts";
 
 /**
  * `EventService` is the single writer path L16 consumes: validate the
@@ -32,9 +25,7 @@ const HISTORY_LIMIT_DEFAULT = 100;
 function parseHistoryLimit(raw: unknown): number {
   const value = raw === undefined ? HISTORY_LIMIT_DEFAULT : Number(raw);
   if (!Number.isInteger(value) || value < 1 || value > HISTORY_LIMIT_MAX) {
-    throw new EventValidationError(
-      `limit must be an integer 1..${HISTORY_LIMIT_MAX}`,
-    );
+    throw new EventValidationError(`limit must be an integer 1..${HISTORY_LIMIT_MAX}`);
   }
   return value;
 }
@@ -76,16 +67,12 @@ export class EventService implements ScanReader {
       occurredAt: new Date(0).toISOString(),
     });
     if (!shape.success) {
-      throw new EventValidationError(
-        shape.error.issues[0]?.message ?? "invalid event input",
-      );
+      throw new EventValidationError(shape.error.issues[0]?.message ?? "invalid event input");
     }
     if (input.payloadRedacted !== undefined) {
       const bytes = JSON.stringify(input.payloadRedacted).length;
       if (bytes > MAX_PAYLOAD_BYTES) {
-        throw new EventValidationError(
-          `payloadRedacted exceeds ${MAX_PAYLOAD_BYTES} bytes`,
-        );
+        throw new EventValidationError(`payloadRedacted exceeds ${MAX_PAYLOAD_BYTES} bytes`);
       }
     }
     const persisted = await this.store.append(input);
@@ -118,9 +105,7 @@ export class EventService implements ScanReader {
       afterSeq = ScanEventCursorSchema.parse(after ?? 0);
       take = parseHistoryLimit(limit);
     } catch (error) {
-      throw new EventValidationError(
-        error instanceof Error ? error.message : "invalid cursor",
-      );
+      throw new EventValidationError(error instanceof Error ? error.message : "invalid cursor");
     }
     return this.store.list(scanId, workspaceId, {
       afterSeq,
@@ -130,10 +115,7 @@ export class EventService implements ScanReader {
 }
 
 /** L16 entry point shape: publish through a service bound to its store. */
-export function createEventService(
-  store: EventStore,
-  notify?: EventNotification,
-): EventService {
+export function createEventService(store: EventStore, notify?: EventNotification): EventService {
   return new EventService(store, notify);
 }
 

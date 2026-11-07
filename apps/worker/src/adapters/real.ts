@@ -81,7 +81,6 @@ export function createAttemptVerifier(): AttemptVerifier {
         ownInvoice: obs.ownInvoice,
         crossInvoice: obs.crossInvoice,
       }),
-    adjudicateReplay: async (patchedRun) =>
-      adjudicateReplay(patchedRun as never),
+    adjudicateReplay: async (patchedRun) => adjudicateReplay(patchedRun as never),
   };
 }

@@ -4,13 +4,9 @@
  * degrades honestly to health-shell instead of running on fakes.
  */
 import { IntegrationBlockedError } from "./errors.js";
-import { createSandboxExecutor } from "./blocked.js";
+import { createSandboxExecutor } from "./sandbox.js";
 import { createDbPorts } from "./db-store.js";
-import {
-  createAttemptVerifier,
-  createInferencePlanner,
-  createSecurityPolicyGate,
-} from "./real.js";
+import { createAttemptVerifier, createInferencePlanner, createSecurityPolicyGate } from "./real.js";
 import {
   DEFAULT_ORCHESTRATOR_CONFIG,
   CancelRegistry,
@@ -32,8 +28,8 @@ export function wireProductionDeps(options: WireOptions): OrchestratorDeps {
     events,
     inference: createInferencePlanner(),
     policy: createSecurityPolicyGate(),
-    // L14 packages/sandbox still unmerged — factory throws
-    // IntegrationBlockedError at wire time (fail-closed, honest).
+    // Real executor: container path when @highcastle/sandbox resolves,
+    // else L15's trusted direct-pack executor. Never throws on wire.
     sandbox: createSandboxExecutor(),
     verifier: createAttemptVerifier(),
     queue: options.queue,
