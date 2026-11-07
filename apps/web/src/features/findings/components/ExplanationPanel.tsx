@@ -36,7 +36,6 @@ export function ExplanationPanel({ explanation }: { explanation: StoredExplanati
       <EvidenceCard
         kind="oracle"
         title={`Attempt ${explanation.attemptId}`}
-        hash={explanation.evidenceIds[0] ?? "no-evidence-cited"}
         attemptRef={`oracle verdict: ${explanation.oracleVerdict}`}
         redacted
       >

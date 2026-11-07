@@ -147,6 +147,26 @@ const E2_REPLAY_PENDING = {
   replayAttempts: [],
 };
 
+const E2_EVIDENCE_A = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaab";
+const E2_EVIDENCE_B = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+
+const E2_EXPLANATION = {
+  attemptId: ATTEMPT_ID,
+  oracleVerdict: "reproduced",
+  replayVerdict: null,
+  summary: "Alice read Bob's invoice because the lookup ignored ownership.",
+  whatHappened: "The lab looked the invoice up by id alone.",
+  whyVerdict: "The cross-account read returned HTTP 200 with Bob's data.",
+  replayMeaning: null,
+  followUp: null,
+  evidenceIds: [E2_EVIDENCE_A, E2_EVIDENCE_B],
+  requestedModel: "live-model-x",
+  responseModel: "live-model-x",
+  requestId: "req-live-1",
+  latencyMs: 1234,
+  rejectionCode: null,
+};
+
 function router(routes: Record<string, unknown>) {
   // Longest key first so nested routes win over their prefixes.
   const ordered = Object.entries(routes).sort((a, b) => b[0].length - a[0].length);
@@ -205,6 +225,38 @@ describe("E2 integration (actual BFF response format)", () => {
     expect(state.data.replayDefaults?.patchedEnvironmentId).toBe(ENV_ID);
     expect(state.data.replayDefaults?.authorizationScopeId).toBe(SCOPE_ID);
     expect(state.data.replayDefaults?.patchedRevision).toBe("lab-v2-patched");
+    // No explanation route served: mis-shaped attempt body must map to the
+    // unavailable state, never to a client-assigned verdict.
+    expect(state.data.explanation).toBeNull();
+  });
+
+  it("exposes the stored explanation with the persisted oracle verdict", async () => {
+    const fetchImpl = router({
+      ...E2_ROUTES,
+      [`/findings/${FINDING_ID}`]: E2_DETAIL_ROW,
+      [`/attempts/${ATTEMPT_ID}/explanation`]: E2_EXPLANATION,
+    });
+    const state = await loadFindingDetail(FINDING_ID, fetchImpl, "https://app.test");
+    expect(state.status).toBe("ok");
+    if (state.status !== "ok") throw new Error("expected ok");
+    expect(state.data.explanation?.oracleVerdict).toBe("reproduced");
+    expect(state.data.explanation?.attemptId).toBe(ATTEMPT_ID);
+    expect(state.data.explanation?.evidenceIds).toEqual([E2_EVIDENCE_A, E2_EVIDENCE_B]);
+    expect(state.data.explanation?.requestedModel).toBe("live-model-x");
+  });
+
+  it("withholds the explanation panel on a malformed explanation body", async () => {
+    const fetchImpl = router({
+      ...E2_ROUTES,
+      [`/findings/${FINDING_ID}`]: E2_DETAIL_ROW,
+      [`/attempts/${ATTEMPT_ID}/explanation`]: { ...E2_EXPLANATION, attemptId: undefined },
+    });
+    const state = await loadFindingDetail(FINDING_ID, fetchImpl, "https://app.test");
+    expect(state.status).toBe("ok");
+    if (state.status !== "ok") throw new Error("expected ok");
+    // Stored evidence still renders; only the advisory panel is withheld.
+    expect(state.data.storedAttempts).toHaveLength(1);
+    expect(state.data.explanation).toBeNull();
   });
 
   it("renders stored evidence with the oracle verdict, not synthetic bodies", async () => {

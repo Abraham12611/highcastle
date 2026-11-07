@@ -13,6 +13,7 @@ import { headers } from "next/headers";
 import { getFixPrompt, type FetchImpl } from "./api-client";
 import {
   getE2Attempt,
+  getE2Explanation,
   getE2Finding,
   getE2Scope,
   listE2Findings,
@@ -29,6 +30,7 @@ import type {
   LoadState,
   ReplayDefaults,
   StoredAttempt,
+  StoredExplanation,
 } from "./types";
 
 async function apiBaseUrl(): Promise<string> {
@@ -153,6 +155,32 @@ export async function loadFindingDetail(
     };
   }
 
+  // Stored model explanation for the confirming attempt. Any failure or
+  // absence maps to null — the panel renders its unavailable state and the
+  // oracle verdict stands unchanged. Never a client-assigned verdict.
+  let explanation: StoredExplanation | null = null;
+  if (confirmingId !== null) {
+    const stored = await getE2Explanation(base, confirmingId, fetchImpl);
+    if (stored.status === "ok") {
+      explanation = {
+        attemptId: stored.data.attemptId,
+        oracleVerdict: stored.data.oracleVerdict,
+        replayVerdict: stored.data.replayVerdict,
+        summary: stored.data.summary,
+        whatHappened: stored.data.whatHappened,
+        whyVerdict: stored.data.whyVerdict,
+        replayMeaning: stored.data.replayMeaning,
+        followUp: stored.data.followUp,
+        evidenceIds: stored.data.evidenceIds,
+        requestedModel: stored.data.requestedModel,
+        responseModel: stored.data.responseModel,
+        requestId: stored.data.requestId,
+        latencyMs: stored.data.latencyMs,
+        rejectionCode: stored.data.rejectionCode,
+      };
+    }
+  }
+
   return {
     status: "ok",
     data: {
@@ -183,6 +211,7 @@ export async function loadFindingDetail(
       replay: null,
       patchedAttempt: null,
       replayDefaults,
+      explanation,
       source: { kind: "api" },
     },
     source: { kind: "api" },
