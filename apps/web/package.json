@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm --filter @highcastle/contracts build && next build",
+    "build": "pnpm --filter @highcastle/contracts --filter @highcastle/ui build && next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "pnpm --filter @highcastle/contracts build && next typegen && tsc --noEmit",
-    "test": "pnpm --filter @highcastle/contracts build && vitest run"
+    "typecheck": "pnpm --filter @highcastle/contracts --filter @highcastle/ui build && next typegen && tsc --noEmit",
+    "test": "pnpm --filter @highcastle/contracts --filter @highcastle/ui build && vitest run"
   },
   "dependencies": {
     "@highcastle/contracts": "workspace:*",
