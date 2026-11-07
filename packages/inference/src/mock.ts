@@ -75,6 +75,7 @@ function metadata(
   return {
     provider: "vultr",
     model: DEFAULT_MOCK_MODEL,
+    responseModel: DEFAULT_MOCK_MODEL,
     requestId: "mock-request-id",
     latencyMs: 0,
     tokensInput: 0,
