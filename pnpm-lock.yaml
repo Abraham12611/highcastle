@@ -71,6 +71,9 @@ importers:
       '@highcastle/security':
         specifier: workspace:*
         version: link:../../packages/security
+      '@highcastle/test-packs':
+        specifier: workspace:*
+        version: link:../../packages/test-packs
       '@highcastle/ui':
         specifier: workspace:*
         version: link:../../packages/ui
