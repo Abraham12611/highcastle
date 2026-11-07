@@ -38,10 +38,13 @@ test.describe("landing and demo (no backend)", () => {
     await page.getByText(/I understand this runs an authorized, bounded test/i).click();
     // Session minting needs no DB; the assessment-context read that follows
     // does. Either the scan is accepted (healthy backend) or the UI shows the
-    // API's real failure — never invented success.
+    // API's real failure — never invented success. Scope to the consent
+    // panel: Next's route announcer also carries role=alert and would match
+    // vacuously.
     await page.getByRole("button", { name: /start controlled demo scan/i }).click();
-    const accepted = page.getByText("Scan accepted");
-    const failed = page.getByRole("alert").first();
+    const panel = page.locator("main");
+    const accepted = panel.getByText("Scan accepted");
+    const failed = panel.getByText(/session failed|context failed|scan failed/i);
     await expect(accepted.or(failed)).toBeVisible({ timeout: 30_000 });
     await page.screenshot({ path: "e2e/screenshots/demo-after-start.png" });
   });

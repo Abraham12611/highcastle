@@ -3,22 +3,31 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * HighCastle browser E2E (Engineer 4 / F4).
  *
- * Runs the real UI in a real Chromium against `next dev`. No mocks, no
- * fixture data presented as live execution: tests assert what the UI shows
- * for each backend condition (healthy, misconfigured, unreachable).
+ * Two modes, selected by environment — local UI vs live acceptance:
  *
- * - Default run: everything that works WITHOUT a database, orchestrator,
- *   or Vultr credentials (public journey + honest failure states).
- * - Live pipeline cases (`journey-live.spec.ts`) run only with
- *   HC_E2E_LIVE=1 plus a reachable backend (DATABASE_URL, orchestrator,
- *   target-lab). They skip with a reason otherwise — a skip is not a pass.
+ * - Local (default): exercises the real UI against a local production
+ *   bundle. `pnpm build` first; the `next start` server on :3119 starts
+ *   automatically. No database, orchestrator, or Vultr credentials needed —
+ *   tests assert honest UI states for each backend condition.
+ * - Live (`HC_E2E_LIVE=1` + `HC_E2E_BASE_URL=https://<deployed>`): the same
+ *   public-journey specs run as deployment smoke, and `journey-live.spec.ts`
+ *   executes the full pipeline (scan → persisted SSE → finding → fix →
+ *   patched replay, cancellation) against the deployed containerized
+ *   backend. The local web server is disabled in this mode.
+ *
+ * Browser: Playwright's default Chromium. Override only when the default
+ * is unavailable: `HC_CHROME=/path/to/chrome-or-headless-shell`.
  *
  * Run:  pnpm exec playwright test -c e2e/playwright.config.ts
- *         [from apps/web; dev server is started automatically on :3119]
+ * Live: HC_E2E_LIVE=1 HC_E2E_BASE_URL=https://<staging> \
+ *         pnpm exec playwright test -c e2e/playwright.config.ts
  */
-const SHELL =
-  process.env.HC_CHROME ??
-  `${process.env.HOME}/.cache/ms-playwright/chromium_headless_shell-1254/chrome-headless-shell-linux64/chrome-headless-shell`;
+const EXTERNAL_BASE = (process.env.HC_E2E_BASE_URL ?? "").replace(/\/$/, "") || null;
+const LOCAL_PORT = 3119;
+
+if (process.env.HC_E2E_LIVE === "1" && EXTERNAL_BASE === null) {
+  throw new Error("HC_E2E_LIVE=1 requires HC_E2E_BASE_URL=https://<deployed-pipeline>");
+}
 
 export default defineConfig({
   testDir: "./specs",
@@ -27,28 +36,27 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["html", { outputFolder: "./report", open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:3119",
-    launchOptions: { executablePath: SHELL },
-    screenshot: "only-on-failure",
-    trace: "off",
-    video: "off",
-    actionTimeout: 15_000,
-    navigationTimeout: 30_000,
+    baseURL: EXTERNAL_BASE ?? `http://127.0.0.1:${LOCAL_PORT}`,
+    launchOptions: process.env.HC_CHROME ? { executablePath: process.env.HC_CHROME } : {},
   },
-  webServer: {
-    // Production server: run `pnpm build` first so the suite exercises the
-    // deployed bundle (no Turbopack-dev artifacts in results/screenshots).
-    command: "pnpm start --port 3119",
-    url: "http://127.0.0.1:3119/healthz",
-    reuseExistingServer: true,
-    timeout: 180_000,
-    env: {
-      NODE_ENV: "production",
-      // Local-only signing secret so the production bundle can mint demo
-      // sessions (production fails closed without one). Never a real secret.
-      BETTER_AUTH_SECRET: "e2e-local-only-insecure-secret",
-    },
-  },
+  // No local server for externally deployed runs.
+  ...(EXTERNAL_BASE
+    ? {}
+    : {
+        webServer: {
+          command: `pnpm start --port ${LOCAL_PORT}`,
+          url: `http://127.0.0.1:${LOCAL_PORT}/healthz`,
+          reuseExistingServer: true,
+          timeout: 180_000,
+          env: {
+            NODE_ENV: "production",
+            // Local-only signing secret so the production bundle can mint
+            // demo sessions (production fails closed without one). Never a
+            // real secret.
+            BETTER_AUTH_SECRET: "e2e-local-only-insecure-secret",
+          },
+        },
+      }),
   projects: [
     {
       name: "desktop",

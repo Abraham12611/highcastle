@@ -24,18 +24,20 @@ credentials: landing → demo consent → guest session → honest failure state
 for scans/findings, negative session/scope/backend cases, and structural
 a11y checks.
 
-## Live pipeline (gated)
+## Live pipeline (gated, E3 coordination)
 
-`journey-live.spec.ts` skips unless the deployed containerized pipeline is
-reachable:
+`journey-live.spec.ts` runs only with both variables set, and the local
+web server is disabled in that mode — all traffic goes to the deployment:
 
 ```sh
 HC_E2E_LIVE=1 HC_E2E_BASE_URL=https://<preview-or-staging> \
   pnpm exec playwright test -c e2e/playwright.config.ts -g "full pipeline"
 ```
 
-A skip is reported as a skip, never as a pass. Final scan/replay cases must
-run against the deployed pipeline, not mocked backend results.
+`HC_E2E_LIVE=1` without `HC_E2E_BASE_URL` fails fast. A skip is reported as
+a skip, never as a pass. Final scan/replay cases must run against the
+deployed pipeline, not mocked backend results. Current preview (E3):
+`https://45.77.204.195.sslip.io/` (L19 record, PR #56).
 
 ## Artifacts
 
