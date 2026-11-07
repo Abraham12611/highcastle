@@ -1,8 +1,8 @@
 import { DbError } from "@highcastle/db";
+import { assertSameOrigin as assertL05SameOrigin } from "./auth/csrf";
 import { DatabaseUnavailable, getRequestDb } from "./db";
 import type { BffDeps } from "./deps";
 import {
-  assertSameOrigin,
   clientIp,
   dbErrorResponse,
   errorResponse,
@@ -54,11 +54,17 @@ export async function handle(
       return errorResponse("rate_limited", "rate limit exceeded", requestId);
     }
     if (request.method !== "GET" && request.method !== "HEAD") {
-      if (!assertSameOrigin(request)) {
+      // L05 CSRF rule: cookie sessions mutate only with a same-origin
+      // signal (Origin/Referer) or the custom x-highcastle-request header.
+      // Rejection keeps the canonical contract envelope (403 forbidden).
+      if (assertL05SameOrigin(request) !== null) {
         return errorResponse("forbidden", "cross-origin mutation denied", requestId);
       }
     }
-    const session = await resolveSession();
+    const session = await resolveSession(request);
+    if (!session) {
+      return errorResponse("unauthorized", "Authentication required", requestId);
+    }
     const db = await getRequestDb();
     const deps: BffDeps = {
       db,

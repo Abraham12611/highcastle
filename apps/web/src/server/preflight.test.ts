@@ -7,13 +7,16 @@ import { unavailableQueue } from "@/server/queue";
 import { createScanFlow } from "@/server/scans";
 import { preflightFlow } from "@/server/preflight";
 import {
+  getAssessmentContextFlow,
   getCurrentScopeFlow,
   getProjectFlow,
   listTargetsFlow,
   meFlow,
 } from "@/server/me";
 
-const GUEST = { kind: "guest" } as const;
+import { demoSession } from "@/server/test-helpers";
+
+const GUEST = demoSession();
 
 let db: Database;
 let close: () => Promise<void>;
@@ -159,14 +162,65 @@ describe("preflight", () => {
 });
 
 describe("demo session reads", () => {
-  it("returns the guest session, workspace, and project", async () => {
+  it("returns the signed demo session, workspace, and project", async () => {
     const result = await meFlow(deps());
     expect(result.status).toBe(200);
     const body = result.body as {
-      data: { session: { kind: string }; workspace: { id: string } };
+      data: {
+        session: { kind: string; userId: string };
+        workspace: { id: string };
+        project: { id: string };
+      };
     };
-    expect(body.data.session.kind).toBe("guest");
+    expect(body.data.session.kind).toBe("demo");
+    expect(body.data.session.userId).toMatch(/^guest-/);
     expect(body.data.workspace.id).toBe(DEMO_IDS.workspaceId);
+    expect(body.data.project.id).toBe(DEMO_IDS.projectId);
+  });
+
+  it("serves the wizard assessment context from approved rows only", async () => {
+    const result = await getAssessmentContextFlow(deps(), {
+      workspaceId: DEMO_IDS.workspaceId,
+      projectId: DEMO_IDS.projectId,
+    });
+    expect(result.status).toBe(200);
+    const body = result.body as {
+      data: {
+        project: { id: string; name: string; slug: string };
+        targets: {
+          target: { id: string; canonicalOrigin: string };
+          environment: { id: string; currentRevision: string };
+          scope: { id: string; allowedTestPackIds: string[] } | null;
+        }[];
+      };
+    };
+    expect(body.data.project.id).toBe(DEMO_IDS.projectId);
+    // One entry per seeded environment; only the scope-permitted
+    // environment carries the active scope — no free-form hosts.
+    expect(body.data.targets.length).toBeGreaterThanOrEqual(1);
+    for (const entry of body.data.targets) {
+      expect(entry.target.id).toBe(DEMO_IDS.targetId);
+      expect(entry.target.canonicalOrigin).toBe("https://target-lab.internal");
+    }
+    expect(
+      body.data.targets.some((entry) => entry.scope !== null),
+    ).toBe(true);
+  });
+
+  it("denies cross-workspace reads even with a valid demo session", async () => {
+    const other = "c0c0c0c0-0000-4000-8000-000000000099";
+    await expect(
+      getAssessmentContextFlow(deps(), {
+        workspaceId: other,
+        projectId: DEMO_IDS.projectId,
+      }),
+    ).rejects.toMatchObject({ code: "not_found" });
+    await expect(
+      listTargetsFlow(deps(), {
+        workspaceId: other,
+        projectId: DEMO_IDS.projectId,
+      }),
+    ).rejects.toMatchObject({ code: "not_found" });
   });
 
   it("exposes the single lab target and the current scope", async () => {

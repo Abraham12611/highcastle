@@ -1,6 +1,7 @@
 import {
+  FindingOccurrenceSchema,
+  FindingSchema,
   FixPromptResponseSchema,
-  type Confidence,
   type Finding,
   type Severity,
 } from "@highcastle/contracts";
@@ -11,10 +12,57 @@ import { authorizeProject } from "./authz";
 import type { RouteResult } from "./scans";
 
 /**
- * Findings flows. Reads are workspace-scoped; the fix prompt is derived
- * deterministically from the recorded finding and its confirming attempt —
- * never from a model, and never a bare "looks fixed" claim.
+ * Findings flows. Reads are workspace-scoped; every finding/occurrence
+ * response is validated against the canonical contract before it leaves the
+ * server, so the dashboard and findings UI can parse strictly. The fix
+ * prompt is derived deterministically from the recorded finding and its
+ * confirming attempt — never from a model, and never a bare "looks fixed"
+ * claim.
  */
+
+function toFindingContract(row: {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  stableFingerprint: string;
+  title: string;
+  summary: string;
+  category: string;
+  severity: string;
+  confidence: string;
+  remediationStatus: string;
+  firstSeenAt: Date | string;
+  lastSeenAt: Date | string;
+  latestConfirmedAttemptId: string | null;
+  ownerUserId: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}): Finding {
+  const parsed = FindingSchema.safeParse({
+    id: row.id,
+    workspaceId: row.workspaceId,
+    projectId: row.projectId,
+    stableFingerprint: row.stableFingerprint,
+    title: row.title,
+    summary: row.summary,
+    category: row.category,
+    severity: row.severity,
+    confidence: row.confidence,
+    remediationStatus: row.remediationStatus,
+    firstSeenAt: iso(row.firstSeenAt),
+    lastSeenAt: iso(row.lastSeenAt),
+    latestConfirmedAttemptId: row.latestConfirmedAttemptId,
+    ownerUserId: row.ownerUserId,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  });
+  if (!parsed.success) {
+    throw new DbError("internal", "stored finding failed contract validation", {
+      findingId: row.id,
+    });
+  }
+  return parsed.data;
+}
 
 const SEVERITIES = ["critical", "high", "medium", "low", "informational"] as const;
 const CONFIDENCES = [
@@ -61,18 +109,7 @@ export async function listFindingsFlow(
     .filter((row) =>
       input.confidence === undefined ? true : row.confidence === input.confidence,
     )
-    .map((row) => ({
-      id: row.id,
-      stableFingerprint: row.stableFingerprint,
-      title: row.title,
-      summary: row.summary,
-      category: row.category,
-      severity: row.severity,
-      confidence: row.confidence as Confidence,
-      remediationStatus: row.remediationStatus,
-      firstSeenAt: iso(row.firstSeenAt),
-      lastSeenAt: iso(row.lastSeenAt),
-    }));
+    .map((row) => toFindingContract(row));
   return { status: 200, body: { data } };
 }
 
@@ -83,25 +120,7 @@ export async function getFindingFlow(
   const row = await getFinding(deps.db, input.workspaceId, input.findingId);
   if (!row) throw DbError.notFound("finding", input.findingId);
   await authorizeProject(deps.db, deps.session, input.workspaceId, row.projectId);
-  return {
-    status: 200,
-    body: {
-      data: {
-        id: row.id,
-        projectId: row.projectId,
-        stableFingerprint: row.stableFingerprint,
-        title: row.title,
-        summary: row.summary,
-        category: row.category,
-        severity: row.severity,
-        confidence: row.confidence,
-        remediationStatus: row.remediationStatus,
-        firstSeenAt: iso(row.firstSeenAt),
-        lastSeenAt: iso(row.lastSeenAt),
-        latestConfirmedAttemptId: row.latestConfirmedAttemptId,
-      },
-    },
-  };
+  return { status: 200, body: { data: toFindingContract(row) } };
 }
 
 export async function listOccurrencesFlow(
@@ -116,20 +135,27 @@ export async function listOccurrencesFlow(
     input.workspaceId,
     input.findingId,
   );
-  return {
-    status: 200,
-    body: {
-      data: occurrences.map((occurrence) => ({
-        id: occurrence.id,
-        scanId: occurrence.scanId,
-        attemptId: occurrence.attemptId,
-        targetRevision: occurrence.targetRevision,
-        evidenceConfidence: occurrence.evidenceConfidence,
-        observedAt: iso(occurrence.observedAt),
-        oracleVerdict: occurrence.oracleVerdict,
-      })),
-    },
-  };
+  const data = occurrences.map((occurrence) => {
+    const parsed = FindingOccurrenceSchema.safeParse({
+      id: occurrence.id,
+      workspaceId: occurrence.workspaceId,
+      findingId: occurrence.findingId,
+      scanId: occurrence.scanId,
+      attemptId: occurrence.attemptId,
+      sourceRevision: occurrence.sourceRevision,
+      targetRevision: occurrence.targetRevision,
+      evidenceConfidence: occurrence.evidenceConfidence,
+      observedAt: iso(occurrence.observedAt),
+      oracleVerdict: occurrence.oracleVerdict,
+    });
+    if (!parsed.success) {
+      throw new DbError("internal", "stored occurrence failed contract validation", {
+        findingId: input.findingId,
+      });
+    }
+    return parsed.data;
+  });
+  return { status: 200, body: { data } };
 }
 
 const BOLA_INVARIANTS = [

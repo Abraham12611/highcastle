@@ -8,18 +8,18 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ sid: string }> },
+  context: { params: Promise<{ scanId: string }> },
 ) {
-  const { sid } = await context.params;
+  const { scanId } = await context.params;
   return handle(
     request,
-    "GET /api/v1/scans/:sid/attempts",
-    { sid },
+    "GET /api/v1/scans/:scanId/attempts",
+    { scanId },
     async ({ deps }) => {
-      if (!parseUuid(sid)) throw new DbError("validation_error", "invalid scan id");
+      if (!parseUuid(scanId)) throw new DbError("validation_error", "invalid scan id");
       return listAttemptsFlow(deps, {
-        scanId: sid,
-        workspaceId: requestWorkspace(deps.session),
+        scanId: scanId,
+        workspaceId: await requestWorkspace(deps.db, deps.session),
       });
     },
   );

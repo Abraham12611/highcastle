@@ -48,21 +48,9 @@ export function dbErrorResponse(error: unknown, requestId: string): Response {
   return errorResponse("internal", "internal error", requestId);
 }
 
-/** POST mutations require same-origin when the client sends Origin/Referer.
- * Cookie-less API clients (curl, tests) omit both and pass; forged
- * cross-origin browser requests are rejected. */
-export function assertSameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-  const host = request.headers.get("host");
-  const candidate = origin ?? referer;
-  if (!candidate || !host) return true;
-  try {
-    return new URL(candidate).host === host;
-  } catch {
-    return false;
-  }
-}
+/** CSRF rule lives in L05 (`server/auth/csrf.ts :: assertSameOrigin`):
+ * cookie-session mutations require Origin/Referer or x-highcastle-request.
+ * This module no longer defines its own check. */
 
 export interface Pagination {
   limit: number;
@@ -85,10 +73,16 @@ export function parsePagination(
 
 /** UUID path params: malformed IDs are 400, never a store lookup. */
 export function clientIp(request: Request): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
+  // The ingress proxy (Caddy, L19) sets X-Forwarded-For. It is trusted only
+  // when TRUST_PROXY=1; otherwise a client-supplied header must never
+  // shard rate-limit buckets or spoof audit identity.
+  if (process.env.TRUST_PROXY === "1") {
+    return (
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      "unknown"
+    );
+  }
+  return "unknown";
 }
 
 export function parseUuid(value: string): string | null {

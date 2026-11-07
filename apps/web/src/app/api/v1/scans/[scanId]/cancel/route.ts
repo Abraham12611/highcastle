@@ -8,14 +8,14 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ sid: string }> },
+  context: { params: Promise<{ scanId: string }> },
 ) {
-  const { sid } = await context.params;
-  return handle(request, "POST /api/v1/scans/:sid/cancel", { sid }, async ({ deps }) => {
-    if (!parseUuid(sid)) throw new DbError("validation_error", "invalid scan id");
+  const { scanId } = await context.params;
+  return handle(request, "POST /api/v1/scans/:scanId/cancel", { scanId }, async ({ deps }) => {
+    if (!parseUuid(scanId)) throw new DbError("validation_error", "invalid scan id");
     return cancelScanFlow(deps, {
-      scanId: sid,
-      workspaceId: requestWorkspace(deps.session),
+      scanId: scanId,
+      workspaceId: await requestWorkspace(deps.db, deps.session),
     });
   });
 }

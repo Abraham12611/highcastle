@@ -13,7 +13,7 @@ export async function GET(
   const { aid } = await context.params;
   return handle(request, "GET /api/v1/attempts/:aid", { aid }, async ({ deps }) => {
     if (!parseUuid(aid)) throw new DbError("validation_error", "invalid attempt id");
-    const workspaceId = requestWorkspace(deps.session);
+    const workspaceId = await requestWorkspace(deps.db, deps.session);
     const attempt = await getAttempt(deps.db, workspaceId, aid);
     if (!attempt) throw DbError.notFound("test_attempt", aid);
     const scan = await getScan(deps.db, workspaceId, attempt.scanId);

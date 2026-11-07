@@ -15,7 +15,7 @@ export async function GET(
     if (!parseUuid(fid)) throw new DbError("validation_error", "invalid finding id");
     return getFindingFlow(deps, {
       findingId: fid,
-      workspaceId: requestWorkspace(deps.session),
+      workspaceId: await requestWorkspace(deps.db, deps.session),
     });
   });
 }

@@ -3,7 +3,11 @@ import type { Database } from "@highcastle/db";
 import { DEMO_IDS, createAuthorizationScope, getScope } from "@highcastle/db";
 import { createTestDb } from "@/server/db";
 import type { BffDeps } from "@/server/deps";
-import { unavailableQueue } from "@/server/queue";
+import {
+  JOB_ENQUEUE_DEDUPE_SECONDS,
+  pgBossQueue,
+  unavailableQueue,
+} from "@/server/queue";
 import {
   cancelScanFlow,
   createScanFlow,
@@ -20,7 +24,9 @@ import {
  * enqueue contract; the unavailable queue proves the fail-closed path.
  */
 
-const GUEST = { kind: "guest" } as const;
+import { demoSession } from "@/server/test-helpers";
+
+const GUEST = demoSession();
 
 let db: Database;
 let close: () => Promise<void>;
@@ -41,8 +47,8 @@ function deps(overrides: Partial<BffDeps> = {}): BffDeps {
     db,
     queue: {
       available: true,
-      sendScanJob: async (scanId: string) => {
-        sent.push(scanId);
+      sendScanJob: async (job: { scanId: string }) => {
+        sent.push(job.scanId);
       },
       sendReplayJob: async () => {},
       sendCancelScanJob: async () => {},
@@ -112,12 +118,12 @@ async function ensurePatchedScope(): Promise<string> {
 
 describe("scan lifecycle", () => {
   it("creates a scan, persists it, enqueues the job, and reads it back", async () => {
-    const sent: string[] = [];
+    const sent: { workspaceId: string; scanId: string }[] = [];
     const d = deps({
       queue: {
         available: true,
-        sendScanJob: async (scanId: string) => {
-          sent.push(scanId);
+        sendScanJob: async (job: { workspaceId: string; scanId: string }) => {
+          sent.push(job);
         },
         sendReplayJob: async () => {},
         sendCancelScanJob: async () => {},
@@ -132,7 +138,10 @@ describe("scan lifecycle", () => {
     });
     expect(created.status).toBe(202);
     const data = created.body as { data: { scanId: string } };
-    expect(sent).toEqual([data.data.scanId]);
+    // Producer/consumer contract: the worker validates {workspaceId, scanId}.
+    expect(sent).toEqual([
+      { workspaceId: DEMO_IDS.workspaceId, scanId: data.data.scanId },
+    ]);
 
     const fetched = await getScanFlow(d, {
       scanId: data.data.scanId,
@@ -146,11 +155,17 @@ describe("scan lifecycle", () => {
 
   it("is idempotent: the same key returns the same scan with dedupe keys", async () => {
     const sentKeys: (string | undefined)[] = [];
+    const sentWindows: (number | undefined)[] = [];
     const d = deps({
       queue: {
         available: true,
-        sendScanJob: async (_scanId: string, options?: { singletonKey?: string }) => {
+        sendScanJob: async (
+          job: { workspaceId: string; scanId: string },
+          options?: { singletonKey?: string; singletonSeconds?: number },
+        ) => {
           sentKeys.push(options?.singletonKey);
+          expect(job.workspaceId).toBe(DEMO_IDS.workspaceId);
+          sentWindows.push(options?.singletonSeconds);
         },
         sendReplayJob: async () => {},
         sendCancelScanJob: async () => {},
@@ -176,6 +191,12 @@ describe("scan lifecycle", () => {
       (first.body as { data: { scanId: string } }).data.scanId,
     );
     expect(sentKeys).toEqual(["dup-key", "dup-key"]);
+    // Live-proven pg-boss requirement: retries carry a dedupe window, or a
+    // bare singletonKey silently creates a second job.
+    expect(sentWindows).toEqual([
+      JOB_ENQUEUE_DEDUPE_SECONDS,
+      JOB_ENQUEUE_DEDUPE_SECONDS,
+    ]);
     const events = await listEventsFlow(d, {
       scanId: (first.body as { data: { scanId: string } }).data.scanId,
       workspaceId: DEMO_IDS.workspaceId,
@@ -185,6 +206,29 @@ describe("scan lifecycle", () => {
       events.body as { data: { eventType: string }[] }
     ).data.filter((event) => event.eventType === "scan.requested");
     expect(requested).toHaveLength(1);
+  });
+
+  it("resolves the real pg-boss driver constructor instead of failing on import", async () => {
+    // Live-proven: `import("pg-boss")` v12 has no default export, so
+    // `new (undefined)` threw "not a constructor" at enqueue time while
+    // every fake-based test stayed green. A dead broker must fail on
+    // connect — never on driver resolution.
+    const queue = pgBossQueue("postgres://127.0.0.1:1/no-such-db");
+    try {
+      const failure = await queue
+        .sendScanJob({ workspaceId: DEMO_IDS.workspaceId, scanId: "00000000-0000-4000-8000-000000000000" }, {
+          singletonKey: "driver-shape-key",
+          singletonSeconds: JOB_ENQUEUE_DEDUPE_SECONDS,
+        })
+        .then(
+          () => null,
+          (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
+        );
+      expect(failure).not.toBeNull();
+      expect(failure?.message ?? "").not.toMatch(/not a constructor/i);
+    } finally {
+      await queue.close();
+    }
   });
 
   it("rejects scan creation without an idempotency key", async () => {

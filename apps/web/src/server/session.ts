@@ -1,22 +1,26 @@
 /**
- * Session seam for the BFF.
+ * Session seam for the BFF (L18 over L05).
  *
- * L05 owns real sessions (Better Auth). Until that lands, every request
- * carries the locked demo-guest session: the intentionally public synthetic
- * tenant from AGENTS.md. The guest is server-fixed — no header, cookie, or
- * query param can choose or widen it — so "signing in" as anyone else is
- * impossible and every authorization check below reduces to comparing
- * workspace IDs.
+ * Every request resolves through L05's signed-session verification —
+ * `getHighCastleSession(request.headers)` — which checks the HMAC-signed
+ * `hc_account` / `hc_demo` cookies. There is no anonymous fallback: a
+ * missing, expired, or forged cookie resolves to `null` and the route
+ * wrapper answers 401. Demo sessions are server-pinned to the fixed
+ * synthetic lab (workspace/project/target alias from L05); account
+ * sessions require workspace membership (see authz.ts).
  */
-export type Session = { kind: "guest" } | { kind: "user"; userId: string };
 
-export async function resolveSession(): Promise<Session> {
-  // L05 INTEGRATION POINT: inspect the Better Auth session cookie / bearer
-  // token here and return `{ kind: "user", userId }` when valid. Until then
-  // the demo guest is the only session shape in existence.
-  return { kind: "guest" };
+import { getHighCastleSession } from "./auth/session";
+import type { HighCastleSession } from "@/lib/auth/session-core";
+
+export type Session = HighCastleSession;
+
+export async function resolveSession(
+  request: Request,
+): Promise<Session | null> {
+  return getHighCastleSession(request.headers);
 }
 
 export function sessionUserId(session: Session): string | null {
-  return session.kind === "user" ? session.userId : null;
+  return session.kind === "account" ? session.userId : null;
 }

@@ -15,7 +15,7 @@ export async function GET(
     if (!parseUuid(rid)) throw new DbError("validation_error", "invalid replay id");
     return getReplayFlow(deps, {
       replayId: rid,
-      workspaceId: requestWorkspace(deps.session),
+      workspaceId: await requestWorkspace(deps.db, deps.session),
     });
   });
 }

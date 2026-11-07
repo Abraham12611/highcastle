@@ -18,7 +18,7 @@ export async function GET(
     async ({ deps }) => {
       if (!parseUuid(pid)) throw new DbError("validation_error", "invalid project id");
       return getCurrentScopeFlow(deps, {
-        workspaceId: requestWorkspace(deps.session),
+        workspaceId: await requestWorkspace(deps.db, deps.session),
         projectId: pid,
       });
     },

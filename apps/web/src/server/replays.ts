@@ -11,12 +11,12 @@ import {
 import { DbError } from "@highcastle/db";
 import type { BffDeps } from "./deps";
 import {
-  assertDemoExecutionBinding,
+  assertExecutionBinding,
   authorizeProject,
   loadExecutionScope,
 } from "./authz";
 import { mapEnvironment } from "./mappers";
-import { QueueUnavailable } from "./queue";
+import { JOB_ENQUEUE_DEDUPE_SECONDS, QueueUnavailable } from "./queue";
 import type { RouteResult } from "./scans";
 
 /**
@@ -68,13 +68,11 @@ export async function createReplayFlow(
       packId: original.packId,
     });
   }
-  if (deps.session.kind === "guest") {
-    assertDemoExecutionBinding({
-      projectId: input.projectId,
-      targetId: originalScan.targetId,
-      environmentId: parsed.data.patchedEnvironmentId,
-    });
-  }
+  assertExecutionBinding(deps.session, {
+    projectId: input.projectId,
+    targetId: originalScan.targetId,
+    environmentId: parsed.data.patchedEnvironmentId,
+  });
   const loaded = await loadExecutionScope(
     deps.db,
     input.workspaceId,
@@ -102,7 +100,13 @@ export async function createReplayFlow(
     approvalScopeId: parsed.data.authorizationScopeId,
   });
   try {
-    await deps.queue.sendReplayJob(replay.id);
+    await deps.queue.sendReplayJob(
+      { workspaceId: input.workspaceId, replayId: replay.id },
+      {
+        singletonKey: replay.id,
+        singletonSeconds: JOB_ENQUEUE_DEDUPE_SECONDS,
+      },
+    );
   } catch (error) {
     // Fail closed with the replay id on ANY enqueue failure so the client
     // can recover; never fake success or return an id-less 500.

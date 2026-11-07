@@ -23,7 +23,7 @@ export async function GET(
       const remediationStatus = searchParams.get("status") ?? undefined;
       const confidence = searchParams.get("confidence") ?? undefined;
       return listFindingsFlow(deps, {
-        workspaceId: requestWorkspace(deps.session),
+        workspaceId: await requestWorkspace(deps.db, deps.session),
         projectId: pid,
         ...(severity === undefined ? {} : { severity }),
         ...(remediationStatus === undefined ? {} : { remediationStatus }),

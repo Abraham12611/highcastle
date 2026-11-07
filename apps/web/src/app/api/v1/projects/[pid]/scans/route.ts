@@ -20,7 +20,7 @@ export async function GET(
       const { limit, cursor } = parsePagination(searchParams);
       const status = searchParams.get("status") ?? undefined;
       return listScansFlow(deps, {
-        workspaceId: requestWorkspace(deps.session),
+        workspaceId: await requestWorkspace(deps.db, deps.session),
         projectId: pid,
         ...(status === undefined ? {} : { status }),
         limit,
@@ -42,7 +42,7 @@ export async function POST(
     async ({ deps, idempotencyKey }) => {
       if (!parseUuid(pid)) throw new DbError("validation_error", "invalid project id");
       return createScanFlow(deps, {
-        workspaceId: requestWorkspace(deps.session),
+        workspaceId: await requestWorkspace(deps.db, deps.session),
         projectId: pid,
         body: await request.json().catch(() => undefined),
         idempotencyKey,

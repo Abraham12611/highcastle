@@ -20,11 +20,14 @@ import {
   listFindingsFlow,
   listOccurrencesFlow,
 } from "@/server/findings";
+import { FindingOccurrenceSchema, FindingSchema } from "@highcastle/contracts";
 import { createReplayFlow, getReplayFlow } from "@/server/replays";
 import { getArtifactFlow } from "@/server/artifacts";
 import { createScanFlow, listContainmentFlow } from "@/server/scans";
 
-const GUEST = { kind: "guest" } as const;
+import { demoSession } from "@/server/test-helpers";
+
+const GUEST = demoSession();
 
 let db: Database;
 let close: () => Promise<void>;
@@ -42,11 +45,11 @@ beforeEach(async () => {
 function fakeQueue(calls: { scans: string[]; replays: string[] }): JobQueue {
   return {
     available: true,
-    sendScanJob: async (scanId: string) => {
-      calls.scans.push(scanId);
+    sendScanJob: async (job: { scanId: string }) => {
+      calls.scans.push(job.scanId);
     },
-    sendReplayJob: async (replayId: string) => {
-      calls.replays.push(replayId);
+    sendReplayJob: async (job: { replayId: string }) => {
+      calls.replays.push(job.replayId);
     },
     sendCancelScanJob: async () => {},
     close: async () => {},
@@ -212,14 +215,27 @@ describe("findings and fix prompts", () => {
     const single = (await getFindingFlow(d, {
       findingId: fixture.findingId,
       workspaceId: DEMO_IDS.workspaceId,
-    })).body as { data: { confidence: string } };
-    expect(single.data.confidence).toBe("confirmed_by_execution");
+    })).body as { data: unknown };
+    // Strict contract: the dashboard and findings UI parse FindingSchema,
+    // so every mandatory field must be present and valid.
+    const parsedFinding = FindingSchema.safeParse(single.data);
+    expect(parsedFinding.success).toBe(true);
+    if (parsedFinding.success) {
+      expect(parsedFinding.data.confidence).toBe("confirmed_by_execution");
+      expect(parsedFinding.data.workspaceId).toBe(DEMO_IDS.workspaceId);
+      expect(parsedFinding.data.projectId).toBe(DEMO_IDS.projectId);
+    }
 
     const occurrences = (await listOccurrencesFlow(d, {
       findingId: fixture.findingId,
       workspaceId: DEMO_IDS.workspaceId,
-    })).body as { data: { oracleVerdict: string }[] };
-    expect(occurrences.data[0]?.oracleVerdict).toBe("reproduced");
+    })).body as { data: unknown[] };
+    expect(occurrences.data).toHaveLength(1);
+    const parsedOccurrence = FindingOccurrenceSchema.safeParse(occurrences.data[0]);
+    expect(parsedOccurrence.success).toBe(true);
+    if (parsedOccurrence.success) {
+      expect(parsedOccurrence.data.oracleVerdict).toBe("reproduced");
+    }
 
     const prompt = (await fixPromptFlow(d, {
       findingId: fixture.findingId,

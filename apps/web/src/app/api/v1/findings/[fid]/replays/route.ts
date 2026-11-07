@@ -17,7 +17,7 @@ export async function POST(
     { fid },
     async ({ deps }) => {
       if (!parseUuid(fid)) throw new DbError("validation_error", "invalid finding id");
-      const workspaceId = requestWorkspace(deps.session);
+      const workspaceId = await requestWorkspace(deps.db, deps.session);
       // Project is resolved from the finding itself (tenant-checked inside).
       const finding = await getFinding(deps.db, workspaceId, fid);
       if (!finding) throw DbError.notFound("finding", fid);

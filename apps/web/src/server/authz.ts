@@ -9,18 +9,23 @@ import { DEMO_IDS } from "@highcastle/db";
 import { DbError } from "@highcastle/db";
 import { getScope } from "@highcastle/db";
 import { getWorkspace, getWorkspaceMember } from "@highcastle/db";
+import type { MembershipPort } from "./auth/authorize";
 import type { Session } from "./session";
 
 /**
  * Tenant authorization for the BFF. Rules:
  *
- * - Guests are bound to the seeded demo workspace/project. Any other
- *   workspace or project reads as missing (404 at the route layer).
- * - Future user sessions require a workspace membership row; without one
- *   the workspace reads as missing too — never 403-with-existence.
- * - Scan/replay creation additionally requires the fixed lab binding
- *   (demo target, demo environment, demo scope), so a guest can never
- *   point execution at another host.
+ * - Demo sessions are server-pinned to the fixed synthetic lab
+ *   (L05 `session.workspaceId/projectId`). Any other workspace or project
+ *   reads as missing (404 at the route layer). Demo mutations
+ *   (create/cancel scan, create replay) are allowed ONLY inside that fixed
+ *   workspace, and the flows additionally pin execution to the lab triple —
+ *   a demo session can never point execution at another host or widen scope.
+ * - Account sessions require a real workspace membership row (L02
+ *   `getWorkspaceMember` wired as the L05 MembershipPort). Without one the
+ *   workspace reads as missing — never 403-with-existence. Execution for
+ *   accounts is authorized by pre-existing operator-approved scopes
+ *   (`loadExecutionScope` + L04 policy gate), never by client claims.
  */
 
 export interface DemoBinding {
@@ -41,15 +46,26 @@ export function demoBinding(): DemoBinding {
   };
 }
 
+/** L05 MembershipPort backed by L02 — no DB import inside L05's policy file. */
+export function dbMembership(db: DbExecutor): MembershipPort {
+  return {
+    async getWorkspaceRole(workspaceId: string, userId: string) {
+      const member = await getWorkspaceMember(db, workspaceId, userId);
+      return member ? member.role : null;
+    },
+  };
+}
+
 export async function authorizeWorkspace(
   db: DbExecutor,
   session: Session,
   workspaceId: string,
 ): Promise<{ id: string; slug: string; name: string; status: string }> {
-  if (session.kind === "guest" && workspaceId !== DEMO_IDS.workspaceId) {
-    throw DbError.notFound("workspace", workspaceId);
-  }
-  if (session.kind === "user") {
+  if (session.kind === "demo") {
+    if (workspaceId !== session.workspaceId) {
+      throw DbError.notFound("workspace", workspaceId);
+    }
+  } else {
     const membership = await getWorkspaceMember(db, workspaceId, session.userId);
     if (!membership) throw DbError.notFound("workspace", workspaceId);
   }
@@ -65,12 +81,35 @@ export async function authorizeProject(
   projectId: string,
 ) {
   await authorizeWorkspace(db, session, workspaceId);
-  if (session.kind === "guest" && projectId !== DEMO_IDS.projectId) {
+  if (session.kind === "demo" && projectId !== session.projectId) {
     throw DbError.notFound("project", projectId);
   }
   const project = await getProject(db, workspaceId, projectId);
   if (!project) throw DbError.notFound("project", projectId);
   return project;
+}
+
+/** Demo execution stays inside the fixed lab; accounts are scope-gated. */
+export function assertExecutionBinding(
+  session: Session,
+  input: {
+    projectId: string;
+    targetId: string;
+    environmentId: string;
+  },
+): void {
+  if (session.kind !== "demo") return;
+  const binding = demoBinding();
+  if (
+    input.projectId !== binding.projectId ||
+    input.targetId !== binding.targetId ||
+    !binding.environmentIds.includes(input.environmentId)
+  ) {
+    throw new DbError(
+      "policy_denied",
+      "demo execution is limited to the fixed synthetic lab binding",
+    );
+  }
 }
 
 /**
@@ -131,12 +170,20 @@ export async function loadExecutionScope(
 
 /**
  * Workspace implied by routes that carry no workspace path segment
- * (`GET /scans/:sid`, ...). Guests are bound to the demo tenant; user
- * sessions fail closed here until L05 wires identity → membership lookup.
+ * (`GET /scans/:sid`, ...). Demo sessions resolve to their pinned workspace.
+ * Account sessions fail closed here: without a user→workspaces listing in
+ * L02, mapping an unscoped id to a tenant would be guessing. Callers needing
+ * account access must use the workspace-scoped routes.
  */
-export function requestWorkspace(session: Session): string {
-  if (session.kind === "guest") return DEMO_IDS.workspaceId;
-  throw new DbError("unavailable", "authenticated sessions are not configured yet");
+export async function requestWorkspace(
+  db: DbExecutor,
+  session: Session,
+): Promise<string> {
+  if (session.kind === "demo") return session.workspaceId;
+  throw new DbError(
+    "unavailable",
+    "account sessions require workspace-scoped routes; unscoped lookup is not supported yet",
+  );
 }
 
 export type { Database };

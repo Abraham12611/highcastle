@@ -29,7 +29,7 @@ import {
 import type { BffDeps } from "./deps";
 import { requestTime } from "./deps";
 import {
-  assertDemoExecutionBinding,
+  assertExecutionBinding,
   authorizeProject,
   loadExecutionScope,
 } from "./authz";
@@ -40,7 +40,7 @@ import {
   mapScope,
   mapTarget,
 } from "./mappers";
-import { QueueUnavailable } from "./queue";
+import { JOB_ENQUEUE_DEDUPE_SECONDS, QueueUnavailable } from "./queue";
 
 /**
  * Scan lifecycle flows. The API persists real rows and enqueues real worker
@@ -217,13 +217,11 @@ export async function createScanFlow(
     throw new DbError("validation_error", "Idempotency-Key header is required");
   }
   await authorizeProject(deps.db, deps.session, input.workspaceId, input.projectId);
-  if (deps.session.kind === "guest") {
-    assertDemoExecutionBinding({
-      projectId: input.projectId,
-      targetId: parsed.data.targetId,
-      environmentId: parsed.data.environmentId,
-    });
-  }
+  assertExecutionBinding(deps.session, {
+    projectId: input.projectId,
+    targetId: parsed.data.targetId,
+    environmentId: parsed.data.environmentId,
+  });
   const { scopeHash, targetRevision, fixtureVersion } = await gateExecution(deps, {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
@@ -240,7 +238,7 @@ export async function createScanFlow(
     versions[packId] = TEST_PACK_MANIFEST[packId].version;
   }
   const requestedBy =
-    deps.session.kind === "user" ? deps.session.userId : DEMO_IDS.ownerUserId;
+    deps.session.kind === "account" ? deps.session.userId : DEMO_IDS.ownerUserId;
   const created = await createScan(deps.db, {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
@@ -255,7 +253,7 @@ export async function createScanFlow(
     testPackVersions: versions,
     requestedByUserId: requestedBy,
     idempotencyKey: input.idempotencyKey,
-    publicDemo: deps.session.kind === "guest",
+    publicDemo: deps.session.kind === "demo",
   });
   // Idempotent retry: a prior `scan.requested` event means this key already
   // created (and possibly already enqueued) the scan. Skip the second history
@@ -273,14 +271,18 @@ export async function createScanFlow(
       scanId: created.id,
       eventType: "scan.requested",
       phase: null,
-      actorType: deps.session.kind === "user" ? "user" : "system",
+      actorType: deps.session.kind === "account" ? "user" : "system",
       safeSummary: "Scan requested and enqueued for execution",
     });
   }
   try {
-    await deps.queue.sendScanJob(created.id, {
-      singletonKey: input.idempotencyKey,
-    });
+    await deps.queue.sendScanJob(
+      { workspaceId: input.workspaceId, scanId: created.id },
+      {
+        singletonKey: input.idempotencyKey,
+        singletonSeconds: JOB_ENQUEUE_DEDUPE_SECONDS,
+      },
+    );
   } catch (error) {
     // Durable fact first: the scan row exists and stays queued. ANY enqueue
     // failure — unconfigured queue, unreachable broker, auth rejection —
@@ -377,7 +379,7 @@ export async function cancelScanFlow(
   // queue must not block cancellation — but the response says honestly
   // whether the worker was notified.
   const workerNotified = await deps.queue
-    .sendCancelScanJob(updated.id)
+    .sendCancelScanJob({ workspaceId: input.workspaceId, scanId: updated.id })
     .then(() => true)
     .catch(() => false);
   return {

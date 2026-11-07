@@ -21,21 +21,49 @@ export class QueueUnavailable extends Error {
   }
 }
 
+/**
+ * Dedupe window for enqueue retries. Live-proven against pg-boss v12: a bare
+ * `singletonKey` does NOT dedupe — the unique index only covers
+ * (queue, key) inside a `singleton_on` time slot, which exists only when a
+ * window is supplied. Without this, a retried submission while the first job
+ * is still queued creates a second execution.
+ */
+export const JOB_ENQUEUE_DEDUPE_SECONDS = 86_400;
+
 export interface SendOptions {
   /**
-   * Deduplication key (the request's Idempotency-Key). pg-boss registers it
-   * as a singleton key so a retried submission cannot launch a second job —
-   * safe to call on every retry, including the crash window where the scan
-   * row exists but no job was enqueued yet.
+   * Deduplication key (the request's Idempotency-Key). Combined with
+   * `singletonSeconds`, a retried submission returns null instead of a
+   * second job id — safe to call on every retry, including the crash window
+   * where the scan row exists but no job was enqueued yet.
    */
   singletonKey?: string;
+  /** Dedupe window in seconds; defaults to JOB_ENQUEUE_DEDUPE_SECONDS. */
+  singletonSeconds?: number;
+}
+
+/**
+ * Producer-side job bodies. The L16 consumer validates strictly
+ * (`scan.plan_and_execute`: `{workspaceId, scanId}`;
+ * `replay.execute`: `{workspaceId, replayId}`;
+ * `scan.cancel_and_cleanup`: `{workspaceId, scanId}`) and fails jobs with
+ * anything else — so the BFF sends exactly that, never a bare id.
+ */
+export interface ScanJob {
+  workspaceId: string;
+  scanId: string;
+}
+
+export interface ReplayJob {
+  workspaceId: string;
+  replayId: string;
 }
 
 export interface JobQueue {
   readonly available: boolean;
-  sendScanJob(scanId: string, options?: SendOptions): Promise<void>;
-  sendReplayJob(replayId: string, options?: SendOptions): Promise<void>;
-  sendCancelScanJob(scanId: string): Promise<void>;
+  sendScanJob(job: ScanJob, options?: SendOptions): Promise<void>;
+  sendReplayJob(job: ReplayJob, options?: SendOptions): Promise<void>;
+  sendCancelScanJob(job: ScanJob): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -56,7 +84,7 @@ interface PgBossLike {
   send(
     queue: string,
     data: Record<string, unknown>,
-    options?: { singletonKey?: string },
+    options?: { singletonKey?: string; singletonSeconds?: number },
   ): Promise<string | null>;
   stop(): Promise<void>;
 }
@@ -70,12 +98,29 @@ export function pgBossQueue(connectionString: string): JobQueue {
     starting ??= (async () => {
       // Lazily required so unit tests and queue-less deployments never load
       // the driver. `pg-boss` auto-applies its own schema on start.
-      const { default: PgBoss } = (await import("pg-boss")) as unknown as {
-        default: new (connection: string) => PgBossLike & {
+      // v12 exports a named `PgBoss`; older majors export it as default —
+      // accept both, because `new (undefined)` fails closed at the worst
+      // possible moment (live-proven during the Vultr E2E).
+      const mod = (await import("pg-boss")) as unknown as {
+        PgBoss?: new (connection: string) => PgBossLike & {
           start(): Promise<unknown>;
         };
+        default?:
+          | (new (connection: string) => PgBossLike & {
+              start(): Promise<unknown>;
+            })
+          | { PgBoss: new (connection: string) => PgBossLike & {
+              start(): Promise<unknown>;
+            } };
       };
-      const instance = new PgBoss(connectionString) as PgBossLike & {
+      const candidate = mod.PgBoss ?? mod.default;
+      const Ctor =
+        typeof candidate === "function"
+          ? candidate
+          : (candidate as { PgBoss: new (connection: string) => PgBossLike & {
+              start(): Promise<unknown>;
+            } }).PgBoss;
+      const instance = new Ctor(connectionString) as PgBossLike & {
         start(): Promise<unknown>;
       };
       await instance.start();
@@ -91,23 +136,29 @@ export function pgBossQueue(connectionString: string): JobQueue {
     options?: SendOptions,
   ) => {
     const client = await start();
+    // A null return means "already enqueued inside the window" — not a
+    // failure, so it is intentionally not surfaced to callers.
     await client.send(
       queue,
       data,
       options?.singletonKey === undefined
         ? undefined
-        : { singletonKey: options.singletonKey },
+        : {
+            singletonKey: options.singletonKey,
+            singletonSeconds:
+              options.singletonSeconds ?? JOB_ENQUEUE_DEDUPE_SECONDS,
+          },
     );
   };
 
   return {
     available: true,
-    sendScanJob: (scanId: string, options?: SendOptions) =>
-      send(SCAN_JOB_QUEUE, { scanId }, options),
-    sendReplayJob: (replayId: string, options?: SendOptions) =>
-      send(REPLAY_JOB_QUEUE, { replayId }, options),
-    sendCancelScanJob: (scanId: string) =>
-      send(SCAN_CANCEL_JOB_QUEUE, { scanId }),
+    sendScanJob: (job: ScanJob, options?: SendOptions) =>
+      send(SCAN_JOB_QUEUE, { workspaceId: job.workspaceId, scanId: job.scanId }, options),
+    sendReplayJob: (job: ReplayJob, options?: SendOptions) =>
+      send(REPLAY_JOB_QUEUE, { workspaceId: job.workspaceId, replayId: job.replayId }, options),
+    sendCancelScanJob: (job: ScanJob) =>
+      send(SCAN_CANCEL_JOB_QUEUE, { workspaceId: job.workspaceId, scanId: job.scanId }),
     async close(): Promise<void> {
       starting = null;
       const client = boss;

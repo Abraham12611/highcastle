@@ -15,7 +15,7 @@ export async function GET(
     if (!parseUuid(eid)) throw new DbError("validation_error", "invalid artifact id");
     return getArtifactFlow(deps, {
       artifactId: eid,
-      workspaceId: requestWorkspace(deps.session),
+      workspaceId: await requestWorkspace(deps.db, deps.session),
     });
   });
 }
