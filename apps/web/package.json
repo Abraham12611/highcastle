@@ -5,17 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/test-packs build && next build",
+    "build": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/db --filter @highcastle/security --filter @highcastle/test-packs build && next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/test-packs build && next typegen && tsc --noEmit",
-    "test": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/test-packs build && vitest run"
+    "typecheck": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/db --filter @highcastle/security --filter @highcastle/test-packs build && next typegen && tsc --noEmit",
+    "test": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/db --filter @highcastle/security --filter @highcastle/test-packs build && vitest run"
   },
   "dependencies": {
     "@highcastle/contracts": "workspace:*",
+    "@highcastle/db": "workspace:*",
+    "@highcastle/security": "workspace:*",
     "@highcastle/test-packs": "workspace:*",
     "@highcastle/ui": "workspace:*",
+    "drizzle-orm": "0.45.4",
     "next": "16.4.5",
+    "pg-boss": "12.38.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "zod": "3.23.8"
