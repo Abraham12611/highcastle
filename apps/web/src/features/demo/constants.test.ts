@@ -4,13 +4,19 @@ import {
   assessmentContextEndpoint,
   createScanEndpoint,
   demoScanBody,
+  selectApprovedTarget,
   type AssessmentContext,
 } from "./constants";
 
 const ctx: AssessmentContext = {
-  environment: { id: "env-1", label: "attack twin", currentRevision: "lab-v1" },
-  target: { id: "tgt-1" },
-  scope: { id: "scope-1", status: "active" },
+  project: { id: "p1", name: "Invoice demo", slug: "demo" },
+  targets: [
+    { environment: { id: "env-1", label: "attack twin", currentRevision: "lab-v1" },
+      target: { id: "tgt-1" },
+      scope: { id: "scope-1", allowedTestPackIds: ["bola-invoice-v1"] } },
+    { environment: { id: "env-2", label: "patched", currentRevision: "lab-v2" },
+      target: { id: "tgt-1" }, scope: null },
+  ],
 };
 
 describe("demo handoff request shape", () => {
@@ -22,7 +28,10 @@ describe("demo handoff request shape", () => {
     expect(DEMO_SESSION_ENDPOINT).toBe("/api/auth/demo");
   });
   it("matches the strict CreateScanRequestSchema fields", () => {
-    const body = demoScanBody(ctx);
+    const approved = selectApprovedTarget(ctx);
+    expect(approved?.scope.id).toBe("scope-1");
+    if (!approved) throw new Error("missing approved target");
+    const body = demoScanBody(approved);
     expect(body).toEqual({
       type: "targeted_red_team",
       environmentId: "env-1",
@@ -34,4 +43,10 @@ describe("demo handoff request shape", () => {
     expect("idempotencyKey" in body).toBe(false);
     expect("scanType" in body).toBe(false);
   });
+  it("does not submit a scan when the backend provides no approved scope", () => {
+    expect(selectApprovedTarget({ ...ctx, targets: [{...ctx.targets[0]!, scope: null}] })).toBeNull();
+    expect(selectApprovedTarget({ ...ctx, targets: [{...ctx.targets[0]!, scope: {id:"x",allowedTestPackIds:[]}}] })).toBeNull();
+  });
 });
+
+  

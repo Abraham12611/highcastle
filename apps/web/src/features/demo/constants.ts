@@ -31,11 +31,25 @@ export interface DemoSession {
   targetAlias: string;
 }
 
-/** Server-authorized execution context — never client-constructed. */
-export interface AssessmentContext {
+/** L18 API returns { project, targets: [{target,environment,scope}] }. */
+export interface AssessmentTarget {
   environment: { id: string; label: string; currentRevision: string };
   target: { id: string };
-  scope: { id: string; status: string };
+  scope: { id: string; allowedTestPackIds: string[] } | null;
+}
+export interface AssessmentContext {
+  project: { id: string; name: string; slug: string };
+  targets: AssessmentTarget[];
+}
+export type ApprovedAssessmentTarget = Omit<AssessmentTarget, "scope"> & {
+  scope: NonNullable<AssessmentTarget["scope"]>;
+};
+/** Select an already-approved server-returned scope, never a user-supplied host. */
+export function selectApprovedTarget(ctx: AssessmentContext): ApprovedAssessmentTarget | null {
+  const target = ctx.targets.find(
+    (option) => option.scope !== null && option.scope.allowedTestPackIds.includes("bola-invoice-v1"),
+  );
+  return target?.scope ? { target: target.target, environment: target.environment, scope: target.scope } : null;
 }
 
 export interface CreatedScan {
@@ -44,7 +58,7 @@ export interface CreatedScan {
 }
 
 /** Strict CreateScanRequestSchema fields — nothing else is sent. */
-export function demoScanBody(ctx: AssessmentContext) {
+export function demoScanBody(ctx: ApprovedAssessmentTarget) {
   return {
     type: "targeted_red_team",
     environmentId: ctx.environment.id,

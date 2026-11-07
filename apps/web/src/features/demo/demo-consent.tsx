@@ -18,6 +18,7 @@ import {
   createScanEndpoint,
   demoScanBody,
   type AssessmentContext,
+  selectApprovedTarget,
   type CreatedScan,
   type DemoSession,
 } from "./constants";
@@ -71,22 +72,33 @@ export function DemoConsent() {
   const [phase, setPhase] = useState<Phase>({ state: "idle" });
 
   async function start() {
+    let step: Step = "session";
     try {
       // 1 — server-verified signed demo session (cookie set by response)
       setPhase({ state: "working", step: "session" });
-      const session = await apiJson<DemoSession>(DEMO_SESSION_ENDPOINT, {
+      const minted = await apiJson<{ session: DemoSession }>(DEMO_SESSION_ENDPOINT, {
         method: "POST",
         headers: { "x-highcastle-request": "1" },
       });
+      // L05's auth endpoint returns { session: {...}, notice }, not {data: ...}.
+      const session = minted.session;
+      if (!session?.projectId) throw new ApiError("session_contract", "Demo session response missing projectId");
 
       // 2 — server-authorized environment/target/scope for that project
+      step = "context";
       setPhase({ state: "working", step: "context" });
       const ctx = await apiJson<AssessmentContext>(
         assessmentContextEndpoint(session.projectId),
         { method: "GET" },
       );
 
+      const approvedTarget = selectApprovedTarget(ctx);
+      if (!approvedTarget) {
+        throw new ApiError("scope_unavailable", "No authorized invoice-lab assessment scope is available");
+      }
+
       // 3 — exact typed scan request, Idempotency-Key in header
+      step = "scan";
       setPhase({ state: "working", step: "scan" });
       const created = await apiJson<CreatedScan>(
         createScanEndpoint(session.projectId),
@@ -97,13 +109,11 @@ export function DemoConsent() {
             "x-highcastle-request": "1",
             "Idempotency-Key": crypto.randomUUID(),
           },
-          body: JSON.stringify(demoScanBody(ctx)),
+          body: JSON.stringify(demoScanBody(approvedTarget)),
         },
       );
       setPhase({ state: "started", scan: created });
     } catch (e) {
-      const step: Step =
-        phase.state === "working" ? phase.step : "session";
       setPhase({
         state: "failed",
         step,
