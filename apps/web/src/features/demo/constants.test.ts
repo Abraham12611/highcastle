@@ -1,16 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_PROJECT_ID, DEMO_SCANS_ENDPOINT, demoScanRequest } from "./constants";
+import {
+  DEMO_SESSION_ENDPOINT,
+  assessmentContextEndpoint,
+  createScanEndpoint,
+  demoScanBody,
+  type AssessmentContext,
+} from "./constants";
 
-describe("demo handoff payload", () => {
-  it("targets the seeded demo project scans endpoint", () => {
-    expect(DEMO_SCANS_ENDPOINT).toBe(`/api/v1/projects/${DEMO_PROJECT_ID}/scans`);
+const ctx: AssessmentContext = {
+  environment: { id: "env-1", label: "attack twin", currentRevision: "lab-v1" },
+  target: { id: "tgt-1" },
+  scope: { id: "scope-1", status: "active" },
+};
+
+describe("demo handoff request shape", () => {
+  it("posts to the server-issued project scans endpoint", () => {
+    expect(createScanEndpoint("p1")).toBe("/api/v1/projects/p1/scans");
+    expect(assessmentContextEndpoint("p1")).toBe(
+      "/api/v1/projects/p1/assessment-context",
+    );
+    expect(DEMO_SESSION_ENDPOINT).toBe("/api/auth/demo");
   });
-  it("issues a bounded targeted_red_team request for the BOLA pack", () => {
-    const body = demoScanRequest("demo-test-key");
+  it("matches the strict CreateScanRequestSchema fields", () => {
+    const body = demoScanBody(ctx);
     expect(body).toEqual({
-      scanType: "targeted_red_team",
+      type: "targeted_red_team",
+      environmentId: "env-1",
+      targetId: "tgt-1",
+      authorizationScopeId: "scope-1",
       testPackIds: ["bola-invoice-v1"],
-      idempotencyKey: "demo-test-key",
     });
+    // no idempotencyKey / scanType / hosts in the body — contract rejects them
+    expect("idempotencyKey" in body).toBe(false);
+    expect("scanType" in body).toBe(false);
   });
 });
