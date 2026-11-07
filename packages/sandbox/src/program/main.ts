@@ -146,6 +146,9 @@ async function main(): Promise<number> {
     envelope.secrets.actorBearerToken,
     envelope.request.limits.maxRequests,
   );
+  if (pack.inconclusiveReason !== null) {
+    log("warn", `run not interpretable: ${pack.inconclusiveReason}`);
+  }
 
   const result: SandboxResult = {
     schemaVersion: 1,

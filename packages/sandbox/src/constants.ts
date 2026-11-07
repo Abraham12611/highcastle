@@ -21,8 +21,14 @@ export const RUNNER_NAME_PREFIX = "hc-sb-";
 /** Default runner image; deployments should pin a digest via config. */
 export const DEFAULT_RUNNER_IMAGE = "highcastle/runner:0.1.0";
 
-/** Dedicated internal lab network the runner joins (and nothing else). */
-export const DEFAULT_LAB_NETWORK = "highcastle-lab";
+/**
+ * Dedicated runner-facing INTERNAL network the runner joins (and nothing
+ * else). This is deliberately NOT L11's `highcastle-lab` compose network:
+ * the lab container is dual-homed onto `highcastle-runner` by deployment
+ * (L19) or by verify-containment.sh, so the runner reaches the lab while
+ * having no outbound route — without modifying L11-owned compose files.
+ */
+export const DEFAULT_LAB_NETWORK = "highcastle-runner";
 
 /** The only service alias the runner can resolve/reach on that network. */
 export const DEFAULT_LAB_ORIGIN = "http://target-lab:3000";

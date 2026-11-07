@@ -20,7 +20,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 RUNNER_IMAGE="${HIGHCASTLE_RUNNER_IMAGE:-highcastle/runner:0.1.0}"
 LAB_IMAGE="${HIGHCASTLE_LAB_IMAGE:-highcastle/target-lab:lab-v1-vulnerable}"
-LAB_NETWORK="${HIGHCASTLE_LAB_NETWORK:-highcastle-lab}"
+LAB_NETWORK="${HIGHCASTLE_LAB_NETWORK:-highcastle-runner}"
 LAB_CONTAINER="hc-verify-target-lab"
 KEEP="false"
 [[ "${1:-}" == "--keep" ]] && KEEP="true"
@@ -46,7 +46,11 @@ else
   docker network create --internal "$LAB_NETWORK" >/dev/null
 fi
 
-echo "==> [4/6] starting vulnerable lab at alias target-lab"
+echo "==> [4/6] starting vulnerable lab; dual-homed onto runner-facing internal net"
+# Coordination note (L11/L19): the lab keeps its own compose topology. For the
+# sandbox path the SAME lab container is also attached to `highcastle-runner`
+# (internal) with alias `target-lab` — the runner can reach it there and
+# nowhere else. No L11-owned file is modified.
 docker rm -f "$LAB_CONTAINER" >/dev/null 2>&1 || true
 docker run -d --name "$LAB_CONTAINER" \
   --network "$LAB_NETWORK" --network-alias target-lab \

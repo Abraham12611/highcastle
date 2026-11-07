@@ -34,16 +34,29 @@ removal via `docker inspect`.
 ## Network topology required
 
 ```
-control plane (web/worker)   —— never on the lab network
+control plane (web/worker)   —— never on the runner network
         |
-   internal network: highcastle-lab  (docker network create --internal)
-        ├── target-lab:3000          (the ONLY reachable service)
+   internal network: highcastle-runner  (docker network create --internal)
+        ├── target-lab:3000 (alias)  (the ONLY reachable service)
         └── hc-sb-<runner>           (ephemeral; created per attempt)
 ```
 
+**Coordination contract (L11/L19):** the runner-facing network is a
+*dedicated* internal network `highcastle-runner` — deliberately NOT L11's
+`highcastle-lab` compose bridge (which is not internal and stays unchanged
+for local dev). The lab container is dual-homed: attached to
+`highcastle-runner` with alias `target-lab` by deployment
+(`docker network connect --alias target-lab highcastle-runner <lab>`) or by
+`verify-containment.sh`. The controller refuses to launch if the runner
+network is missing or not `internal` — fail closed.
+
 An internal network has no gateway/NAT: egress to cloud metadata
 (169.254.169.254) or any external host fails at the IP layer — which is
-exactly what the runner's egress probe demonstrates and records.
+exactly what the runner's egress probe demonstrates and records. Probe
+classification is honest by construction: only enforcement-shaped errors
+(ENETUNREACH/EHOSTUNREACH/ETIMEDOUT/EPERM/ENOTFOUND/EAI_AGAIN) count as
+runtime denial; ECONNREFUSED/ECONNRESET are classified ambiguous (error),
+never as enforced denial.
 
 ## Build
 

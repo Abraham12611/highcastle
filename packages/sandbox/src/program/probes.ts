@@ -86,16 +86,14 @@ function probeEgressIp(): Promise<ProbeResult> {
     socket.on("timeout", () => done("denied", `tcp connect to ${target} timed out (no route)`));
     socket.on("error", (err) => {
       const code = errnoOf(err);
-      const deniedCodes = new Set([
-        "ENETUNREACH",
-        "EHOSTUNREACH",
-        "ETIMEDOUT",
-        "ECONNREFUSED",
-        "ECONNRESET",
-        "EPIPE",
-        "EPERM",
-      ]);
-      done(deniedCodes.has(code) ? "denied" : "error", `tcp connect to ${target} failed: ${code}`);
+      // Only enforcement-shaped failures count as runtime denial. Refused/
+      // reset proves nothing about isolation (the remote may just be down).
+      const deniedCodes = new Set(["ENETUNREACH", "EHOSTUNREACH", "ETIMEDOUT", "EPERM"]);
+      const denied = deniedCodes.has(code);
+      done(
+        denied ? "denied" : "error",
+        `tcp connect to ${target} failed: ${code}${denied ? "" : " (ambiguous — not enforcement proof)"}`,
+      );
     });
   });
 }
@@ -136,18 +134,21 @@ function probeEgressHttp(): Promise<ProbeResult> {
     });
     req.on("error", (err) => {
       const code = errnoOf(err);
+      // DNS rejection or no-route are enforcement evidence; refused/reset is
+      // ambiguous (host may be down for unrelated reasons) -> error.
       const deniedCodes = new Set([
         "ENOTFOUND",
         "EAI_AGAIN",
         "ENETUNREACH",
         "EHOSTUNREACH",
         "ETIMEDOUT",
-        "ECONNREFUSED",
-        "ECONNRESET",
-        "EPIPE",
         "EPERM",
       ]);
-      done(deniedCodes.has(code) ? "denied" : "error", `GET ${target} failed: ${code}`);
+      const denied = deniedCodes.has(code);
+      done(
+        denied ? "denied" : "error",
+        `GET ${target} failed: ${code}${denied ? "" : " (ambiguous — not enforcement proof)"}`,
+      );
     });
     req.end();
   });

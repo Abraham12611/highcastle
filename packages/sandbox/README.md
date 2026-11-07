@@ -35,8 +35,8 @@ stopping → destroyed/cleanup_verified | forced_stop | error | operator_alert`.
 - **Can:** read the stdin envelope, run containment probes, GET four fixed
   paths on `http://target-lab:3000`, emit NDJSON evidence, exit.
 - **Cannot:** be given commands/flags/hosts (contract has no such fields),
-  reach any host but the lab (internal network + in-program origin
-  allowlist), write outside `/tmp` (read-only rootfs), use privileges
+  reach any host but the lab (internal runner network + in-program
+  origin allowlist), write outside `/tmp` (read-only rootfs), use privileges
   (cap-drop ALL + no-new-privileges + non-root), see host files or
   `docker.sock` (no mounts), hold provider/DB/GitHub secrets (stdin-carried
   synthetic token only), or live past the deadline (SIGKILL + janitor).
@@ -67,15 +67,27 @@ breaches and aborts (exit 3) — verified.
 digest presence). Scope-hash lookup, expiry, revocation and quota need L04 —
 the gate interface is the agreed seam.
 
-## L15 (test-pack) interface
+## L15 (test-pack/oracle) interface — single source of verdicts
 
-The in-image program `src/program/pack.ts` implements the doc-frozen
-`bola-invoice-v1` sequence: `GET /api/meta` (precondition: canonical
-fixtureSet) → `whoami` (identity=user_A) → `GET /api/invoices/invoice_A`
-(baseline) → `GET /api/invoices/invoice_B` (cross-account). Assertion
-semantics for the oracle: `negativeAssertion.passed === true` iff the
-cross-account read was **denied** (403/404 without returning Bob's invoice);
-`observedFixtureOwner` records which owner the returned object actually had.
+The runner **observes**; it never certifies. L15's independent oracle owns
+`reproduced`/`not_reproduced`/`inconclusive`/`verified_fixed`. Observation
+schema handed to the oracle: `exchanges[]` (method/path/status/bodyHash/
+redacted excerpt), `baselineAssertion`, `negativeAssertion` (passed=true ⇔
+cross-account read was *denied*), `observedFixtureOwner`, plus assertion
+lines `precondition_meta`, `precondition_identity`, `baseline_own_invoice`,
+`negative_cross_account`.
+
+**Hard preconditions:** `/api/meta` must match the frozen contract — exact
+revision (`lab-v1-vulnerable`|`lab-v2-patched`), `fixtureVersion: 1.0.0`,
+fixture set `alice-bob-invoices`, owner ids invoice_A→user_A/tenant_A,
+invoice_B→user_B/tenant_B — AND `whoami` must resolve to `user_A/tenant_A`.
+Any failure ⇒ legs marked `inconclusive: <reason>` and the run stops before
+the cross-account request — a run under Bob's credential can never read as
+Alice's exploit (tested: bob-token, wrong revision, fixtureVersion drift).
+
+## L15 legacy notes
+
+
 
 ## Ops
 
