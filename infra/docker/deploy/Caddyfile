@@ -14,6 +14,11 @@
 	admin off
 }
 
+# Canonical host. www and plain-HTTP requests redirect to the apex HTTPS URL.
+www.{$HIGHCASTLE_DOMAIN} {
+	redir https://{$HIGHCASTLE_DOMAIN}{uri} permanent
+}
+
 {$HIGHCASTLE_DOMAIN} {
 	encode zstd gzip
 
