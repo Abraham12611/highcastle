@@ -14,15 +14,36 @@
  *     policy fails CLOSED.
  */
 
-import { DEMO_WORKSPACE_ID, type HighCastleSession } from "../../lib/auth/session-core";
+import {
+  DEMO_PACK_ID,
+  DEMO_PROJECT_ID,
+  DEMO_SCOPE_ID,
+  DEMO_TARGET_ALIAS,
+  DEMO_WORKSPACE_ID,
+  type HighCastleSession,
+} from "../../lib/auth/session-core";
+
+/**
+ * Bounded parameters a create-scan / create-replay request declares. For demo
+ * sessions EVERY field must equal the fixed demo constant — a guest inherits
+ * the pre-approved demo scope and may run only the known pack against the
+ * owned lab alias. Any deviation (foreign workspace/project/host/pack/scope,
+ * or any supplied verdict) denies.
+ */
+export interface BoundedRequest {
+  projectId?: string;
+  targetAlias?: string;
+  packId?: string;
+  scopeId?: string;
+}
 
 export type WorkspaceAction =
   | { type: "read-scan"; workspaceId: string }
   | { type: "read-project"; workspaceId: string }
   | { type: "read-events"; workspaceId: string }
-  | { type: "create-scan"; workspaceId: string }
+  | ({ type: "create-scan"; workspaceId: string } & BoundedRequest)
   | { type: "cancel-scan"; workspaceId: string }
-  | { type: "create-replay"; workspaceId: string }
+  | ({ type: "create-replay"; workspaceId: string } & BoundedRequest)
   | { type: "write-verdict"; workspaceId: string }
   | { type: "manage-scope"; workspaceId: string };
 
@@ -40,7 +61,19 @@ export async function authorizeWorkspaceAction(
   membership?: MembershipPort,
 ): Promise<boolean> {
   if (session.kind === "demo") {
-    return action.workspaceId === DEMO_WORKSPACE_ID && READ_ACTIONS.has(action.type);
+    if (action.workspaceId !== DEMO_WORKSPACE_ID) return false;
+    if (READ_ACTIONS.has(action.type)) return true;
+    if (action.type === "create-scan" || action.type === "create-replay") {
+      // Guests may initiate ONLY the fixed demo assessment/replay: the
+      // workspace, project, target alias, pack and scope are all server-fixed.
+      return (
+        action.projectId === DEMO_PROJECT_ID &&
+        action.targetAlias === DEMO_TARGET_ALIAS &&
+        action.packId === DEMO_PACK_ID &&
+        action.scopeId === DEMO_SCOPE_ID
+      );
+    }
+    return false;
   }
 
   // Account sessions: membership is mandatory — absence of a backend denies.

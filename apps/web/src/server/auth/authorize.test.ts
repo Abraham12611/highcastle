@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_WORKSPACE_ID, type AccountSession, type DemoSession } from "../../lib/auth/session-core";
+import {
+  DEMO_PACK_ID,
+  DEMO_PROJECT_ID,
+  DEMO_SCOPE_ID,
+  DEMO_TARGET_ALIAS,
+  DEMO_WORKSPACE_ID,
+  type AccountSession,
+  type DemoSession,
+} from "../../lib/auth/session-core";
 import { authorizeScanRead, authorizeWorkspaceAction, type MembershipPort } from "./authorize";
 
 const OTHER_WS = "b0b0b0b0-0000-4000-8000-000000000009";
+const FIXED = { projectId: DEMO_PROJECT_ID, targetAlias: DEMO_TARGET_ALIAS, packId: DEMO_PACK_ID, scopeId: DEMO_SCOPE_ID };
 
 const demo: DemoSession = {
   kind: "demo",
@@ -26,9 +35,38 @@ describe("demo session privileges", () => {
     }
   });
 
-  it("denies all mutations and verdict writes for a guest", async () => {
-    for (const type of ["create-scan", "cancel-scan", "create-replay", "write-verdict", "manage-scope"] as const) {
+  it("denies non-scan mutations and verdict writes for a guest", async () => {
+    for (const type of ["cancel-scan", "write-verdict", "manage-scope"] as const) {
       await expect(authorizeWorkspaceAction(demo, { type, workspaceId: DEMO_WORKSPACE_ID })).resolves.toBe(false);
+    }
+  });
+
+  it("allows the bounded demo scan and replay ONLY with the exact fixed tuple", async () => {
+    for (const type of ["create-scan", "create-replay"] as const) {
+      await expect(authorizeWorkspaceAction(demo, { type, workspaceId: DEMO_WORKSPACE_ID, ...FIXED })).resolves.toBe(true);
+    }
+  });
+
+  it("denies any deviation in the bounded tuple", async () => {
+    const bad = [
+      { ...FIXED, targetAlias: "evil.example.com" },
+      { ...FIXED, targetAlias: "target-lab-patched" },
+      { ...FIXED, packId: "sql-injection-v9" },
+      { ...FIXED, projectId: OTHER_WS },
+      { ...FIXED, scopeId: OTHER_WS },
+      { targetAlias: DEMO_TARGET_ALIAS, packId: DEMO_PACK_ID, scopeId: DEMO_SCOPE_ID }, // missing projectId
+      { projectId: DEMO_PROJECT_ID, packId: DEMO_PACK_ID, scopeId: DEMO_SCOPE_ID }, // missing targetAlias
+      { projectId: DEMO_PROJECT_ID, targetAlias: DEMO_TARGET_ALIAS, packId: DEMO_PACK_ID }, // missing scopeId
+    ];
+    for (const type of ["create-scan", "create-replay"] as const) {
+      for (const params of bad) {
+        await expect(
+          authorizeWorkspaceAction(demo, { type, workspaceId: DEMO_WORKSPACE_ID, ...params }),
+        ).resolves.toBe(false);
+      }
+      await expect(
+        authorizeWorkspaceAction(demo, { type, workspaceId: OTHER_WS, ...FIXED }),
+      ).resolves.toBe(false);
     }
   });
 });
