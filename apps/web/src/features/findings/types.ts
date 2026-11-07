@@ -129,6 +129,31 @@ export interface ReplayDefaults {
   environmentLabel: string | null;
 }
 
+/**
+ * Stored post-execution model explanation (Engineer 8, issue #55).
+ * Served by the BFF once Engineer 1 wires worker persistence; absent
+ * until then. Advisory prose only — the displayed verdict is always the
+ * persisted oracle verdict, never a model claim.
+ */
+export interface StoredExplanation {
+  attemptId: string;
+  oracleVerdict: OracleVerdict;
+  replayVerdict: ReplayVerdict | null;
+  /** Validated prose; null when the model call failed safely. */
+  summary: string | null;
+  whatHappened: string | null;
+  whyVerdict: string | null;
+  replayMeaning: string | null;
+  followUp: string | null;
+  evidenceIds: string[];
+  requestedModel: string;
+  responseModel: string | null;
+  requestId: string | null;
+  latencyMs: number | null;
+  /** Present when the explanation was withheld (invalid/failed call). */
+  rejectionCode: string | null;
+}
+
 export interface FindingDetail {
   finding: FindingSummary & { summary: string; stableFingerprint: string };
   /**
@@ -145,6 +170,11 @@ export interface FindingDetail {
   patchedAttempt: AttemptRecord | null;
   /** Null until the scope endpoint resolves a real environment + scope. */
   replayDefaults: ReplayDefaults | null;
+  /**
+   * Post-execution model explanation when the BFF serves one; absent
+   * until Engineer 1 wires worker persistence (optional for that reason).
+   */
+  explanation?: StoredExplanation | null;
   source: DataSource;
 }
 

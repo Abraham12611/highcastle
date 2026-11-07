@@ -36,11 +36,7 @@ export {
   type ChatMessage,
   type HypothesisPromptInput,
 } from "./prompt.js";
-export {
-  parseModelProposal,
-  redactForStorage,
-  type ProposalParseResult,
-} from "./validate.js";
+export { parseModelProposal, redactForStorage, type ProposalParseResult } from "./validate.js";
 export {
   VultrInferenceClient,
   type ClientDeps,
@@ -48,3 +44,26 @@ export {
   type HypothesisResult,
   type ModelCallMetadata,
 } from "./client.js";
+export {
+  EXPLANATION_PACK_ID,
+  EXPLANATION_REJECTION_CODES,
+  EXPLANATION_VERSION,
+  ExplanationClient,
+  MAX_EVIDENCE_REFS,
+  MAX_EVIDENCE_SUMMARY_CHARS,
+  MAX_OBSERVATION_CHARS,
+  MAX_OBSERVATION_SUMMARIES,
+  ModelExplanationSchema,
+  buildExplanationMessages,
+  parseModelExplanation,
+  toExplanationDbRecord,
+  type EvidenceRef,
+  type ExplanationCallMetadata,
+  type ExplanationDbRecord,
+  type ExplanationDeps,
+  type ExplanationParseResult,
+  type ExplanationPromptInput,
+  type ExplanationRejectionCode,
+  type ExplanationResult,
+  type ModelExplanation,
+} from "./explanation.js";
