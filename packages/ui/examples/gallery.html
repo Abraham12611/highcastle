@@ -1,0 +1,3580 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HighCastle UI — Nocturne Signal gallery</title>
+    <link rel="icon" href="../../apps/web/public/brand/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles/index.css" />
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body class="hc-root">
+    <div class="hc-root" style="max-width: 1200px; margin: 0 auto; padding: 32px 24px 96px">
+      <header style="display: flex; align-items: center; gap: 16px; margin-bottom: 8px">
+        <svg
+          viewBox="0 0 12 12"
+          width="40"
+          height="40"
+          class="hc-logo-mark"
+          fill="var(--hc-primary)"
+          role="img"
+          aria-label="HighCastle"
+        >
+          <path
+            d="M0 0h1v1h-1zM1 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM11 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1z"
+          ></path>
+        </svg>
+        <div>
+          <h1 class="hc-display" style="margin: 0; font-size: 22px">
+            HighCastle UI — Nocturne Signal
+          </h1>
+          <p style="margin: 4px 0 0; color: var(--hc-muted); font-size: 13px">
+            Component gallery. All content below is labelled sample fixture data, not live scan
+            results.
+          </p>
+        </div>
+      </header>
+      <div class="hc-callout hc-callout--policy">
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="hc-icon"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+          <path d="m9 9.5 6 6"></path>
+          <path d="m15 9.5-6 6"></path>
+        </svg>
+        <div>
+          <p class="hc-callout-title">Sample fixture — not real evidence</p>
+          <div class="hc-callout-body">
+            Screens, routes and data ownership belong to feature lanes; this file demonstrates the
+            reusable foundation only.
+          </div>
+        </div>
+      </div>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Identity
+        </h2>
+        <p style="color: var(--hc-subtle); font-size: 12px; margin: 0 0 16px">
+          Original 12x12 fortress mark + wordmark. No third-party pixel art.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-logo"
+              ><svg
+                viewBox="0 0 12 12"
+                width="36"
+                height="36"
+                class="hc-logo-mark"
+                fill="var(--hc-primary)"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M0 0h1v1h-1zM1 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM11 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1z"
+                ></path></svg
+              ><span class="hc-logo-word">HighCastle</span></span
+            ><svg
+              viewBox="0 0 12 12"
+              width="36"
+              height="36"
+              class="hc-logo-mark"
+              fill="var(--hc-cyan)"
+              role="img"
+              aria-label="HighCastle"
+            >
+              <path
+                d="M0 0h1v1h-1zM1 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM11 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1z"
+              ></path></svg
+            ><svg
+              viewBox="0 0 12 12"
+              width="36"
+              height="36"
+              class="hc-logo-mark"
+              fill="var(--hc-violet)"
+              role="img"
+              aria-label="HighCastle"
+            >
+              <path
+                d="M0 0h1v1h-1zM1 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM11 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1z"
+              ></path></svg
+            ><svg
+              viewBox="0 0 12 12"
+              width="20"
+              height="20"
+              class="hc-logo-mark"
+              fill="currentColor"
+              role="img"
+              aria-label="HighCastle"
+            >
+              <path
+                d="M0 0h1v1h-1zM1 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM11 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1z"
+              ></path>
+            </svg>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Buttons
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <button type="button" class="hc-btn hc-btn--primary">
+              <span class="hc-btn-label">Run verification</span></button
+            ><button type="button" class="hc-btn hc-btn--secondary">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 4v10"></path>
+                <path d="m7.5 10.5 4.5 4.5 4.5-4.5"></path>
+                <path d="M4 19h16"></path></svg
+              ><span class="hc-btn-label">Export evidence</span></button
+            ><button type="button" class="hc-btn hc-btn--ghost">
+              <span class="hc-btn-label">View docs</span></button
+            ><button type="button" class="hc-btn hc-btn--destructive">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m6 6 12 12M18 6 6 18"></path></svg
+              ><span class="hc-btn-label">Cancel scan</span>
+            </button>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <button type="button" class="hc-btn hc-btn--primary hc-btn--sm">
+              <span class="hc-btn-label">Small</span></button
+            ><button type="button" class="hc-btn hc-btn--primary hc-btn--lg">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M9 21 12 9l3 12"></path>
+                <path d="M7 21h10"></path>
+                <path d="M12 6h.01"></path>
+                <path d="M6.5 8.5a7.8 7.8 0 0 1 11 0"></path>
+                <path d="M4 6a11.3 11.3 0 0 1 16 0"></path></svg
+              ><span class="hc-btn-label">Try controlled demo</span></button
+            ><button
+              type="button"
+              disabled=""
+              aria-busy="true"
+              class="hc-btn hc-btn--primary hc-btn--loading"
+            >
+              <span class="hc-spinner" aria-hidden="true"></span
+              ><span class="hc-btn-label">Validating plan</span></button
+            ><button type="button" disabled="" class="hc-btn hc-btn--primary">
+              <span class="hc-btn-label">Disabled</span></button
+            ><button type="button" aria-label="Copy value" title="Copy value" class="hc-icon-btn">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                <path
+                  d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Status — three independent axes
+        </h2>
+        <p style="color: var(--hc-subtle); font-size: 12px; margin: 0 0 16px">
+          Severity, confidence and remediation are separate chips, each icon + text + tone.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-pill hc-pill--coral"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"></path>
+                <path d="M12 8v5"></path>
+                <path d="M12 16.5h.01"></path></svg
+              ><span>Critical</span></span
+            ><span class="hc-pill hc-pill--orange"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 4 2.5 20h19z"></path>
+                <path d="M12 10v4"></path>
+                <path d="M12 17h.01"></path></svg
+              ><span>High</span></span
+            ><span class="hc-pill hc-pill--amber"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 12h.01"></path></svg
+              ><span>Medium</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 11v5"></path>
+                <path d="M12 8h.01"></path></svg
+              ><span>Low</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 11v5"></path>
+                <path d="M12 8h.01"></path></svg
+              ><span>Informational</span></span
+            >
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span
+              class="hc-meter"
+              style="color: var(--hc-coral)"
+              role="img"
+              aria-label="Severity: Critical"
+              ><span class="hc-meter-bars" aria-hidden="true"
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span></span
+              ><span class="hc-meter-label">Critical</span></span
+            ><span
+              class="hc-meter"
+              style="color: var(--hc-orange)"
+              role="img"
+              aria-label="Severity: High"
+              ><span class="hc-meter-bars" aria-hidden="true"
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar"></span></span
+              ><span class="hc-meter-label">High</span></span
+            ><span
+              class="hc-meter"
+              style="color: var(--hc-amber)"
+              role="img"
+              aria-label="Severity: Medium"
+              ><span class="hc-meter-bars" aria-hidden="true"
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar"></span><span class="hc-meter-bar"></span></span
+              ><span class="hc-meter-label">Medium</span></span
+            ><span
+              class="hc-meter"
+              style="color: var(--hc-low)"
+              role="img"
+              aria-label="Severity: Low"
+              ><span class="hc-meter-bars" aria-hidden="true"
+                ><span class="hc-meter-bar hc-meter-bar--lit"></span
+                ><span class="hc-meter-bar"></span><span class="hc-meter-bar"></span
+                ><span class="hc-meter-bar"></span></span
+              ><span class="hc-meter-label">Low</span></span
+            ><span
+              class="hc-meter"
+              style="color: var(--hc-low)"
+              role="img"
+              aria-label="Severity: Informational"
+              ><span class="hc-meter-bars" aria-hidden="true"
+                ><span class="hc-meter-bar"></span><span class="hc-meter-bar"></span
+                ><span class="hc-meter-bar"></span><span class="hc-meter-bar"></span></span
+              ><span class="hc-meter-label">Informational</span></span
+            >
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-pill hc-pill--violet"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 3v5M12 16v5M3 12h5M16 12h5"></path>
+                <path d="M12 12h.01"></path></svg
+              ><span>Suspected</span></span
+            ><span class="hc-pill hc-pill--violet"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="12" height="12" rx="6"></rect>
+                <path d="m14.5 14.5 5.5 5.5"></path></svg
+              ><span>Supported by analysis</span></span
+            ><span class="hc-pill hc-pill--cyan"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="3" y="5" width="18" height="14" rx="1.5"></rect>
+                <path d="m7 10 3 3-3 3"></path>
+                <path d="M13 16h4"></path></svg
+              ><span>Confirmed by execution</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="m9.5 9.5 5 5M14.5 9.5l-5 5"></path></svg
+              ><span>Not reproduced</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path
+                  d="M9.5 9.5A2.5 2.5 0 0 1 12 8a2.5 2.5 0 0 1 2.5 2.5c0 1.5-2.5 2-2.5 3.5"
+                ></path>
+                <path d="M12 17h.01"></path></svg
+              ><span>Inconclusive</span></span
+            >
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-pill hc-pill--coral"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 12h.01"></path></svg
+              ><span>Open</span></span
+            ><span class="hc-pill hc-pill--cyan"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 12V6"></path>
+                <path d="M12 12h5.5" fill="currentColor" stroke="none" opacity="0.35"></path>
+                <path d="M12 12h.01"></path></svg
+              ><span>In progress</span></span
+            ><span class="hc-pill hc-pill--amber"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 8v4.5l3 1.5"></path></svg
+              ><span>Pending verification</span></span
+            ><span class="hc-pill hc-pill--success"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                <path d="m9 12 2.2 2.2L15.5 10"></path></svg
+              ><span>Verified fixed</span></span
+            ><span class="hc-pill hc-pill--amber"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M6 21V4"></path>
+                <path d="M6 5h12l-3 4 3 4H6"></path></svg
+              ><span>Accepted risk</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m6 6 12 12M18 6 6 18"></path></svg
+              ><span>Dismissed</span></span
+            ><span class="hc-pill hc-pill--orange"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M19 12a7 7 0 1 1-2-4.9"></path>
+                <path d="M19 3v5h-5"></path></svg
+              ><span>Reopened</span></span
+            >
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Run state
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-pill hc-pill--coral"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"></path>
+                <path d="M12 8v5"></path>
+                <path d="M12 16.5h.01"></path></svg
+              ><span>Reproduced</span></span
+            ><span class="hc-pill hc-pill--success"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+                <path d="m8.5 12.5 2.5 2.5 4.5-5"></path></svg
+              ><span>Not reproduced</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path
+                  d="M9.5 9.5A2.5 2.5 0 0 1 12 8a2.5 2.5 0 0 1 2.5 2.5c0 1.5-2.5 2-2.5 3.5"
+                ></path>
+                <path d="M12 17h.01"></path></svg
+              ><span>Inconclusive</span></span
+            ><span class="hc-pill hc-pill--success"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                <path d="m9 12 2.2 2.2L15.5 10"></path></svg
+              ><span>Verified fixed</span></span
+            ><span class="hc-pill hc-pill--coral"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 4 2.5 20h19z"></path>
+                <path d="M12 10v4"></path>
+                <path d="M12 17h.01"></path></svg
+              ><span>Still vulnerable</span></span
+            ><span class="hc-pill hc-pill--orange"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"></path>
+                <path d="M12 8v5"></path>
+                <path d="M12 16.5h.01"></path></svg
+              ><span>Regression</span></span
+            >
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 8v4.5l3 1.5"></path></svg
+              ><span>Queued</span></span
+            ><span class="hc-pill hc-pill--violet"
+              ><span class="hc-pulse-dot hc-pulse-dot--live" aria-hidden="true"></span
+              ><span>Planning</span></span
+            ><span class="hc-pill hc-pill--cyan"
+              ><span class="hc-pulse-dot hc-pulse-dot--live" aria-hidden="true"></span
+              ><span>Executing</span></span
+            ><span class="hc-pill hc-pill--success"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+                <path d="m8.5 12.5 2.5 2.5 4.5-5"></path></svg
+              ><span>Completed</span></span
+            ><span class="hc-pill hc-pill--amber"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="M12 12V6"></path>
+                <path d="M12 12h5.5" fill="currentColor" stroke="none" opacity="0.35"></path>
+                <path d="M12 12h.01"></path></svg
+              ><span>Partial</span></span
+            ><span class="hc-pill hc-pill--coral"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path d="m9.5 9.5 5 5M14.5 9.5l-5 5"></path></svg
+              ><span>Failed</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+                <path d="m7 7 10 10"></path></svg
+              ><span>Canceled</span></span
+            >
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-pill hc-pill--violet"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="7" y="7" width="10" height="10" rx="1.5"></rect>
+                <path d="M10 10.5h4v3h-4z"></path>
+                <path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path></svg
+              ><span>Planning</span></span
+            ><span class="hc-pill hc-pill--orange"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                <path d="m9 9.5 6 6"></path>
+                <path d="m15 9.5-6 6"></path></svg
+              ><span>Blocked</span></span
+            ><span class="hc-pill hc-pill--success"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m4.5 12.5 5 5L19.5 7"></path></svg
+              ><span>Pass</span></span
+            ><span class="hc-pill hc-pill--coral"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m6 6 12 12M18 6 6 18"></path></svg
+              ><span>Fail</span></span
+            ><span class="hc-pill hc-pill--orange"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+                <path d="m7 7 10 10"></path></svg
+              ><span>Denied</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                <path
+                  d="M9.5 9.5A2.5 2.5 0 0 1 12 8a2.5 2.5 0 0 1 2.5 2.5c0 1.5-2.5 2-2.5 3.5"
+                ></path>
+                <path d="M12 17h.01"></path></svg
+              ><span>Unknown</span></span
+            >
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-pill hc-pill--violet"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="7" y="7" width="10" height="10" rx="1.5"></rect>
+                <path d="M10 10.5h4v3h-4z"></path>
+                <path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"></path></svg
+              ><span>Model</span></span
+            ><span class="hc-pill hc-pill--amber"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                <path d="m9 9.5 6 6"></path>
+                <path d="m15 9.5-6 6"></path></svg
+              ><span>Policy</span></span
+            ><span class="hc-pill hc-pill--cyan"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5z"></path>
+                <path d="M4 8.5 12 13l8-4.5"></path>
+                <path d="M12 13v7"></path></svg
+              ><span>Runner</span></span
+            ><span class="hc-pill hc-pill--success"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path>
+                <path d="M12 12h.01"></path></svg
+              ><span>Oracle</span></span
+            ><span class="hc-pill hc-pill--slate"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="9" y="4" width="6" height="6" rx="3"></rect>
+                <path d="M5 20a7 7 0 0 1 14 0"></path></svg
+              ><span>User</span></span
+            ><span class="hc-pill hc-pill--cyan hc-pill--notched"
+              ><svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="3" y="5" width="18" height="14" rx="1.5"></rect>
+                <path d="m7 10 3 3-3 3"></path>
+                <path d="M13 16h4"></path></svg
+              ><span>Executed output</span></span
+            >
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Navigation
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="border: 1px solid var(--hc-line); border-radius: 6px; overflow: hidden">
+            <header class="hc-topbar">
+              <span class="hc-topbar-brand"
+                ><svg
+                  viewBox="0 0 12 12"
+                  width="26"
+                  height="26"
+                  class="hc-logo-mark"
+                  fill="var(--hc-primary)"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M0 0h1v1h-1zM1 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM11 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1z"
+                  ></path></svg
+                ><span class="hc-logo-word">HighCastle</span></span
+              ><span class="hc-topbar-spacer"></span
+              ><button type="button" class="hc-btn hc-btn--secondary hc-btn--sm">
+                <span class="hc-btn-label">Workspace</span>
+              </button>
+            </header>
+            <div style="display: flex; min-height: 220px">
+              <div class="hc-rail">
+                <nav aria-label="Workspace" style="flex: 1">
+                  <div>
+                    <p class="hc-rail-section">Workspace</p>
+                    <div class="hc-rail-nav">
+                      <a href="#" class="hc-nav-item"
+                        ><svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M3 12h4l3-8 4 16 3-8h4"></path></svg
+                        ><span class="hc-nav-item-label">Overview</span></a
+                      ><a href="#" class="hc-nav-item"
+                        ><svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+                          <rect x="8" y="8" width="8" height="8" rx="1"></rect>
+                          <path d="M12 12h.01"></path></svg
+                        ><span class="hc-nav-item-label">Projects</span></a
+                      ><a href="#" class="hc-nav-item hc-nav-item--active" aria-current="page"
+                        ><svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M9 21 12 9l3 12"></path>
+                          <path d="M7 21h10"></path>
+                          <path d="M12 6h.01"></path>
+                          <path d="M6.5 8.5a7.8 7.8 0 0 1 11 0"></path>
+                          <path d="M4 6a11.3 11.3 0 0 1 16 0"></path></svg
+                        ><span class="hc-nav-item-label">Scans</span
+                        ><span class="hc-nav-item-badge">1</span></a
+                      ><a href="#" class="hc-nav-item"
+                        ><svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"></path>
+                          <path d="M12 8v5"></path>
+                          <path d="M12 16.5h.01"></path></svg
+                        ><span class="hc-nav-item-label">Findings</span
+                        ><span class="hc-nav-item-badge">3</span></a
+                      >
+                    </div>
+                  </div>
+                  <div>
+                    <p class="hc-rail-section">System</p>
+                    <div class="hc-rail-nav">
+                      <a href="#" class="hc-nav-item"
+                        ><svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path
+                            d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
+                          ></path>
+                          <path d="M14 3v5h5"></path></svg
+                        ><span class="hc-nav-item-label">Reports</span></a
+                      ><a href="#" class="hc-nav-item"
+                        ><svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <rect x="8.5" y="8.5" width="7" height="7" rx="3.5"></rect>
+                          <path
+                            d="M12 3v3M12 18v3M3 12h3M18 12h3M5.7 5.7l2.1 2.1M16.2 16.2l2.1 2.1M18.3 5.7l-2.1 2.1M7.8 16.2l-2.1 2.1"
+                          ></path></svg
+                        ><span class="hc-nav-item-label">Settings</span></a
+                      >
+                    </div>
+                  </div>
+                </nav>
+              </div>
+              <div style="flex: 1; padding: 16px; color: var(--hc-subtle); font-size: 13px">
+                Content region
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Header + stepper
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div class="hc-status-header">
+            <div class="hc-status-header-titles">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+                <h1 class="hc-status-header-title">Scan sc_01J8X4</h1>
+                <span class="hc-pill hc-pill--cyan"
+                  ><span class="hc-pulse-dot hc-pulse-dot--live" aria-hidden="true"></span
+                  ><span>Executing</span></span
+                >
+              </div>
+              <div class="hc-status-header-meta">
+                <span
+                  >invoice-saas-lab · synthetic target · elapsed 00:23 ·
+                  <span class="hc-snapshot" title="a94e1c2f3b7d9012"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="m8 7-5 5 5 5"></path>
+                      <path d="m16 7 5 5-5 5"></path></svg
+                    ><span>rev a94e1c2f3b…</span
+                    ><button
+                      type="button"
+                      class="hc-icon-btn hc-code-copy"
+                      aria-label="Copy revision"
+                      title="Copy revision"
+                      style="width: 28px; height: 28px"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                        <path
+                          d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                        ></path></svg
+                      ><span class="hc-visually-hidden" aria-live="polite"></span></button></span
+                ></span>
+              </div>
+            </div>
+            <div class="hc-status-header-actions">
+              <button type="button" class="hc-btn hc-btn--destructive hc-btn--sm">
+                <span class="hc-btn-label">Cancel</span>
+              </button>
+            </div>
+          </div>
+          <ol class="hc-stepper">
+            <li class="hc-step hc-step--done">
+              <span class="hc-step-marker"
+                ><svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m4.5 12.5 5 5L19.5 7"></path></svg></span
+              ><span class="hc-step-label">Assessment type</span
+              ><span class="hc-step-connector hc-step-connector--done" aria-hidden="true"></span>
+            </li>
+            <li class="hc-step hc-step--done">
+              <span class="hc-step-marker"
+                ><svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m4.5 12.5 5 5L19.5 7"></path></svg></span
+              ><span class="hc-step-label">Environment</span
+              ><span class="hc-step-connector hc-step-connector--done" aria-hidden="true"></span>
+            </li>
+            <li class="hc-step hc-step--current" aria-current="step">
+              <span class="hc-step-marker">03</span><span class="hc-step-label">Test pack</span
+              ><span class="hc-step-connector" aria-hidden="true"></span>
+            </li>
+            <li class="hc-step hc-step--todo">
+              <span class="hc-step-marker">04</span><span class="hc-step-label">Scope review</span
+              ><span class="hc-step-connector" aria-hidden="true"></span>
+            </li>
+            <li class="hc-step hc-step--todo">
+              <span class="hc-step-marker">05</span><span class="hc-step-label">Confirm</span>
+            </li>
+          </ol>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Forms
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+              gap: 16px;
+            "
+          >
+            <div class="hc-field">
+              <label class="hc-label" for="_R_79_"
+                >Target host<span class="hc-label-required" aria-hidden="true">*</span></label
+              ><input class="hc-input hc-input--mono" placeholder="target-lab.internal" />
+              <p class="hc-hint">Verified synthetic lab only</p>
+            </div>
+            <div class="hc-field">
+              <label class="hc-label" for="_R_b9_">Test pack</label
+              ><select class="hc-select">
+                <option>bola-invoice-v1</option>
+              </select>
+            </div>
+            <div class="hc-field">
+              <label class="hc-label" for="_R_f9_">Reason</label
+              ><textarea
+                aria-invalid="true"
+                class="hc-textarea hc-textarea--error"
+                placeholder="Why this check is authorized"
+              ></textarea>
+              <p class="hc-error-text" role="alert">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M12 4 2.5 20h19z"></path>
+                  <path d="M12 10v4"></path>
+                  <path d="M12 17h.01"></path></svg
+                >Required before an active test
+              </p>
+            </div>
+            <div class="hc-field">
+              <label class="hc-label" for="_R_j9_">Authorization</label
+              ><label class="hc-checkbox-row" for="_R_5j9_"
+                ><input id="_R_5j9_" type="checkbox" class="hc-checkbox" /><span
+                  >I confirm recorded scope for this owned lab<span
+                    class="hc-hint"
+                    style="display: block"
+                    >Required — no self-approval</span
+                  ></span
+                ></label
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Timeline
+        </h2>
+        <p style="color: var(--hc-subtle); font-size: 12px; margin: 0 0 16px">
+          Model=violet, executed=cyan, oracle=mint. Real persisted events only.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="max-width: 640px">
+            <ol class="hc-timeline" aria-label="Scan event timeline">
+              <li class="hc-timeline-item hc-timeline-item--done">
+                <span class="hc-timeline-node" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="m4.5 12.5 5 5L19.5 7"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <div class="hc-timeline-head">
+                    <h4 class="hc-timeline-title">Vultr model proposed hypothesis</h4>
+                    <span class="hc-pill hc-pill--violet hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <rect x="7" y="7" width="10" height="10" rx="1.5"></rect>
+                        <path d="M10 10.5h4v3h-4z"></path>
+                        <path
+                          d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"
+                        ></path></svg
+                      ><span>Planning</span></span
+                    ><span class="hc-pill hc-pill--violet hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <rect x="7" y="7" width="10" height="10" rx="1.5"></rect>
+                        <path d="M10 10.5h4v3h-4z"></path>
+                        <path
+                          d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"
+                        ></path></svg
+                      ><span>Model</span></span
+                    ><time class="hc-timeline-meta" datetime="08:00:12Z">08:00:12Z</time>
+                  </div>
+                  <div class="hc-timeline-detail">
+                    BOLA across /api/invoices/{id} for tenant roles
+                  </div>
+                  <button
+                    type="button"
+                    class="hc-timeline-toggle"
+                    aria-expanded="false"
+                    aria-controls="_R_7a_-body"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="m9.5 6 6 6-6 6"></path></svg
+                    >Expand
+                  </button>
+                  <div id="_R_7a_-body" class="hc-timeline-body" hidden="">
+                    <span
+                      >Proposed pack: bola-invoice-v1 · GET only · ≤8 requests · synthetic roles
+                      alice/bob</span
+                    >
+                  </div>
+                </div>
+              </li>
+              <li class="hc-timeline-item hc-timeline-item--done">
+                <span class="hc-timeline-node" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="m4.5 12.5 5 5L19.5 7"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <div class="hc-timeline-head">
+                    <h4 class="hc-timeline-title">Policy validated test pack</h4>
+                    <span class="hc-pill hc-pill--violet hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <rect x="7" y="7" width="10" height="10" rx="1.5"></rect>
+                        <path d="M10 10.5h4v3h-4z"></path>
+                        <path
+                          d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"
+                        ></path></svg
+                      ><span>Planning</span></span
+                    ><span class="hc-pill hc-pill--amber hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                        <path d="m9 9.5 6 6"></path>
+                        <path d="m15 9.5-6 6"></path></svg
+                      ><span>Policy</span></span
+                    ><time class="hc-timeline-meta" datetime="08:00:13Z">08:00:13Z</time>
+                  </div>
+                </div>
+              </li>
+              <li class="hc-timeline-item hc-timeline-item--done">
+                <span class="hc-timeline-node" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="m4.5 12.5 5 5L19.5 7"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <div class="hc-timeline-head">
+                    <h4 class="hc-timeline-title">Sandbox created; limits enforced</h4>
+                    <span class="hc-pill hc-pill--cyan hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5z"></path>
+                        <path d="M4 8.5 12 13l8-4.5"></path>
+                        <path d="M12 13v7"></path></svg
+                      ><span>Preparing</span></span
+                    ><span class="hc-pill hc-pill--cyan hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5z"></path>
+                        <path d="M4 8.5 12 13l8-4.5"></path>
+                        <path d="M12 13v7"></path></svg
+                      ><span>Runner</span></span
+                    ><time class="hc-timeline-meta" datetime="08:00:15Z">08:00:15Z</time>
+                  </div>
+                </div>
+              </li>
+              <li class="hc-timeline-item hc-timeline-item--done">
+                <span class="hc-timeline-node" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="m4.5 12.5 5 5L19.5 7"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <div class="hc-timeline-head">
+                    <h4 class="hc-timeline-title">Alice → Alice baseline allowed</h4>
+                    <span class="hc-pill hc-pill--cyan hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <rect x="3" y="5" width="18" height="14" rx="1.5"></rect>
+                        <path d="m7 10 3 3-3 3"></path>
+                        <path d="M13 16h4"></path></svg
+                      ><span>Executing</span></span
+                    ><span class="hc-pill hc-pill--cyan hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5z"></path>
+                        <path d="M4 8.5 12 13l8-4.5"></path>
+                        <path d="M12 13v7"></path></svg
+                      ><span>Runner</span></span
+                    ><time class="hc-timeline-meta" datetime="08:00:17Z">08:00:17Z</time>
+                  </div>
+                  <div class="hc-timeline-detail">HTTP 200 · own synthetic invoice</div>
+                </div>
+              </li>
+              <li class="hc-timeline-item hc-timeline-item--active" aria-current="step">
+                <span class="hc-timeline-node" aria-hidden="true">05</span>
+                <div style="min-width: 0">
+                  <div class="hc-timeline-head">
+                    <h4 class="hc-timeline-title">Alice → Bob boundary check</h4>
+                    <span class="hc-pill hc-pill--cyan hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <rect x="3" y="5" width="18" height="14" rx="1.5"></rect>
+                        <path d="m7 10 3 3-3 3"></path>
+                        <path d="M13 16h4"></path></svg
+                      ><span>Executing</span></span
+                    ><span class="hc-pill hc-pill--cyan hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5z"></path>
+                        <path d="M4 8.5 12 13l8-4.5"></path>
+                        <path d="M12 13v7"></path></svg
+                      ><span>Runner</span></span
+                    ><time class="hc-timeline-meta" datetime="08:00:18Z">08:00:18Z</time>
+                  </div>
+                  <div class="hc-timeline-detail">
+                    <p
+                      class="hc-mono"
+                      style="color: var(--hc-cyan); font-size: var(--hc-text-sm); margin: 0"
+                      role="status"
+                    >
+                      executing GET /api/invoices/inv_B<span
+                        class="hc-cursor"
+                        aria-hidden="true"
+                      ></span>
+                    </p>
+                  </div>
+                </div>
+              </li>
+              <li class="hc-timeline-item hc-timeline-item--pending">
+                <span class="hc-timeline-node" aria-hidden="true">06</span>
+                <div style="min-width: 0">
+                  <div class="hc-timeline-head">
+                    <h4 class="hc-timeline-title">Independent oracle verdict</h4>
+                    <span class="hc-pill hc-pill--cyan hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path>
+                        <path d="M12 12h.01"></path></svg
+                      ><span>Verifying</span></span
+                    ><span class="hc-pill hc-pill--success hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path>
+                        <path d="M12 12h.01"></path></svg
+                      ><span>Oracle</span></span
+                    >
+                  </div>
+                </div>
+              </li>
+              <li class="hc-timeline-item hc-timeline-item--blocked">
+                <span class="hc-timeline-node" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                    <path d="m9 9.5 6 6"></path>
+                    <path d="m15 9.5-6 6"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <div class="hc-timeline-head">
+                    <h4 class="hc-timeline-title">Egress attempt blocked</h4>
+                    <span class="hc-pill hc-pill--amber hc-pill--sm"
+                      ><svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="hc-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                        <path d="m9 9.5 6 6"></path>
+                        <path d="m15 9.5-6 6"></path></svg
+                      ><span>Policy</span></span
+                    >
+                  </div>
+                  <div class="hc-timeline-detail">sandbox.action_blocked recorded</div>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Evidence + code
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+              gap: 16px;
+            "
+          >
+            <div class="hc-panel hc-evidence">
+              <div class="hc-evidence-head">
+                <span class="hc-evidence-kind"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M17 7 7 17"></path>
+                    <path d="M15 17H7V9"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <h4 class="hc-evidence-title">GET /api/invoices/inv_B → 200</h4>
+                  <div class="hc-evidence-sub">Response (redacted) · attempt at_01J8XC</div>
+                </div>
+                <span class="hc-pill hc-pill--violet hc-pill--sm"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="6" y="11" width="12" height="9" rx="1.5"></rect>
+                    <path d="M9 11V8a3 3 0 0 1 6 0v3"></path>
+                    <path d="M12 14.5v2"></path></svg
+                  ><span>Redacted</span></span
+                >
+                <div class="hc-evidence-actions">
+                  <button type="button" class="hc-btn hc-btn--secondary hc-btn--sm">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path>
+                      <path d="M12 12h.01"></path></svg
+                    ><span class="hc-btn-label">Preview</span>
+                  </button>
+                </div>
+              </div>
+              <div class="hc-evidence-hash">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="6" y="11" width="12" height="9" rx="1.5"></rect>
+                  <path d="M9 11V8a3 3 0 0 1 6 0v3"></path>
+                  <path d="M12 14.5v2"></path></svg
+                ><code
+                  title="sha256:9f2cd41b6a0f77e2c8a1b5d39e04c7a2f11e8d2c6b90a4f5e1c3d7b9a2e4f601"
+                  >sha256:9f2cd41b6a0f77e2c8a1b5d39e04c7a2f11e8d2c6b90a4f5e1c3d7b9a2e4f601</code
+                ><button
+                  type="button"
+                  class="hc-icon-btn hc-code-copy"
+                  aria-label="Copy digest"
+                  title="Copy digest"
+                  style="width: 28px; height: 28px"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                    <path
+                      d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                    ></path></svg
+                  ><span class="hc-visually-hidden" aria-live="polite"></span>
+                </button>
+              </div>
+            </div>
+            <div class="hc-panel hc-evidence">
+              <div class="hc-evidence-head">
+                <span class="hc-evidence-kind"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+                    <rect x="8" y="8" width="8" height="8" rx="1"></rect>
+                    <path d="M12 12h.01"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <h4 class="hc-evidence-title">sandbox.action_blocked</h4>
+                  <div class="hc-evidence-sub">Containment record · runner rn_77</div>
+                </div>
+                <span class="hc-pill hc-pill--violet hc-pill--sm"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="6" y="11" width="12" height="9" rx="1.5"></rect>
+                    <path d="M9 11V8a3 3 0 0 1 6 0v3"></path>
+                    <path d="M12 14.5v2"></path></svg
+                  ><span>Redacted</span></span
+                >
+              </div>
+              <div class="hc-evidence-hash">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="6" y="11" width="12" height="9" rx="1.5"></rect>
+                  <path d="M9 11V8a3 3 0 0 1 6 0v3"></path>
+                  <path d="M12 14.5v2"></path></svg
+                ><code
+                  title="sha256:41b9e0c2d7f4a6b1c8d3e5f7a9b0c2d4e6f8a1b3c5d7e9f0a2b4c6d8e0f2a4b6"
+                  >sha256:41b9e0c2d7f4a6b1c8d3e5f7a9b0c2d4e6f8a1b3c5d7e9f0a2b4c6d8e0f2a4b6</code
+                ><button
+                  type="button"
+                  class="hc-icon-btn hc-code-copy"
+                  aria-label="Copy digest"
+                  title="Copy digest"
+                  style="width: 28px; height: 28px"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                    <path
+                      d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                    ></path></svg
+                  ><span class="hc-visually-hidden" aria-live="polite"></span>
+                </button>
+              </div>
+              <span style="font-size: 13px; color: var(--hc-muted)"
+                >Egress to api.external denied by policy network.egress_denied.</span
+              >
+            </div>
+            <div class="hc-panel hc-evidence">
+              <div class="hc-evidence-head">
+                <span class="hc-evidence-kind"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path>
+                    <path d="M12 12h.01"></path></svg
+                ></span>
+                <div style="min-width: 0">
+                  <h4 class="hc-evidence-title">bola-oracle-v1 report</h4>
+                  <div class="hc-evidence-sub">Oracle report · scan sc_01J8X4</div>
+                </div>
+              </div>
+              <div class="hc-evidence-hash">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="6" y="11" width="12" height="9" rx="1.5"></rect>
+                  <path d="M9 11V8a3 3 0 0 1 6 0v3"></path>
+                  <path d="M12 14.5v2"></path></svg
+                ><code title="sha256:77aa10fe">sha256:77aa10fe</code
+                ><button
+                  type="button"
+                  class="hc-icon-btn hc-code-copy"
+                  aria-label="Copy digest"
+                  title="Copy digest"
+                  style="width: 28px; height: 28px"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                    <path
+                      d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                    ></path></svg
+                  ><span class="hc-visually-hidden" aria-live="polite"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <figure class="hc-code hc-code--numbered" style="margin: 0">
+            <figcaption class="hc-code-header">
+              <span class="hc-code-lang">http</span
+              ><span class="hc-code-title">attempt at_01J8XC · response excerpt (redacted)</span
+              ><button
+                type="button"
+                class="hc-icon-btn hc-code-copy hc-code-copy"
+                aria-label="Copy code"
+                title="Copy code"
+                style="width: 28px; height: 28px"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                  <path
+                    d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                  ></path></svg
+                ><span class="hc-visually-hidden" aria-live="polite"></span>
+              </button>
+            </figcaption>
+            <div
+              class="hc-code-scroll"
+              tabindex="0"
+              role="region"
+              aria-label="attempt at_01J8XC · response excerpt (redacted)"
+            >
+              <pre
+                class="hc-code-pre"
+              ><code><span class="hc-code-line">GET /api/invoices/inv_B HTTP/1.1</span><span class="hc-code-line">Host: target-lab.internal</span><span class="hc-code-line">X-Test-Identity: alice</span><span class="hc-code-line"> </span><span class="hc-code-line">HTTP/1.1 200 OK</span><span class="hc-code-line">Content-Type: application/json</span><span class="hc-code-line"> </span><span class="hc-code-line">{&quot;invoice_id&quot;:&quot;inv_B&quot;,&quot;tenant&quot;:&quot;tenant_B&quot;,&quot;total&quot;:&quot;SYNTHETIC-ONLY&quot;}</span></code></pre>
+            </div>
+          </figure>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+            <span class="hc-snapshot" title="a94e1c2f3b7d9012e4"
+              ><svg
+                viewBox="0 0 24 24"
+                width="12"
+                height="12"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m8 7-5 5 5 5"></path>
+                <path d="m16 7 5 5-5 5"></path></svg
+              ><span>rev a94e1c2f3b…</span
+              ><button
+                type="button"
+                class="hc-icon-btn hc-code-copy"
+                aria-label="Copy revision"
+                title="Copy revision"
+                style="width: 28px; height: 28px"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                  <path
+                    d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                  ></path></svg
+                ><span class="hc-visually-hidden" aria-live="polite"></span></button></span
+            ><button
+              type="button"
+              class="hc-icon-btn hc-code-copy"
+              aria-label="Copy command"
+              title="Copy command"
+              style="width: 28px; height: 28px"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="hc-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="9" y="9" width="11" height="11" rx="1.5"></rect>
+                <path
+                  d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"
+                ></path></svg
+              ><span class="hc-visually-hidden" aria-live="polite"></span></button
+            ><span class="hc-mono" style="color: var(--hc-subtle); font-size: 12px"
+              >copy affordances</span
+            >
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Replay — before/after assertions
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div>
+            <div class="hc-diff">
+              <div class="hc-diff--before">
+                <h4 class="hc-diff-panel-label">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M12 4 2.5 20h19z"></path>
+                    <path d="M12 10v4"></path>
+                    <path d="M12 17h.01"></path></svg
+                  >Before · vulnerable<span
+                    class="hc-mono"
+                    style="color: var(--hc-subtle); text-transform: none; letter-spacing: 0"
+                    >lab-v1</span
+                  >
+                </h4>
+                <div class="hc-panel">
+                  <div class="hc-panel-body">
+                    <ul class="hc-assertion-list">
+                      <li class="hc-assertion hc-assertion--fail">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="m6 6 12 12M18 6 6 18"></path></svg
+                        ><span class="hc-assertion-label">Alice → Bob private invoice</span
+                        ><span class="hc-assertion-outcome">200 · synthetic invoice body</span>
+                      </li>
+                      <li class="hc-assertion hc-assertion--pass">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="m4.5 12.5 5 5L19.5 7"></path></svg
+                        ><span class="hc-assertion-label">Alice → Alice own invoice</span
+                        ><span class="hc-assertion-outcome">200</span>
+                      </li>
+                    </ul>
+                    <p
+                      style="margin: 12px 0 0; font-size: var(--hc-text-sm); color: var(--hc-muted)"
+                    >
+                      1 confirmed attack path (sample fixture)
+                    </p>
+                    <div style="margin-top: 12px">
+                      <button type="button" class="hc-btn hc-btn--ghost hc-btn--sm">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <rect x="3" y="5" width="18" height="14" rx="1.5"></rect>
+                          <path d="m7 10 3 3-3 3"></path>
+                          <path d="M13 16h4"></path></svg
+                        ><span class="hc-btn-label">Proof trace</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="hc-diff--after">
+                <h4 class="hc-diff-panel-label">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                    <path d="m9 12 2.2 2.2L15.5 10"></path></svg
+                  >After · patched<span
+                    class="hc-mono"
+                    style="color: var(--hc-subtle); text-transform: none; letter-spacing: 0"
+                    >lab-v2</span
+                  >
+                </h4>
+                <div class="hc-panel">
+                  <div class="hc-panel-body">
+                    <ul class="hc-assertion-list">
+                      <li class="hc-assertion hc-assertion--denied">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+                          <path d="m7 7 10 10"></path></svg
+                        ><span class="hc-assertion-label">Alice → Bob private invoice</span
+                        ><span class="hc-assertion-outcome">403</span>
+                      </li>
+                      <li class="hc-assertion hc-assertion--pass">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="m4.5 12.5 5 5L19.5 7"></path></svg
+                        ><span class="hc-assertion-label">Alice → Alice own invoice</span
+                        ><span class="hc-assertion-outcome">200</span>
+                      </li>
+                    </ul>
+                    <p
+                      style="margin: 12px 0 0; font-size: var(--hc-text-sm); color: var(--hc-muted)"
+                    >
+                      0 reproduced · positive control passes
+                    </p>
+                    <div style="margin-top: 12px">
+                      <button type="button" class="hc-btn hc-btn--ghost hc-btn--sm">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="hc-icon"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <rect x="3" y="5" width="18" height="14" rx="1.5"></rect>
+                          <path d="m7 10 3 3-3 3"></path>
+                          <path d="M13 16h4"></path></svg
+                        ><span class="hc-btn-label">New proof trace</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 16px">
+              <div class="hc-callout hc-callout--success">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="hc-icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+                  <path d="m8.5 12.5 2.5 2.5 4.5-5"></path>
+                </svg>
+                <div>
+                  <p class="hc-callout-title">Verified fixed for this attack path</p>
+                  <div class="hc-callout-body">
+                    Both assertions passed in replay (sample fixture). Other attack classes were not
+                    tested.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Scope + containment ledger
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+              gap: 16px;
+            "
+          >
+            <div class="hc-panel">
+              <div class="hc-panel-header">
+                <h3 class="hc-panel-title">Authorized scope</h3>
+                <div>
+                  <span class="hc-pill hc-pill--mint hc-pill--sm"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                      <path d="m9 12 2.2 2.2L15.5 10"></path></svg
+                    ><span>Scope active</span></span
+                  >
+                </div>
+              </div>
+              <div class="hc-panel-body">
+                <dl class="hc-scope-list">
+                  <div style="display: contents">
+                    <dt>Target host</dt>
+                    <dd>target-lab.internal</dd>
+                  </div>
+                  <div style="display: contents">
+                    <dt>Test pack</dt>
+                    <dd>bola-invoice-v1</dd>
+                  </div>
+                  <div style="display: contents">
+                    <dt>Identities</dt>
+                    <dd>alice, bob (synthetic)</dd>
+                  </div>
+                  <div style="display: contents">
+                    <dt>Methods</dt>
+                    <dd>GET · ≤8 requests · 30s</dd>
+                  </div>
+                  <div style="display: contents">
+                    <dt>Expires</dt>
+                    <dd>2026-11-08T00:00Z</dd>
+                  </div>
+                </dl>
+                <div
+                  style="
+                    margin-top: 14px;
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    color: var(--hc-muted);
+                    font-size: var(--hc-text-xs);
+                  "
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="6" y="11" width="12" height="9" rx="1.5"></rect>
+                    <path d="M9 11V8a3 3 0 0 1 6 0v3"></path>
+                    <path d="M12 14.5v2"></path></svg
+                  >Recorded authorization — the demo cannot alter this scope.
+                </div>
+              </div>
+            </div>
+            <div class="hc-panel">
+              <div class="hc-panel-header"><h3 class="hc-panel-title">Containment ledger</h3></div>
+              <div class="hc-panel-body" style="display: flex; flex-direction: column; gap: 10px">
+                <div
+                  style="
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    font-size: var(--hc-text-sm);
+                  "
+                >
+                  <span style="color: var(--hc-mint); flex: none; position: relative; top: 2px"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                      <path d="m9 12 2.2 2.2L15.5 10"></path></svg></span
+                  ><span style="color: var(--hc-text)">Network egress</span
+                  ><span
+                    class="hc-mono"
+                    style="
+                      margin-left: auto;
+                      color: var(--hc-muted);
+                      font-size: var(--hc-text-xs);
+                      text-align: right;
+                    "
+                    >restricted</span
+                  >
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    font-size: var(--hc-text-sm);
+                  "
+                >
+                  <span style="color: var(--hc-mint); flex: none; position: relative; top: 2px"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                      <path d="m9 12 2.2 2.2L15.5 10"></path></svg></span
+                  ><span style="color: var(--hc-text)">Host mounts</span
+                  ><span
+                    class="hc-mono"
+                    style="
+                      margin-left: auto;
+                      color: var(--hc-muted);
+                      font-size: var(--hc-text-xs);
+                      text-align: right;
+                    "
+                    >none</span
+                  >
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    font-size: var(--hc-text-sm);
+                  "
+                >
+                  <span style="color: var(--hc-coral); flex: none; position: relative; top: 2px"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                      <path d="m9 9.5 6 6"></path>
+                      <path d="m15 9.5-6 6"></path></svg></span
+                  ><span style="color: var(--hc-text)">Secret access</span
+                  ><span
+                    class="hc-mono"
+                    style="
+                      margin-left: auto;
+                      color: var(--hc-muted);
+                      font-size: var(--hc-text-xs);
+                      text-align: right;
+                    "
+                    >1 denial · recorded</span
+                  >
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    font-size: var(--hc-text-sm);
+                  "
+                >
+                  <span style="color: var(--hc-mint); flex: none; position: relative; top: 2px"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                      <path d="m9 12 2.2 2.2L15.5 10"></path></svg></span
+                  ><span style="color: var(--hc-text)">Resource caps</span
+                  ><span
+                    class="hc-mono"
+                    style="
+                      margin-left: auto;
+                      color: var(--hc-muted);
+                      font-size: var(--hc-text-xs);
+                      text-align: right;
+                    "
+                    >cpu/mem/req limits</span
+                  >
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    font-size: var(--hc-text-sm);
+                  "
+                >
+                  <span style="color: var(--hc-low); flex: none; position: relative; top: 2px"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="hc-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="m4.5 12.5 5 5L19.5 7"></path></svg></span
+                  ><span style="color: var(--hc-text)">Last block</span
+                  ><span
+                    class="hc-mono"
+                    style="
+                      margin-left: auto;
+                      color: var(--hc-muted);
+                      font-size: var(--hc-text-xs);
+                      text-align: right;
+                    "
+                    >none this run</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Result states
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+              gap: 16px;
+            "
+          >
+            <div class="hc-panel">
+              <div class="hc-state">
+                <div class="hc-state-art" aria-hidden="true">
+                  <svg viewBox="0 0 160 120" width="160" class="hc-diagram" aria-hidden="true">
+                    <g fill="none" stroke="var(--hc-line-strong)" stroke-width="2">
+                      <path d="M56 40h8v-8h8v8h16v-8h8v8h8v10H56z"></path>
+                      <path d="M60 50v46M100 50v46"></path>
+                      <path d="M60 70h40M60 84h40"></path>
+                      <path d="M78 62h4v8h-4z"></path>
+                      <path d="M48 96h64M40 104h80"></path>
+                    </g>
+                    <circle
+                      cx="80"
+                      cy="24"
+                      r="4"
+                      fill="var(--hc-primary)"
+                      class="hc-pulse-dot--live"
+                    ></circle>
+                    <path
+                      d="M80 12v4M80 32v4M68 24h4M88 24h4"
+                      stroke="var(--hc-primary)"
+                      stroke-width="1.5"
+                      opacity="0.6"
+                    ></path>
+                    <g fill="var(--hc-surface-3)">
+                      <rect x="20" y="108" width="8" height="4"></rect>
+                      <rect x="52" y="108" width="8" height="4"></rect>
+                      <rect x="96" y="108" width="8" height="4"></rect>
+                      <rect x="128" y="108" width="8" height="4"></rect>
+                    </g>
+                  </svg>
+                </div>
+                <h3 class="hc-state-title">No scans yet</h3>
+                <p class="hc-state-body">
+                  Connect a verified target to run the first authorized assessment.
+                </p>
+                <div class="hc-state-actions">
+                  <button type="button" class="hc-btn hc-btn--primary hc-btn--sm">
+                    <span class="hc-btn-label">New assessment</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="hc-panel">
+              <div class="hc-state">
+                <span class="hc-state-art" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="36"
+                    height="36"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"></path>
+                    <path d="M12 8v5"></path>
+                    <path d="M12 16.5h.01"></path></svg
+                ></span>
+                <h3 class="hc-state-title">Scan failed</h3>
+                <p class="hc-state-body">
+                  The runner exited before completing the pack. Events up to the failure are
+                  preserved.<span class="hc-state-diagnostic">ref: err_9f2c</span>
+                </p>
+                <div class="hc-state-actions">
+                  <button type="button" class="hc-btn hc-btn--secondary hc-btn--sm">
+                    <span class="hc-btn-label">Retry scan</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="hc-panel">
+              <div class="hc-state">
+                <span class="hc-state-art" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="36"
+                    height="36"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect x="4" y="4" width="16" height="16" rx="8"></rect>
+                    <path
+                      d="M9.5 9.5A2.5 2.5 0 0 1 12 8a2.5 2.5 0 0 1 2.5 2.5c0 1.5-2.5 2-2.5 3.5"
+                    ></path>
+                    <path d="M12 17h.01"></path></svg
+                ></span>
+                <h3 class="hc-state-title">Inconclusive</h3>
+                <p class="hc-state-body">
+                  We couldn&#x27;t establish the outcome from the available evidence.
+                </p>
+                <div class="hc-state-actions">
+                  <button type="button" class="hc-btn hc-btn--secondary hc-btn--sm">
+                    <span class="hc-btn-label">View evidence</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="hc-panel">
+              <div class="hc-state">
+                <span class="hc-state-art" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="36"
+                    height="36"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="hc-icon"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"></path>
+                    <path d="m9 9.5 6 6"></path>
+                    <path d="m15 9.5-6 6"></path></svg
+                ></span>
+                <h3 class="hc-state-title">Blocked by scope</h3>
+                <p class="hc-state-body">
+                  This operation was rejected by the execution boundary.<span
+                    class="hc-state-diagnostic"
+                    >policy ref: network.egress_denied</span
+                  >
+                </p>
+                <div class="hc-state-actions">
+                  <button type="button" class="hc-btn hc-btn--ghost hc-btn--sm">
+                    <span class="hc-btn-label">Read policy</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="hc-panel">
+              <div class="hc-state" role="status" aria-label="Restoring scan events">
+                <span
+                  class="hc-spinner"
+                  style="width: 24px; height: 24px; color: var(--hc-primary)"
+                  aria-hidden="true"
+                ></span>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    width: min(320px, 80%);
+                    align-items: center;
+                  "
+                >
+                  <span
+                    class="hc-skeleton"
+                    style="width: 100%; height: 0.9em"
+                    aria-hidden="true"
+                  ></span
+                  ><span
+                    class="hc-skeleton"
+                    style="width: 86%; height: 0.9em"
+                    aria-hidden="true"
+                  ></span
+                  ><span
+                    class="hc-skeleton"
+                    style="width: 72%; height: 0.9em"
+                    aria-hidden="true"
+                  ></span>
+                </div>
+                <span class="hc-state-body" style="margin: 0">Restoring scan events</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Tabs + modal (static markup)
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div>
+            <div role="tablist" aria-label="Finding detail" class="hc-tabs-list">
+              <button
+                type="button"
+                role="tab"
+                id="_R_7f_-tab-ov"
+                data-tab-key="ov"
+                aria-selected="true"
+                aria-controls="_R_7f_-panel-ov"
+                tabindex="0"
+                class="hc-tab"
+              >
+                Overview</button
+              ><button
+                type="button"
+                role="tab"
+                id="_R_7f_-tab-pf"
+                data-tab-key="pf"
+                aria-selected="false"
+                aria-controls="_R_7f_-panel-pf"
+                tabindex="-1"
+                class="hc-tab"
+              >
+                Proof<span class="hc-tab-count">4</span></button
+              ><button
+                type="button"
+                role="tab"
+                id="_R_7f_-tab-rp"
+                data-tab-key="rp"
+                aria-selected="false"
+                aria-controls="_R_7f_-panel-rp"
+                tabindex="-1"
+                class="hc-tab"
+              >
+                Replay</button
+              ><button
+                type="button"
+                role="tab"
+                id="_R_7f_-tab-fx"
+                data-tab-key="fx"
+                aria-selected="false"
+                aria-controls="_R_7f_-panel-fx"
+                tabindex="-1"
+                class="hc-tab"
+              >
+                Fix
+              </button>
+            </div>
+            <div
+              role="tabpanel"
+              id="_R_7f_-panel-ov"
+              aria-labelledby="_R_7f_-tab-ov"
+              class="hc-tabs-panel"
+              tabindex="0"
+            >
+              <p style="color: var(--hc-muted); font-size: 14px">
+                Builder summary in plain language.
+              </p>
+            </div>
+            <div
+              role="tabpanel"
+              id="_R_7f_-panel-pf"
+              aria-labelledby="_R_7f_-tab-pf"
+              hidden=""
+              class="hc-tabs-panel"
+              tabindex="0"
+            ></div>
+            <div
+              role="tabpanel"
+              id="_R_7f_-panel-rp"
+              aria-labelledby="_R_7f_-tab-rp"
+              hidden=""
+              class="hc-tabs-panel"
+              tabindex="0"
+            ></div>
+            <div
+              role="tabpanel"
+              id="_R_7f_-panel-fx"
+              aria-labelledby="_R_7f_-tab-fx"
+              hidden=""
+              class="hc-tabs-panel"
+              tabindex="0"
+            ></div>
+          </div>
+          <div
+            style="
+              position: relative;
+              border: 1px dashed var(--hc-line);
+              border-radius: 6px;
+              padding: 24px;
+            "
+          >
+            <p style="margin: 0 0 12px; color: var(--hc-subtle); font-size: 12px">
+              Modal anatomy (inline mock of the portal output):
+            </p>
+            <div class="hc-modal hc-modal--sm" style="max-width: 420px; margin: 0 auto">
+              <div class="hc-modal-header">
+                <div>
+                  <h2 class="hc-modal-title">Cancel scan?</h2>
+                  <p class="hc-modal-description">The runner is stopped and cleanup is recorded.</p>
+                </div>
+                <button class="hc-icon-btn hc-modal-close" aria-label="Close dialog">×</button>
+              </div>
+              <div class="hc-modal-body">
+                In-flight requests are discarded; persisted events remain available.
+              </div>
+              <div class="hc-modal-footer">
+                <button class="hc-btn hc-btn--ghost">Keep running</button
+                ><button class="hc-btn hc-btn--destructive">Cancel scan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section style="margin-bottom: 56px; grid-column: 1 / -1">
+        <h2
+          style="
+            font-family: var(--hc-font-display);
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--hc-cyan);
+            border-bottom: 1px solid var(--hc-line);
+            padding-bottom: 8px;
+            margin: 0 0 8px;
+          "
+        >
+          Illustration primitives
+        </h2>
+        <p style="color: var(--hc-subtle); font-size: 12px; margin: 0 0 16px">
+          Original artwork for hero, proof and containment surfaces.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+              gap: 24px;
+            "
+          >
+            <div class="hc-panel">
+              <div class="hc-panel-header">
+                <h3 class="hc-panel-title">Perimeter under test</h3>
+              </div>
+              <div class="hc-panel-body">
+                <svg
+                  viewBox="0 0 520 380"
+                  width="460"
+                  class="hc-diagram"
+                  role="img"
+                  aria-label="Illustration: a pixel fortress inside a glowing defensive perimeter, a violet scan trace and a coral probe blocked at the boundary"
+                >
+                  <g stroke="var(--hc-surface-2)" stroke-width="1">
+                    <path d="M40 20V360"></path>
+                    <path d="M95 20V360"></path>
+                    <path d="M150 20V360"></path>
+                    <path d="M205 20V360"></path>
+                    <path d="M260 20V360"></path>
+                    <path d="M315 20V360"></path>
+                    <path d="M370 20V360"></path>
+                    <path d="M425 20V360"></path>
+                    <path d="M480 20V360"></path>
+                    <path d="M20 40H500"></path>
+                    <path d="M20 90H500"></path>
+                    <path d="M20 140H500"></path>
+                    <path d="M20 190H500"></path>
+                    <path d="M20 240H500"></path>
+                    <path d="M20 290H500"></path>
+                    <path d="M20 340H500"></path>
+                  </g>
+                  <rect
+                    x="60"
+                    y="50"
+                    width="400"
+                    height="280"
+                    rx="8"
+                    fill="none"
+                    stroke="var(--hc-cyan)"
+                    stroke-width="2"
+                    stroke-dasharray="10 6"
+                    opacity="0.9"
+                  ></rect>
+                  <g fill="var(--hc-cyan)">
+                    <rect x="120" y="48" width="6" height="6"></rect>
+                    <rect x="300" y="48" width="6" height="6"></rect>
+                    <rect x="456" y="150" width="6" height="6"></rect>
+                    <rect x="456" y="270" width="6" height="6"></rect>
+                    <rect x="58" y="210" width="6" height="6"></rect>
+                  </g>
+                  <g fill="var(--hc-surface-2)" stroke="var(--hc-line-strong)" stroke-width="1.5">
+                    <path d="M140 300V150h16v-14h16v14h16v-14h16v14h16v150z"></path>
+                    <path d="M320 300V130h16v-14h16v14h16v-14h16v14h16v170z"></path>
+                    <path d="M220 300V190h100v110z"></path>
+                  </g>
+                  <g fill="var(--hc-surface-3)">
+                    <rect x="148" y="160" width="20" height="12"></rect>
+                    <rect x="336" y="140" width="20" height="12"></rect>
+                    <rect x="228" y="200" width="84" height="10"></rect>
+                  </g>
+                  <path d="M254 300v-44a16 14 0 0 1 16 0v44z" fill="var(--hc-bg)"></path>
+                  <rect x="265" y="272" width="4" height="18" fill="var(--hc-surface-2)"></rect>
+                  <rect x="220" y="236" width="10" height="10" fill="var(--hc-orange)"></rect>
+                  <g fill="var(--hc-surface-3)">
+                    <rect x="156" y="128" width="16" height="8"></rect>
+                    <rect x="336" y="108" width="16" height="8"></rect>
+                    <rect x="368" y="108" width="16" height="8"></rect>
+                  </g>
+                  <path
+                    d="M470 90 340 128l-40 4"
+                    fill="none"
+                    stroke="var(--hc-violet)"
+                    stroke-width="1.5"
+                    stroke-dasharray="4 5"
+                  ></path>
+                  <circle
+                    cx="300"
+                    cy="132"
+                    r="5"
+                    fill="none"
+                    stroke="var(--hc-violet)"
+                    stroke-width="1.5"
+                  ></circle>
+                  <circle
+                    cx="300"
+                    cy="132"
+                    r="10"
+                    fill="none"
+                    stroke="var(--hc-violet)"
+                    stroke-width="1"
+                    opacity="0.5"
+                  ></circle>
+                  <text x="392" y="80" class="hc-diagram-label" fill="var(--hc-violet)">
+                    model trace
+                  </text>
+                  <path
+                    d="M500 300 462 286"
+                    fill="none"
+                    stroke="var(--hc-coral)"
+                    stroke-width="2"
+                    stroke-dasharray="6 4"
+                  ></path>
+                  <g stroke="var(--hc-coral)" stroke-width="2">
+                    <path d="m452 278 10 10M462 278l-10 10"></path>
+                  </g>
+                  <text x="410" y="318" class="hc-diagram-label" fill="var(--hc-coral)">
+                    blocked probe
+                  </text>
+                  <path
+                    d="M240 340h60v-16"
+                    fill="none"
+                    stroke="var(--hc-primary)"
+                    stroke-width="1.5"
+                  ></path>
+                  <path
+                    d="m296 330 4-8 4 8"
+                    fill="none"
+                    stroke="var(--hc-primary)"
+                    stroke-width="1.5"
+                  ></path>
+                  <text x="60" y="356" class="hc-diagram-label" fill="var(--hc-subtle)">
+                    perimeter under authorized test · synthetic lab
+                  </text>
+                </svg>
+              </div>
+            </div>
+            <div class="hc-panel">
+              <div class="hc-panel-header"><h3 class="hc-panel-title">Containment</h3></div>
+              <div class="hc-panel-body">
+                <svg
+                  viewBox="0 0 460 300"
+                  width="460"
+                  class="hc-diagram"
+                  role="img"
+                  aria-label="Containment diagram: nested host, control plane, runner and test application boundaries with a denied egress attempt"
+                >
+                  <rect
+                    x="10"
+                    y="10"
+                    width="440"
+                    height="280"
+                    rx="6"
+                    fill="none"
+                    stroke="var(--hc-line-strong)"
+                    stroke-width="1.5"
+                    stroke-dasharray="6 4"
+                  ></rect>
+                  <text x="24" y="30" class="hc-diagram-label" fill="var(--hc-subtle)">
+                    Host · Vultr VM
+                  </text>
+                  <rect
+                    x="34"
+                    y="42"
+                    width="392"
+                    height="234"
+                    rx="6"
+                    fill="var(--hc-surface-1)"
+                    stroke="var(--hc-line)"
+                    stroke-width="1.5"
+                  ></rect>
+                  <text x="48" y="62" class="hc-diagram-label" fill="var(--hc-muted)">
+                    Control plane
+                  </text>
+                  <rect
+                    x="60"
+                    y="76"
+                    width="250"
+                    height="186"
+                    rx="6"
+                    fill="var(--hc-bg)"
+                    stroke="var(--hc-cyan-deep)"
+                    stroke-width="2"
+                  ></rect>
+                  <text x="74" y="96" class="hc-diagram-label" fill="var(--hc-cyan)">
+                    Ephemeral runner · no creds
+                  </text>
+                  <rect
+                    x="82"
+                    y="110"
+                    width="130"
+                    height="120"
+                    rx="4"
+                    fill="var(--hc-primary-wash)"
+                    stroke="var(--hc-primary-deep)"
+                    stroke-width="1.5"
+                  ></rect>
+                  <text x="94" y="128" class="hc-diagram-label" fill="var(--hc-primary)">
+                    Test application
+                  </text>
+                  <g fill="var(--hc-primary)" opacity="0.9">
+                    <path
+                      d="M120 150h6v-3h4v3h6v4h-16z M122 154h4v14h-4z M128 154h4v14h-4z M122 168h12v4h-12z"
+                      transform="scale(1.4) translate(-36 -28)"
+                    ></path>
+                  </g>
+                  <text
+                    x="94"
+                    y="222"
+                    class="hc-diagram-label"
+                    fill="var(--hc-muted)"
+                    style="font-size: 8px"
+                  >
+                    synthetic data only
+                  </text>
+                  <text x="222" y="128" class="hc-diagram-label" fill="var(--hc-subtle)">
+                    GET only · ≤8 req
+                  </text>
+                  <text x="222" y="142" class="hc-diagram-label" fill="var(--hc-subtle)">
+                    ≤30s · no secrets
+                  </text>
+                  <path d="M240 170h-24" stroke="var(--hc-cyan)" stroke-width="1.5"></path>
+                  <path
+                    d="m222 166-8 4 8 4"
+                    fill="none"
+                    stroke="var(--hc-cyan)"
+                    stroke-width="1.5"
+                  ></path>
+                  <path
+                    d="M310 170h84"
+                    stroke="var(--hc-coral)"
+                    stroke-width="1.5"
+                    stroke-dasharray="5 4"
+                  ></path>
+                  <path
+                    d="m404 166 8 4-8 4"
+                    fill="none"
+                    stroke="var(--hc-coral)"
+                    stroke-width="1.5"
+                  ></path>
+                  <g stroke="var(--hc-coral)" stroke-width="2">
+                    <path d="m300 160 12 12M312 160l-12 12"></path>
+                  </g>
+                  <text x="318" y="196" class="hc-diagram-label" fill="var(--hc-coral)">
+                    egress denied
+                  </text>
+                  <text x="48" y="264" class="hc-diagram-label" fill="var(--hc-subtle)">
+                    sandbox.action_blocked is recorded as evidence
+                  </text>
+                </svg>
+              </div>
+            </div>
+            <div class="hc-panel">
+              <div class="hc-panel-header"><h3 class="hc-panel-title">Proof chain</h3></div>
+              <div class="hc-panel-body">
+                <svg
+                  viewBox="0 0 440 130"
+                  width="440"
+                  class="hc-diagram"
+                  role="img"
+                  aria-label="Proof chain: model hypothesis, sandbox execution, independent oracle verdict"
+                >
+                  <g>
+                    <rect
+                      x="8"
+                      y="30"
+                      width="104"
+                      height="64"
+                      rx="6"
+                      fill="var(--hc-surface-1)"
+                      stroke="var(--hc-violet-deep)"
+                      stroke-width="1.5"
+                    ></rect>
+                    <rect x="8" y="30" width="104" height="3" fill="var(--hc-violet)"></rect>
+                    <g stroke="var(--hc-violet)" stroke-width="1.5" fill="none">
+                      <rect x="22" y="46" width="16" height="16"></rect>
+                      <path d="M26 42v4M34 42v4M26 62v4M34 62v4"></path>
+                    </g>
+                    <text x="48" y="56" class="hc-diagram-label" fill="var(--hc-violet)">
+                      Hypothesis
+                    </text>
+                    <text
+                      x="48"
+                      y="70"
+                      class="hc-diagram-label"
+                      fill="var(--hc-subtle)"
+                      style="font-size: 8px"
+                    >
+                      model proposes
+                    </text>
+                  </g>
+                  <g>
+                    <rect
+                      x="168"
+                      y="30"
+                      width="104"
+                      height="64"
+                      rx="6"
+                      fill="var(--hc-surface-1)"
+                      stroke="var(--hc-cyan-deep)"
+                      stroke-width="1.5"
+                    ></rect>
+                    <rect x="168" y="30" width="104" height="3" fill="var(--hc-cyan)"></rect>
+                    <g stroke="var(--hc-cyan)" stroke-width="1.5" fill="none">
+                      <rect x="180" y="44" width="20" height="20"></rect>
+                      <path d="m185 50 3 3-3 3M190 58h5"></path>
+                    </g>
+                    <text x="208" y="56" class="hc-diagram-label" fill="var(--hc-cyan)">
+                      Execution
+                    </text>
+                    <text
+                      x="208"
+                      y="70"
+                      class="hc-diagram-label"
+                      fill="var(--hc-subtle)"
+                      style="font-size: 8px"
+                    >
+                      sandbox runs
+                    </text>
+                  </g>
+                  <g>
+                    <rect
+                      x="328"
+                      y="30"
+                      width="104"
+                      height="64"
+                      rx="6"
+                      fill="var(--hc-surface-1)"
+                      stroke="var(--hc-primary-deep)"
+                      stroke-width="1.5"
+                    ></rect>
+                    <rect x="328" y="30" width="104" height="3" fill="var(--hc-primary)"></rect>
+                    <g stroke="var(--hc-primary)" stroke-width="1.5" fill="none">
+                      <path d="M350 44l-7 3v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9v-6z"></path>
+                      <path d="m347 53 2.2 2.2 4-4.4"></path>
+                    </g>
+                    <text x="368" y="56" class="hc-diagram-label" fill="var(--hc-primary)">
+                      Verdict
+                    </text>
+                    <text
+                      x="368"
+                      y="70"
+                      class="hc-diagram-label"
+                      fill="var(--hc-subtle)"
+                      style="font-size: 8px"
+                    >
+                      oracle decides
+                    </text>
+                  </g>
+                  <path
+                    d="M112 62h20v-8h16"
+                    fill="none"
+                    stroke="var(--hc-line-strong)"
+                    stroke-width="1.5"
+                  ></path>
+                  <path
+                    d="m148 50 8 4-8 4"
+                    fill="none"
+                    stroke="var(--hc-line-strong)"
+                    stroke-width="1.5"
+                    transform="translate(0 8)"
+                  ></path>
+                  <path
+                    d="M272 62h20v-8h16"
+                    fill="none"
+                    stroke="var(--hc-line-strong)"
+                    stroke-width="1.5"
+                  ></path>
+                  <path
+                    d="m308 50 8 4-8 4"
+                    fill="none"
+                    stroke="var(--hc-line-strong)"
+                    stroke-width="1.5"
+                    transform="translate(0 8)"
+                  ></path>
+                  <text x="8" y="118" class="hc-diagram-label" fill="var(--hc-subtle)">
+                    model output is untrusted — only policy-validated plans execute
+                  </text>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
