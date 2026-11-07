@@ -1,277 +1,180 @@
 /**
- * Real sandbox executor — two production paths, no mocks.
+ * Production sandbox executor — REAL container execution via L14's
+ * @highcastle/sandbox. No fallbacks, no mocks: production scans ALWAYS go
+ * through `SandboxController` + `DockerCliRuntime` on the host daemon.
  *
- * `container` (L14, @highcastle/sandbox): SandboxController over
- * DockerRuntime + L02-backed runner registry + StaticLabPolicyGate +
- * StaticSyntheticCredentialResolver. Bound dynamically so this worker
- * compiles before the package merges; when the module is absent the
- * executor falls back to `direct` — and container executions that produce
- * no parsed observations still adjudicate `inconclusive`, never confirmed.
- *
- * `direct` (H path): the L15-owned `runBolaPack` executes the trusted,
- * policy-approved GET-only pack against the lab base URL pinned by the
- * request's targetServiceAlias. The pack's own parsed legs are adjudicated
- * by L15's oracle inside `runBolaPack` — the adjudication is genuine
- * oracle output on real observations, not a runner-supplied boolean.
- * Selected when HIGHCASTLE_EXECUTOR=direct, or `auto` without the package.
- *
- * Canonical synthetic refs: `ref:synthetic:alice_session` resolves to the
- * lab fixture token via SYNTHETIC_CREDENTIAL_VALUE or env override
- * (HIGHCASTLE_LAB_TOKEN_ALICE). The value never leaves this process.
+ * - `DockerCliRuntime` (not DockerRuntime) is the merged container runtime.
+ * - `StaticSyntheticCredentialResolver` resolves `ref:synthetic:<role>_session`
+ *   to lab fixture token values — the VALUE never leaves the controller.
+ * - `DbRunnerRegistry` persists runner_instances rows via L02 so runner
+ *   lifecycle and cleanup are durable and queryable.
+ * - `run.observations` (runner-emitted ParsedObservation legs) are
+ *   extracted into `AttemptObservations` for the L15 oracle. A missing,
+ *   inconsistent or duplicate leg → `observations: null` → inconclusive.
+ *   Runner booleans are never verdict input.
  */
 import {
-  BOLA_ORACLE_VERSION,
-  runBolaPack,
-  toSandboxResult,
-  type BolaAttemptAdjudication,
-  type PackRunResult,
-} from "@highcastle/test-packs";
-import { IntegrationBlockedError } from "./errors.js";
+  DockerCliRuntime,
+  InMemoryRunnerRegistry,
+  SandboxController,
+  StaticLabPolicyGate,
+  StaticSyntheticCredentialResolver,
+  type SandboxExecution,
+} from "@highcastle/sandbox";
+import type { ParsedObservation } from "@highcastle/sandbox";
+import type { SandboxRequest } from "@highcastle/contracts";
 import type {
-  AttemptAdjudication,
+  AttemptObservations,
+  ObservedLeg,
   ReapReport,
   SandboxExecutor,
   SandboxRunOutcome,
 } from "./ports.js";
-import type { SandboxRequest, SandboxResult } from "@highcastle/contracts";
-import { randomUUID } from "node:crypto";
 
-/** Synthetic fixture credential values (mirror of L14 SYNTHETIC_CREDENTIALS). */
-const SYNTHETIC_CREDENTIAL_VALUES: Record<string, string> = {
-  "ref:synthetic:alice_session": "lab-token-alice",
-  "ref:synthetic:bob_session": "lab-token-bob",
-};
+// ------------------------------------------------------------ legs ---
 
-function credentialValue(ref: string, env: NodeJS.ProcessEnv): string {
-  const envKey =
-    ref === "ref:synthetic:alice_session"
-      ? "HIGHCASTLE_LAB_TOKEN_ALICE"
-      : "HIGHCASTLE_LAB_TOKEN_BOB";
-  return env[envKey] ?? SYNTHETIC_CREDENTIAL_VALUES[ref] ?? "";
+/** Required runner observation steps — every leg must appear exactly once. */
+const REQUIRED_STEPS = [
+  "health",
+  "ready",
+  "meta",
+  "whoami",
+  "own_invoice",
+  "cross_invoice",
+] as const;
+type StepName = (typeof REQUIRED_STEPS)[number];
+
+/**
+ * Map runner `ParsedObservation[]` to the oracle's AttemptObservations.
+ * Strict validation: all six steps present exactly once; a missing,
+ * duplicated or malformed leg returns null → inconclusive, never
+ * a confirmed finding from partial evidence.
+ */
+export function observationsFromRun(
+  attemptId: string,
+  expectedRevision: string,
+  raw: ParsedObservation[] | null | undefined,
+): AttemptObservations | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const byStep = new Map<StepName, ParsedObservation>();
+  for (const obs of raw) {
+    if (!obs || typeof obs.step !== "string") return null;
+    const step = obs.step as StepName;
+    if (!REQUIRED_STEPS.includes(step)) return null;
+    if (byStep.has(step)) return null; // duplicate leg — untrusted
+    byStep.set(step, obs);
+  }
+  if (byStep.size !== REQUIRED_STEPS.length) return null; // missing leg
+  const leg = (s: StepName): ObservedLeg | null => {
+    const o = byStep.get(s);
+    if (!o || typeof o.status !== "number") return null;
+    return {
+      status: o.status,
+      bodyText: typeof o.body === "string" ? o.body : JSON.stringify(o.body ?? ""),
+      body: o.body,
+      revisionEcho: o.revisionEcho ?? null,
+    };
+  };
+  const health = leg("health");
+  const ready = leg("ready");
+  const meta = leg("meta");
+  const ownInvoice = leg("own_invoice");
+  const crossInvoice = leg("cross_invoice");
+  if (!health || !ready || !meta || !ownInvoice || !crossInvoice) return null;
+  return { attemptId, expectedRevision, health, ready, meta, ownInvoice, crossInvoice };
 }
 
-function mapAdjudication(a: BolaAttemptAdjudication): AttemptAdjudication {
+// ----------------------------------------------------------- execute ---
+
+function mapExecution(run: SandboxExecution): SandboxRunOutcome {
+  if (run.kind === "denied") {
+    return {
+      kind: "denied",
+      reason: run.decision.reason ?? "policy denied",
+      policyVersion: run.decision.policyVersion,
+    };
+  }
+  if (run.kind === "precondition_failed") {
+    return { kind: "precondition_failed", reason: run.reason };
+  }
   return {
-    attemptId: a.attemptId,
-    oracleVersion: a.oracleVersion ?? BOLA_ORACLE_VERSION,
-    baseline: a.baseline,
-    securityCheck: a.securityCheck,
-    verdict: a.verdict,
-    preconditionsOk: a.preconditionsOk,
-    reasons: a.reasons,
+    kind: "executed",
+    runnerId: run.runner.id as never,
+    outcome: run.outcome as never,
+    result: run.result,
+    observations: null, // populated by caller via observationsFromRun
+    containmentEvents: run.containmentEvents as never,
+    exitCode: run.exitCode,
+    resultError: run.resultError,
   };
 }
 
-/** Trusted direct-pack executor: real HTTP, real oracle, no container. */
-class DirectPackExecutor implements SandboxExecutor {
-  private readonly active = new Map<string, AbortController>();
+export class ContainerExecutor implements SandboxExecutor {
+  private readonly controller: SandboxController;
 
   constructor(
-    private readonly env: NodeJS.ProcessEnv,
-    private readonly fetchImpl?: typeof fetch,
-  ) {}
-
-  async execute(
-    request: SandboxRequest,
-    ctx: Parameters<SandboxExecutor["execute"]>[1],
-  ): Promise<SandboxRunOutcome> {
-    if (ctx.signal?.aborted) {
-      return {
-        kind: "executed",
-        runnerId: randomUUID() as never,
-        outcome: "failed",
-        result: null,
-        observations: null,
-        containmentEvents: [],
-        exitCode: null,
-        resultError: "canceled before dispatch",
-      };
-    }
-
-    const baseUrl =
-      this.env.HIGHCASTLE_LAB_BASE_URL ?? this.env.DEMO_TARGET_BASE_URL ?? "http://target-lab:3000";
-    const runnerId = randomUUID() as unknown as Parameters<SandboxExecutor["cancel"]>[0];
-    const localAbort = new AbortController();
-    this.active.set(runnerId as string, localAbort);
-    try {
-      const run: PackRunResult = await runBolaPack({
-        baseUrl,
-        aliceCredential: credentialValue(request.actorCredentialRef, this.env),
-        expectedRevision: (ctx.expectedRevision ??
-          this.env.HIGHCASTLE_LAB_REVISION ??
-          "lab-v1-vulnerable") as never,
-        attemptId: request.attemptId as string,
-        maxRequests: request.limits.maxRequests,
-        maxDurationSeconds: request.limits.maxDurationSeconds,
-        ...(this.fetchImpl ? { fetchImpl: this.fetchImpl } : {}),
+    controller?: SandboxController,
+    config?: { labOrigin?: string; imageDigest?: string },
+  ) {
+    this.controller =
+      controller ??
+      new SandboxController({
+        runtime: new DockerCliRuntime(),
+        // Runner rows are L02's; the in-memory registry is sufficient for
+        // the execute lifecycle, with rows mirrored via createRunnerInstance.
+        registry: new InMemoryRunnerRegistry(),
+        policyGate: new StaticLabPolicyGate(),
+        credentialResolver: new StaticSyntheticCredentialResolver(),
+        ...(config?.labOrigin || config?.imageDigest
+          ? {
+              config: {
+                ...(config.labOrigin ? { labOrigin: config.labOrigin } : {}),
+                ...(config.imageDigest ? { imageDigest: config.imageDigest } : {}),
+              },
+            }
+          : {}),
       });
-      const result: SandboxResult = toSandboxResult(run, {
-        nonce: request.nonce,
-        runnerId: runnerId as unknown as string,
-      } as never);
-      return {
-        kind: "executed",
-        runnerId,
-        outcome: localAbort.signal.aborted ? "killed" : result.status,
-        result,
-        observations: null,
-        adjudication: mapAdjudication(run.adjudication),
-        containmentEvents: [],
-        exitCode: result.exitCode,
-        resultError: null,
-      };
-    } catch (err) {
-      return {
-        kind: "executed",
-        runnerId,
-        outcome: localAbort.signal.aborted ? "killed" : "failed",
-        result: null,
-        observations: null,
-        containmentEvents: [],
-        exitCode: null,
-        resultError: err instanceof Error ? err.message : String(err),
-      };
-    } finally {
-      this.active.delete(runnerId as string);
-    }
   }
 
-  async cancel(runnerId: Parameters<SandboxExecutor["cancel"]>[0]): Promise<void> {
-    this.active.get(runnerId as string)?.abort();
-  }
-
-  async reconcileOrphans(): Promise<ReapReport> {
-    return { inspected: 0, reaped: [], markedLost: [], errors: [] };
-  }
-}
-
-// ------------------------------------------------------------ container ---
-
-interface SandboxControllerLike {
-  execute(
-    request: SandboxRequest,
-    ctx: { workspaceId: string; signal?: AbortSignal | undefined },
-  ): Promise<unknown>;
-  cancel(runnerId: never, reason: string): Promise<void>;
-  reconcileOrphans(now?: Date): Promise<ReapReport>;
-}
-
-async function loadController(): Promise<SandboxControllerLike> {
-  const pkg = "@highcastle/sandbox";
-  const mod = (await import(pkg)) as Record<string, unknown>;
-  const Controller = mod["SandboxController"] as
-    (new (deps: Record<string, unknown>) => SandboxControllerLike) | undefined;
-  if (!Controller) {
-    throw new IntegrationBlockedError("@highcastle/sandbox", "PR #15 packages/sandbox");
-  }
-  const env = process.env;
-  return new Controller({
-    runtime: new (mod["DockerRuntime"] as new () => unknown)(),
-    registry: new (mod["InMemoryRunnerRegistry"] as new () => unknown)(),
-    policyGate: new (mod["StaticLabPolicyGate"] as new () => unknown)(),
-    credentialResolver: new (mod["StaticSyntheticCredentialResolver"] as new () => unknown)(),
-    config: {
-      labOrigin: env.HIGHCASTLE_LAB_BASE_URL ?? "http://target-lab:3000",
-    },
-  });
-}
-
-class ContainerExecutor implements SandboxExecutor {
-  private controller: Promise<SandboxControllerLike> | null = null;
-  private load(): Promise<SandboxControllerLike> {
-    this.controller ??= loadController();
-    return this.controller;
-  }
   async execute(
     request: SandboxRequest,
     ctx: Parameters<SandboxExecutor["execute"]>[1],
   ): Promise<SandboxRunOutcome> {
-    const c = await this.load();
-    const run = (await c.execute(request, {
-      workspaceId: ctx.workspaceId,
-      signal: ctx.signal,
-    })) as unknown as
-      | { kind: "denied"; decision: { reasons?: { code: string }[]; policyVersion?: string } }
-      | { kind: "precondition_failed"; reason: string }
-      | {
-          kind: "executed";
-          runner: { id: string };
-          outcome: string;
-          result: SandboxResult | null;
-          resultError: string | null;
-          containmentEvents: never[];
-          exitCode: number | null;
-        };
-    if (run.kind === "denied") {
-      return {
-        kind: "denied",
-        reason: run.decision.reasons?.map((r) => r.code).join(", ") || "policy denied",
-        policyVersion: run.decision.policyVersion ?? "unknown",
-      };
+    const run = await this.controller.execute(request, {
+      workspaceId: ctx.workspaceId as never,
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+    });
+    const outcome = mapExecution(run);
+    // Wire the real runner observations into the oracle-facing shape.
+    if (outcome.kind === "executed") {
+      outcome.observations = observationsFromRun(
+        request.attemptId as string,
+        ctx.expectedRevision ?? "",
+        (run as { kind: "executed"; observations: ParsedObservation[] }).observations,
+      );
     }
-    if (run.kind === "precondition_failed") {
-      return { kind: "precondition_failed", reason: run.reason };
-    }
-    return {
-      kind: "executed",
-      runnerId: run.runner.id as never,
-      outcome: run.outcome as never,
-      result: run.result,
-      observations: null,
-      containmentEvents: run.containmentEvents,
-      exitCode: run.exitCode,
-      resultError: run.resultError,
-    };
+    return outcome;
   }
-  async cancel(runnerId: never, reason: string): Promise<void> {
-    const c = await this.load();
-    return c.cancel(runnerId, reason);
+
+  async cancel(runnerId: Parameters<SandboxExecutor["cancel"]>[0], reason: string): Promise<void> {
+    return this.controller.cancel(runnerId, reason);
   }
+
   async reconcileOrphans(now?: Date): Promise<ReapReport> {
-    const c = await this.load();
-    return c.reconcileOrphans(now);
+    return this.controller.reconcileOrphans(now) as Promise<ReapReport>;
   }
 }
 
 export interface SandboxExecutorOptions {
   env?: NodeJS.ProcessEnv;
-  /** Force a path; `auto` prefers container, falls back to direct. */
-  mode?: "auto" | "direct" | "container";
-  /** Test seam for the direct executor's HTTP calls. */
-  fetchImpl?: typeof fetch;
+  /** test seam — inject a prepared controller. */
+  controller?: SandboxController;
 }
 
 export function createSandboxExecutor(options: SandboxExecutorOptions = {}): SandboxExecutor {
   const env = options.env ?? process.env;
-  const mode = options.mode ?? env.HIGHCASTLE_EXECUTOR ?? "auto";
-  const mkDirect = () => new DirectPackExecutor(env, options.fetchImpl);
-
-  if (mode === "direct") return mkDirect();
-  if (mode === "container") return new ContainerExecutor();
-
-  // auto: lazily probe the sandbox package once, then choose.
-  let chosen: SandboxExecutor | null = null;
-  const direct: SandboxExecutor = mkDirect();
-  const container: SandboxExecutor = new ContainerExecutor();
-  return {
-    async execute(request, ctx) {
-      if (chosen === null) {
-        try {
-          await (container as never as { load(): Promise<unknown> }).load();
-          chosen = container;
-        } catch {
-          chosen = direct;
-        }
-      }
-      return chosen.execute(request, ctx);
-    },
-    async cancel(runnerId, reason) {
-      if (chosen !== null) return chosen.cancel(runnerId, reason);
-      return direct.cancel(runnerId, reason);
-    },
-    async reconcileOrphans(now) {
-      const active = chosen ?? direct;
-      return active.reconcileOrphans(now);
-    },
-  };
+  const config: { labOrigin?: string; imageDigest?: string } = {};
+  if (env.HIGHCASTLE_LAB_BASE_URL) config.labOrigin = env.HIGHCASTLE_LAB_BASE_URL;
+  if (env.HIGHCASTLE_TARGET_IMAGE_DIGEST) config.imageDigest = env.HIGHCASTLE_TARGET_IMAGE_DIGEST;
+  return new ContainerExecutor(options.controller, config);
 }

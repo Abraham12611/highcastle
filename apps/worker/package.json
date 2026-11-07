@@ -15,6 +15,7 @@
     "@highcastle/contracts": "workspace:*",
     "@highcastle/db": "workspace:*",
     "@highcastle/inference": "workspace:*",
+    "@highcastle/sandbox": "workspace:*",
     "@highcastle/security": "workspace:*",
     "@highcastle/test-packs": "workspace:*",
     "drizzle-orm": "0.45.4",

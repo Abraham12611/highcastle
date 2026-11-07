@@ -65,12 +65,27 @@ importers:
       '@highcastle/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@highcastle/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@highcastle/security':
+        specifier: workspace:*
+        version: link:../../packages/security
+      '@highcastle/test-packs':
+        specifier: workspace:*
+        version: link:../../packages/test-packs
       '@highcastle/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.5.15)(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1)
       next:
         specifier: 16.4.5
         version: 16.4.5(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      pg-boss:
+        specifier: 12.38.1
+        version: 12.38.1(@opentelemetry/api@1.10.0)
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -120,6 +135,9 @@ importers:
       '@highcastle/inference':
         specifier: workspace:*
         version: link:../../packages/inference
+      '@highcastle/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/sandbox
       '@highcastle/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -243,6 +261,31 @@ importers:
       zod:
         specifier: 3.23.8
         version: 3.23.8
+    devDependencies:
+      '@eslint/js':
+        specifier: 'catalog:'
+        version: 9.39.5
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.5(jiti@2.7.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      typescript-eslint:
+        specifier: 'catalog:'
+        version: 8.72.1(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
+  packages/sandbox:
+    dependencies:
+      '@highcastle/contracts':
+        specifier: workspace:*
+        version: link:../contracts
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
@@ -4619,7 +4662,7 @@ snapshots:
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react: 7.37.5(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react-hooks: 7.1.1(eslint@9.39.5(jiti@2.7.0))
@@ -4652,7 +4695,7 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.13.0
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
@@ -4666,7 +4709,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)):
+  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.2.0
