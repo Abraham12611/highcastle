@@ -1,7 +1,8 @@
+import { DEMO_IDS } from "@highcastle/db";
 import { ScanWizard } from "../../../../features/scans/wizard";
 
 export default function NewScanPage() {
-  // TODO(L05/L18): projectId comes from workspace route params/session;
-  // demo uses the seeded invoice-demo project slug for now.
-  return <ScanWizard projectId="invoice-demo" />;
+  // The demo assessment-context endpoint accepts a project UUID, not a slug.
+  // Use the deterministic, server-owned ID of the authorized synthetic seed.
+  return <ScanWizard projectId={DEMO_IDS.projectId} />;
 }
