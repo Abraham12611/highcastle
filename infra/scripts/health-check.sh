@@ -84,11 +84,16 @@ else
   bad "overdue orphan runners: $ORPHANS — run: node packages/sandbox/dist/cli.js reap"
 fi
 
-if [[ -n "${HIGHCASTLE_DOMAIN:-}" ]]; then
+if [[ -n "${HIGHCASTLE_DOMAIN:-}" && "${HIGHCASTLE_DOMAIN}" != ":80" && "${HIGHCASTLE_DOMAIN}" != "localhost" ]]; then
   echo "==> public HTTPS through Caddy"
   CODE=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 10 "https://${HIGHCASTLE_DOMAIN}/healthz" 2>/dev/null || echo '000')
   [[ "$CODE" == "200" ]] && ok "https://${HIGHCASTLE_DOMAIN}/healthz -> 200" \
                          || bad "https://${HIGHCASTLE_DOMAIN}/healthz -> $CODE"
+elif [[ "${HIGHCASTLE_DOMAIN:-}" == ":80" ]]; then
+  echo "==> public HTTP on :80 (no DNS/TLS yet)"
+  CODE=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 10 "http://127.0.0.1:80/healthz" 2>/dev/null || echo '000')
+  [[ "$CODE" == "200" ]] && ok "http://127.0.0.1:80/healthz -> 200 (TLS pending domain)" \
+                         || bad "http://127.0.0.1:80/healthz -> $CODE"
 else
   note "HIGHCASTLE_DOMAIN unset — public HTTPS check skipped"
 fi

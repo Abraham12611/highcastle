@@ -63,7 +63,7 @@ finish() {
 }
 cleanup() {
   if ! $KEEP && hc_docker_available; then
-    docker compose -f "$COMPOSE_LAB" down >/dev/null 2>&1 || true
+    docker rm -f hc-smoke-lab >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
@@ -90,16 +90,22 @@ else
   finish
 fi
 
-lab_up() {
-  LAB_REVISION="$1" TARGET_LAB_IMAGE="$2" \
-    docker compose -f "$COMPOSE_LAB" up -d --quiet-pull >/dev/null
+# status of GET <host><path> with a fixture bearer token, from a throwaway
+# client on the runner network. Prints the status code or 'ERR'.
+lab_status() { # host path token
+  docker run --rm --network "$NET" --entrypoint node "$IMG_VULN" \
+    --input-type=module -e "
+      const r = await fetch('http://$1:3000$2',{headers:{authorization:'Bearer $3'},signal:AbortSignal.timeout(5000)}).catch(()=>null);
+      console.log(r ? r.status : 'ERR');
+    " 2>/dev/null
 }
-wait_lab() {
+
+wait_alias() { # host image
   local tries=30
   while (( tries-- > 0 )); do
-    if docker run --rm --network "$NET" --entrypoint node "$IMG_VULN" \
+    if docker run --rm --network "$NET" --entrypoint node "$2" \
       --input-type=module -e \
-      'const r = await fetch("http://target-lab:3000/ready",{signal:AbortSignal.timeout(2000)}).catch(()=>null);process.exit(r&&r.ok?0:1)' \
+      "const r = await fetch('http://$1:3000/ready',{signal:AbortSignal.timeout(2000)}).catch(()=>null);process.exit(r&&r.ok?0:1)" \
       >/dev/null 2>&1; then
       return 0
     fi
@@ -108,27 +114,20 @@ wait_lab() {
   return 1
 }
 
-# status of GET <path> with a fixture bearer token, from a throwaway client on
-# the runner network. Prints the status code or 'ERR'.
-lab_status() {
-  docker run --rm --network "$NET" --entrypoint node "$IMG_VULN" \
-    --input-type=module -e "
-      const r = await fetch('http://target-lab:3000$1',{headers:{authorization:'Bearer $2'},signal:AbortSignal.timeout(5000)}).catch(()=>null);
-      console.log(r ? r.status : 'ERR');
-    " 2>/dev/null
-}
-
 # --- 2..4. vulnerable revision ----------------------------------------------
-hc_log "starting vulnerable lab revision under alias target-lab"
-lab_up lab-v1-vulnerable "$IMG_VULN"
-wait_lab || { fail "lab failed readiness on $NET"; finish; }
+# The deployed `target-lab` alias (compose.yaml) is the contract target; the
+# smoke suite must NOT start a second container under the same alias on this
+# shared network — Docker DNS would round-robin and corrupt the assertions.
+hc_log "checking deployed lab under contract alias target-lab"
+wait_alias target-lab "$IMG_VULN" \
+  || { fail "no lab answering alias target-lab on $NET — run lab-up.sh or deploy.sh first"; finish; }
 pass "lab reachable on $NET under alias target-lab (positive control)"
 
-s=$(lab_status /api/invoices/invoice_A lab-token-alice)
+s=$(lab_status target-lab /api/invoices/invoice_A lab-token-alice)
 [[ "$s" == "200" ]] && pass "baseline: Alice reads own invoice (HTTP $s)" \
                     || fail "baseline broken: Alice->Alice returned $s"
 
-s=$(lab_status /api/invoices/invoice_B lab-token-alice)
+s=$(lab_status target-lab /api/invoices/invoice_B lab-token-alice)
 [[ "$s" == "200" ]] && pass "vulnerable rev: Alice reads Bob's invoice (HTTP $s — BOLA reproduces)" \
                     || fail "vulnerable rev: Alice->Bob expected 200, got $s"
 
@@ -145,7 +144,11 @@ EGRESS=$(docker run --rm --network "$NET" --entrypoint node "$IMG_VULN" \
     });
     let http;
     try { await fetch("http://example.com/", { signal: AbortSignal.timeout(3000) }); http = "HTTP_OK"; }
-    catch (e) { http = e.cause?.code || e.code || "ERR"; }
+    catch (e) {
+      // On an internal net the DNS packet itself has no route: fetch dies as
+      // TimeoutError (code 23) — enforcement-shaped, so report ETIMEDOUT.
+      http = e.name === "TimeoutError" ? "ETIMEDOUT" : (e.cause?.code || e.code || "ERR");
+    }
     console.log("metadata_tcp=" + (await tcp("169.254.169.254", 80)));
     console.log("external_http=" + http);
   ' 2>/dev/null)
@@ -175,7 +178,7 @@ case "$HTTP" in
 esac
 
 # --- 6. env hygiene -----------------------------------------------------------
-ENV_KEYS=$(docker compose -f "$COMPOSE_LAB" ps -q target-lab | head -1 | xargs -r \
+ENV_KEYS=$(docker ps --filter "name=target-lab" -q | head -1 | xargs -r \
   docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' | cut -d= -f1 | sort)
 BAD=$(printf '%s\n' "$ENV_KEYS" | grep -iE 'secret|token|password|key|vultr|github|database|auth' \
   | grep -vxE 'NODE_ENV|PATH|HOST|PORT|TARGET_LAB_REVISION|SOURCE_GIT_SHA|LANG|LC_ALL' || true)
@@ -186,20 +189,21 @@ else
 fi
 
 # --- 7. patched revision ------------------------------------------------------
-hc_log "swapping target-lab to patched revision (same alias, same network)"
-lab_up lab-v2-patched "$IMG_PATCHED"
-wait_lab || { fail "patched lab failed readiness"; finish; }
+# A second lab under a DISTINCT alias (never `target-lab` — see above) proves
+# the patched build denies cross-tenant reads while the baseline survives.
+SMOKE_LAB="hc-smoke-lab"
+docker rm -f "$SMOKE_LAB" >/dev/null 2>&1 || true
+hc_log "starting patched lab under isolated alias $SMOKE_LAB"
+docker run -d --name "$SMOKE_LAB" --network "$NET" --network-alias "$SMOKE_LAB"   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true   "$IMG_PATCHED" >/dev/null
+wait_alias "$SMOKE_LAB" "$IMG_PATCHED" || { fail "patched lab failed readiness"; finish; }
 
-s=$(lab_status /api/invoices/invoice_B lab-token-alice)
+s=$(lab_status "$SMOKE_LAB" /api/invoices/invoice_B lab-token-alice)
 [[ "$s" == "404" ]] && pass "patched rev: Alice->Bob denied (HTTP $s)" \
                     || fail "patched rev: Alice->Bob expected 404, got $s"
-s=$(lab_status /api/invoices/invoice_A lab-token-alice)
+s=$(lab_status "$SMOKE_LAB" /api/invoices/invoice_A lab-token-alice)
 [[ "$s" == "200" ]] && pass "patched rev: Alice->Alice baseline still passes (HTTP $s)" \
                     || fail "patched rev: baseline broken, Alice->Alice returned $s"
-
-# Restore vulnerable revision for subsequent checks / replay target state.
-lab_up lab-v1-vulnerable "$IMG_VULN"
-wait_lab || true
+docker rm -f "$SMOKE_LAB" >/dev/null 2>&1 || true
 
 # --- 8. controller end-to-end (L14 — when merged) -----------------------------
 if [[ ! -f packages/sandbox/dist/cli.js && -d packages/sandbox ]] \

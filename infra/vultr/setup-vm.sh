@@ -11,6 +11,15 @@ log() { printf '==> %s\n' "$*" >&2; }
 
 [[ "$(id -u)" == "0" ]] || { echo "run as root (sudo $0)" >&2; exit 1; }
 
+# --- swap: 2GiB file so `next build` + concurrent containers stay safe on
+#     small plans (account fee cap forced vc2-1c-2gb). Idempotent.
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile \
+    && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+sysctl -w vm.swappiness=10
+echo 'vm.swappiness=10' > /etc/sysctl.d/99-highcastle.conf
+
 # --- packages -------------------------------------------------------------------
 log "apt update + baseline packages"
 apt-get update -y
