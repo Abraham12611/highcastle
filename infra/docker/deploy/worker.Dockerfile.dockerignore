@@ -1,0 +1,21 @@
+# BuildKit picks up <Dockerfile>.dockerignore next to the Dockerfile.
+# Keep the workspace build context small and free of secrets.
+.git
+.gitignore
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/*.tsbuildinfo
+**/.turbo
+**/.vitest
+**/coverage
+**/test-results
+**/playwright-report
+*.log
+.env
+.env.*
+!.env.example
+docs/
+infra/
+.github/
