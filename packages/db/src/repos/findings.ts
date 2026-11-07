@@ -509,10 +509,15 @@ export async function completeReplay(
     }
 
     // Derive — never accept — the verdicts from the recorded legs.
-    const recomputedAttemptVerdict = evaluateAttemptVerdict({
-      baseline: evidence.baseline,
-      securityCheck: evidence.securityCheck,
-    });
+    // The oracle cannot grade security legs on an invalid test environment.
+    // A failed revision/fixture/session prerequisite forces inconclusive, even
+    // when individual HTTP responses superficially resemble passing legs.
+    const recomputedAttemptVerdict = evidence.preconditionsOk
+      ? evaluateAttemptVerdict({
+          baseline: evidence.baseline,
+          securityCheck: evidence.securityCheck,
+        })
+      : "inconclusive";
     if (recomputedAttemptVerdict !== evidence.attemptVerdict) {
       throw DbError.conflict(
         `recorded attempt verdict ${evidence.attemptVerdict} is inconsistent with legs ${evidence.baseline}/${evidence.securityCheck}`,

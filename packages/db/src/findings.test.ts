@@ -394,12 +394,24 @@ describe("findings and replays", () => {
       }),
     ).rejects.toMatchObject({ code: "conflict" });
     // Failed preconditions force inconclusive — never verified_fixed.
+    // A caller claiming 'not_reproduced' on invalid preconditions is inconsistent.
+    await expect(
+      completeReplay(tdb.db, f.workspaceId, second.replay.id, {
+        oracleEvidenceId: second.oracleArtifact.id,
+        oracleVersion: "bola-oracle-v1",
+        baseline: "pass",
+        securityCheck: "pass",
+        attemptVerdict: "not_reproduced",
+        preconditionsOk: false,
+      }),
+    ).rejects.toMatchObject({ code: "conflict" });
+
     const forced = await completeReplay(tdb.db, f.workspaceId, second.replay.id, {
       oracleEvidenceId: second.oracleArtifact.id,
       oracleVersion: "bola-oracle-v1",
       baseline: "pass",
       securityCheck: "pass",
-      attemptVerdict: "not_reproduced",
+      attemptVerdict: "inconclusive",
       preconditionsOk: false,
     });
     expect(forced.verdict).toBe("inconclusive");
