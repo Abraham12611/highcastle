@@ -13,6 +13,7 @@ import type { RunnerInstanceId, WorkspaceId } from "@highcastle/contracts";
 import { SandboxController, type SandboxControllerConfig } from "./controller.ts";
 import { InMemoryRunnerRegistry } from "./registry.ts";
 import { StaticSyntheticCredentialResolver, CREDENTIAL_REFS } from "./credentials.ts";
+import { authorizeModelProgram } from "./modelProgram.ts";
 import { StaticLabPolicyGate } from "./policy.ts";
 import {
   FakeRuntime,
@@ -249,6 +250,49 @@ describe("execute — denial and preconditions", () => {
     // request pins "c"*64 which matches the repoDigest, not the config id.
     const exec = await controller.execute(makeRequest(), { workspaceId: WS });
     expect(exec.kind).toBe("executed");
+  });
+
+  it("pattern-a: authorized program travels in the stdin envelope only", async () => {
+    let capturedStdin = "";
+    const runtime = new FakeRuntime({
+      onStart: (id, stdin, handle) => {
+        capturedStdin = stdin;
+        completedRun(makeRequest())(id, stdin, handle);
+      },
+    });
+    const { controller } = harness({ runtime });
+    const program = authorizeModelProgram({
+      source: "return { probed: true }",
+      generator: { provider: "vultr-inference", model: "m", generatedAt: new Date().toISOString() },
+    });
+    const exec = await controller.execute(makeRequest(), { workspaceId: WS, program });
+    expect(exec.kind).toBe("executed");
+    const envelope = JSON.parse(capturedStdin) as Record<string, unknown>;
+    const envProgram = envelope["program"] as Record<string, unknown>;
+    expect(envProgram["language"]).toBe("js-subset-v1");
+    expect(envProgram["source"]).toBe("return { probed: true }");
+    // The program never lands in docker args/env — stdin only.
+    expect(JSON.stringify(runtime.createdArgs)).not.toContain("probed: true");
+  });
+
+  it("pattern-a: invalid ctx.program is refused at dispatch", async () => {
+    const runtime = new FakeRuntime();
+    const { controller } = harness({ runtime });
+    const bad = authorizeModelProgram({
+      source: "return 1",
+      generator: { provider: "vultr-inference", model: "m", generatedAt: "t" },
+    });
+    // Tamper past the type: simulate an unchecked caller.
+    const tampered = { ...bad, source: 'require("fs")' };
+    const exec = await controller.execute(makeRequest(), {
+      workspaceId: WS,
+      program: tampered,
+    });
+    expect(exec.kind).toBe("precondition_failed");
+    if (exec.kind === "precondition_failed") {
+      expect(exec.reason).toContain("model program rejected");
+    }
+    expect(runtime.createdArgs).toHaveLength(0);
   });
 
   it("alice/bob refs resolve through the static resolver", async () => {
