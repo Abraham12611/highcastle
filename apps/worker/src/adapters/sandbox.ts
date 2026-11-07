@@ -15,13 +15,17 @@
  */
 import {
   DockerCliRuntime,
-  InMemoryRunnerRegistry,
   SandboxController,
   StaticLabPolicyGate,
   StaticSyntheticCredentialResolver,
+  type RunnerRegistry,
   type SandboxExecution,
 } from "@highcastle/sandbox";
 import type { ParsedObservation } from "@highcastle/sandbox";
+import { runnerInstances } from "@highcastle/db";
+import { eq } from "drizzle-orm";
+import type { DbExecutor } from "@highcastle/db";
+import type { RunnerInstance } from "@highcastle/contracts";
 import type { SandboxRequest } from "@highcastle/contracts";
 import type {
   AttemptObservations,
@@ -132,15 +136,21 @@ export class ContainerExecutor implements SandboxExecutor {
 
   constructor(
     controller?: SandboxController,
-    config?: { labOrigin?: string; imageDigest?: string },
+    config?: { labOrigin?: string; imageDigest?: string; registry?: RunnerRegistry },
   ) {
     this.controller =
       controller ??
       new SandboxController({
         runtime: new DockerCliRuntime(),
-        // Runner rows are L02's; the in-memory registry is sufficient for
-        // the execute lifecycle, with rows mirrored via createRunnerInstance.
-        registry: new InMemoryRunnerRegistry(),
+        registry:
+          config?.registry ??
+          (() => {
+            throw new Error(
+              "ContainerExecutor requires a durable RunnerRegistry — " +
+                "runner lifecycle must persist to runner_instances, " +
+                "in-memory lifecycle state is not acceptable in production",
+            );
+          })(),
         policyGate: new StaticLabPolicyGate(),
         credentialResolver: new StaticSyntheticCredentialResolver(),
         ...(config?.labOrigin || config?.imageDigest
@@ -187,6 +197,8 @@ export interface SandboxExecutorOptions {
   env?: NodeJS.ProcessEnv;
   /** test seam — inject a prepared controller. */
   controller?: SandboxController;
+  /** durable runner lifecycle registry (L02 runner_instances). */
+  registry?: RunnerRegistry;
 }
 
 export function createSandboxExecutor(options: SandboxExecutorOptions = {}): SandboxExecutor {
@@ -194,5 +206,103 @@ export function createSandboxExecutor(options: SandboxExecutorOptions = {}): San
   const config: { labOrigin?: string; imageDigest?: string } = {};
   if (env.HIGHCASTLE_LAB_BASE_URL) config.labOrigin = env.HIGHCASTLE_LAB_BASE_URL;
   if (env.HIGHCASTLE_TARGET_IMAGE_DIGEST) config.imageDigest = env.HIGHCASTLE_TARGET_IMAGE_DIGEST;
-  return new ContainerExecutor(options.controller, config);
+  return new ContainerExecutor(options.controller, {
+    ...config,
+    ...(options.registry ? { registry: options.registry } : {}),
+  });
+}
+
+// ------------------------------------------------- durable registry ---
+
+/**
+ * L14 `RunnerRegistry` over L02's `runner_instances` table — durable
+ * lifecycle rows so runner creation/termination/cleanup-verification is
+ * queryable (containment evidence, cross-process cancellation, janitor
+ * reconciliation audit) instead of living only in process memory.
+ */
+export class DbRunnerRegistry implements RunnerRegistry {
+  constructor(private readonly db: DbExecutor) {}
+
+  private toRow(instance: RunnerInstance) {
+    const dt = (v: string | null | undefined) => (v ? new Date(v) : null);
+    return {
+      id: instance.id as string,
+      workspaceId: instance.workspaceId as string,
+      scanId: instance.scanId as string,
+      sandboxId: instance.sandboxId,
+      imageDigest: instance.imageDigest,
+      networkProfile: instance.networkProfile,
+      resourceLimits: instance.limits as Record<string, unknown>,
+      status: instance.status as never,
+      startedAt: dt(instance.startedAt),
+      terminatedAt: dt(instance.terminatedAt),
+      cleanupVerifiedAt: dt(instance.cleanupVerifiedAt),
+      timeoutAt: dt(instance.timeoutAt),
+      exitCode: instance.exitCode,
+      reason: instance.reason,
+    };
+  }
+
+  private toInstance(row: typeof runnerInstances.$inferSelect): RunnerInstance {
+    const iso = (v: Date | null) => (v ? v.toISOString() : null);
+    return {
+      id: row.id as never,
+      workspaceId: row.workspaceId as never,
+      scanId: row.scanId as never,
+      sandboxId: row.sandboxId,
+      imageDigest: row.imageDigest,
+      networkProfile: row.networkProfile,
+      limits: row.resourceLimits as never,
+      status: row.status as never,
+      createdAt: row.createdAt.toISOString(),
+      startedAt: iso(row.startedAt),
+      terminatedAt: iso(row.terminatedAt),
+      cleanupVerifiedAt: iso(row.cleanupVerifiedAt),
+      timeoutAt: iso(row.timeoutAt),
+      exitCode: row.exitCode,
+      reason: row.reason,
+    };
+  }
+
+  async create(instance: RunnerInstance): Promise<void> {
+    await this.db.insert(runnerInstances).values(this.toRow(instance));
+  }
+
+  async update(id: RunnerInstance["id"], patch: Partial<RunnerInstance>): Promise<void> {
+    const existing = await this.get(id);
+    if (!existing) return;
+    const merged = { ...existing, ...patch } as RunnerInstance;
+    const row = this.toRow(merged);
+    await this.db
+      .update(runnerInstances)
+      .set({
+        status: row.status,
+        startedAt: row.startedAt,
+        terminatedAt: row.terminatedAt,
+        cleanupVerifiedAt: row.cleanupVerifiedAt,
+        timeoutAt: row.timeoutAt,
+        exitCode: row.exitCode,
+        reason: row.reason,
+      })
+      .where(eq(runnerInstances.id, id as string));
+  }
+
+  async get(id: RunnerInstance["id"]): Promise<RunnerInstance | null> {
+    const rows = await this.db
+      .select()
+      .from(runnerInstances)
+      .where(eq(runnerInstances.id, id as string));
+    return rows[0] ? this.toInstance(rows[0]) : null;
+  }
+
+  async listActive(): Promise<RunnerInstance[]> {
+    const all = await this.listAll();
+    const terminal = new Set(["destroyed", "cleanup_verified", "forced_stop", "error"]);
+    return all.filter((i) => !terminal.has(i.status));
+  }
+
+  async listAll(): Promise<RunnerInstance[]> {
+    const rows = await this.db.select().from(runnerInstances);
+    return rows.map((r) => this.toInstance(r));
+  }
 }

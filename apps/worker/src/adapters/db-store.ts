@@ -35,6 +35,7 @@ import {
   runnerInstances,
   testAttempts,
   type Database,
+  type DbExecutor,
 } from "@highcastle/db";
 import type {
   AttemptRecord,
@@ -174,6 +175,7 @@ export class DbScanEventPublisher implements ScanEventPublisher {
 export function createDbPorts(env: NodeJS.ProcessEnv = process.env): {
   store: DbOrchestratorStore;
   events: DbScanEventPublisher;
+  db: DbExecutor;
 } {
   const connectionString = env.DATABASE_URL;
   if (!connectionString) {
@@ -183,5 +185,6 @@ export function createDbPorts(env: NodeJS.ProcessEnv = process.env): {
   return {
     store: new DbOrchestratorStore(db),
     events: new DbScanEventPublisher(db),
+    db,
   };
 }

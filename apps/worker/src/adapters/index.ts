@@ -4,7 +4,7 @@
  * degrades honestly to health-shell instead of running on fakes.
  */
 import { IntegrationBlockedError } from "./errors.js";
-import { createSandboxExecutor } from "./sandbox.js";
+import { createSandboxExecutor, DbRunnerRegistry } from "./sandbox.js";
 import { createDbPorts } from "./db-store.js";
 import { createAttemptVerifier, createInferencePlanner, createSecurityPolicyGate } from "./real.js";
 import {
@@ -22,15 +22,16 @@ export interface WireOptions {
 /** Compose production deps; fails loudly naming the blocking lane. */
 export function wireProductionDeps(options: WireOptions): OrchestratorDeps {
   const env = options.env ?? process.env;
-  const { store, events } = createDbPorts(env);
+  const { store, events, db } = createDbPorts(env);
   return {
     store,
     events,
     inference: createInferencePlanner(),
     policy: createSecurityPolicyGate(),
-    // Real executor: container path when @highcastle/sandbox resolves,
-    // else L15's trusted direct-pack executor. Never throws on wire.
-    sandbox: createSandboxExecutor(),
+    // Container-only executor — no direct fallback in production. The
+    // durable DbRunnerRegistry persists every runner lifecycle row so
+    // cleanup/cancellation is auditable in runner_instances.
+    sandbox: createSandboxExecutor({ registry: new DbRunnerRegistry(db) }),
     verifier: createAttemptVerifier(),
     queue: options.queue,
     clock: { now: () => new Date() },
