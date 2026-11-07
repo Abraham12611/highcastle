@@ -36,6 +36,15 @@ write_files:
       Unattended-Upgrade::Automatic-Reboot "false";
 
 runcmd:
+  # --- swap: 2GiB file so `next build` + concurrent containers stay safe on
+  #     small plans (account fee cap forced vc2-1c-2gb). Idempotent.
+  - |
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile \
+        && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+  - sysctl -w vm.swappiness=10 && echo 'vm.swappiness=10' > /etc/sysctl.d/99-highcastle.conf
+
   # --- Docker Engine (official apt repo, current stable channel) -----------
   - install -m 0755 -d /etc/apt/keyrings
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc

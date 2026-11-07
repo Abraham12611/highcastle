@@ -104,20 +104,27 @@ fi
 info "using ssh key id: $SSH_KEY_ID"
 
 # --- 2. firewall group ---------------------------------------------------------
-info "creating firewall group highcastle-edge"
-FW_GROUP=$(vultr-cli firewall group create --description "highcastle-edge" -o json | json_first id)
-[[ -n "$FW_GROUP" ]] || die "firewall group creation failed"
-info "firewall group: $FW_GROUP"
+# Reuse an existing group when VULTR_FW_GROUP_ID is set (reruns, pre-created);
+# otherwise create highcastle-edge and populate the documented rules.
+FW_GROUP="${VULTR_FW_GROUP_ID:-}"
+if [[ -n "$FW_GROUP" ]]; then
+  info "reusing firewall group: $FW_GROUP"
+else
+  info "creating firewall group highcastle-edge"
+  FW_GROUP=$(vultr-cli firewall group create --description "highcastle-edge" -o json | json_first id)
+  [[ -n "$FW_GROUP" ]] || die "firewall group creation failed"
+  info "firewall group: $FW_GROUP"
 
-fw_rule() { # protocol port subnet size notes
-  vultr-cli firewall rule create --id "$FW_GROUP" --ip-type v4 \
-    --protocol "$1" --port "$2" --subnet "$3" --size "$4" --notes "$5" >/dev/null
-}
-fw_rule tcp 22  "$SSH_SUBNET" "$SSH_SIZE" "admin ssh only"
-fw_rule tcp 80  "0.0.0.0" 0 "public http (ACME + redirect)"
-fw_rule tcp 443 "0.0.0.0" 0 "public https"
-fw_rule udp 443 "0.0.0.0" 0 "public https http/3"
-info "firewall rules: ssh=$ADMIN_SSH_CIDR, 80/443 world"
+  fw_rule() { # protocol port subnet size notes
+    vultr-cli firewall rule create "$FW_GROUP" --ip-type v4 \
+      --protocol "$1" --port "$2" --subnet "$3" --size "$4" --notes "$5" >/dev/null
+  }
+  fw_rule tcp 22  "$SSH_SUBNET" "$SSH_SIZE" "admin ssh only"
+  fw_rule tcp 80  "0.0.0.0" 0 "public http (ACME + redirect)"
+  fw_rule tcp 443 "0.0.0.0" 0 "public https"
+  fw_rule udp 443 "0.0.0.0" 0 "public https http/3"
+  info "firewall rules: ssh=$ADMIN_SSH_CIDR, 80/443 world"
+fi
 
 # --- 3. instance ----------------------------------------------------------------
 info "creating instance $LABEL ($PLAN, os $OS_ID, region $REGION)"

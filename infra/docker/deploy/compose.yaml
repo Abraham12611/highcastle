@@ -48,6 +48,8 @@ services:
   caddy:
     <<: *hardening
     image: caddy:2.9.1-alpine
+    cap_add:
+      - NET_BIND_SERVICE # needs :80/:443 — everything else stays dropped
     ports:
       - "80:80"
       - "443:443"
@@ -79,6 +81,13 @@ services:
   postgres:
     <<: *hardening
     image: postgres:16.6-alpine
+    cap_add:
+      # the image entrypoint chowns PGDATA and su-execs to the postgres user;
+      # the rest of the default set stays dropped.
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
     env_file:
       # POSTGRES_DB/POSTGRES_USER/POSTGRES_PASSWORD — single-sourced here so
       # DATABASE_URL can't silently diverge from the actual DB identity.
@@ -109,7 +118,7 @@ services:
   # pulling a release that adds migrations.
   migrate:
     build:
-      context: ../..
+      context: ../../..
       dockerfile: infra/docker/deploy/db-migrate.Dockerfile
     image: highcastle/db-migrate:${HIGHCASTLE_RELEASE:-dev}
     env_file:
@@ -137,7 +146,7 @@ services:
   web:
     <<: *hardening
     build:
-      context: ../..
+      context: ../../..
       dockerfile: infra/docker/deploy/web.Dockerfile
     image: highcastle/web:${HIGHCASTLE_RELEASE:-dev}
     env_file:
@@ -177,7 +186,7 @@ services:
   worker:
     <<: *hardening
     build:
-      context: ../..
+      context: ../../..
       dockerfile: infra/docker/deploy/worker.Dockerfile
     image: highcastle/worker:${HIGHCASTLE_RELEASE:-dev}
     env_file:
