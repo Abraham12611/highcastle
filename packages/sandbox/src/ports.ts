@@ -67,6 +67,19 @@ export interface ManagedContainer {
 }
 
 /**
+ * Resolution of a service alias on a network to the image behind it.
+ * `matchCount`: how many containers on the network claim the alias —
+ * 0 = missing, 1 = unambiguous, >1 = ambiguous (fail closed).
+ */
+export interface ServiceImageResolution {
+  matchCount: number;
+  /** Image config id (sha256:...) of the single matched container, if any. */
+  imageId: string | null;
+  /** RepoDigests of that image, when inspectable. */
+  repoDigests: string[];
+}
+
+/**
  * Minimal container-runtime surface the lifecycle needs. The Docker
  * implementation builds every flag in `dockerArgs.ts` — callers (and the
  * model, transitively) can never shape daemon arguments.
@@ -89,6 +102,12 @@ export interface ContainerRuntime {
   inspectContainer(containerId: string): Promise<ContainerInspection>;
   /** All containers (any state) carrying the given label `key=value`. */
   listManagedContainers(labelKey: string, labelValue: string): Promise<ManagedContainer[]>;
+  /**
+   * Find containers attached to `network` that claim DNS alias `alias`
+   * (checked via each container's NetworkSettings alias list), and report
+   * the image identity behind it for pinned-digest verification.
+   */
+  resolveServiceImage(network: string, alias: string): Promise<ServiceImageResolution>;
 }
 
 export interface StartedContainer {

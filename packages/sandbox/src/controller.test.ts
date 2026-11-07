@@ -204,6 +204,52 @@ describe("execute — denial and preconditions", () => {
     expect(runtime.createdArgs).toHaveLength(0);
   });
 
+  it("refuses to launch on target image digest mismatch", async () => {
+    const runtime = new FakeRuntime({
+      serviceImage: { matchCount: 1, imageId: "sha256:" + "f".repeat(64), repoDigests: [] },
+    });
+    const { controller } = harness({ runtime });
+    const exec = await controller.execute(makeRequest(), { workspaceId: WS });
+    expect(exec.kind).toBe("precondition_failed");
+    if (exec.kind === "precondition_failed") expect(exec.reason).toContain("digest mismatch");
+    expect(runtime.createdArgs).toHaveLength(0);
+  });
+
+  it("refuses to launch when no container serves the target alias", async () => {
+    const runtime = new FakeRuntime({
+      serviceImage: { matchCount: 0, imageId: null, repoDigests: [] },
+    });
+    const { controller } = harness({ runtime });
+    const exec = await controller.execute(makeRequest(), { workspaceId: WS });
+    expect(exec.kind).toBe("precondition_failed");
+    if (exec.kind === "precondition_failed") expect(exec.reason).toContain("no container serves alias");
+  });
+
+  it("refuses to launch on ambiguous alias mapping", async () => {
+    const runtime = new FakeRuntime({
+      serviceImage: { matchCount: 2, imageId: "sha256:" + "c".repeat(64), repoDigests: [] },
+    });
+    const { controller } = harness({ runtime });
+    const exec = await controller.execute(makeRequest(), { workspaceId: WS });
+    expect(exec.kind).toBe("precondition_failed");
+    if (exec.kind === "precondition_failed") expect(exec.reason).toContain("ambiguous");
+  });
+
+  it("accepts a matching digest via repoDigests as well as image id", async () => {
+    const runtime = new FakeRuntime({
+      serviceImage: {
+        matchCount: 1,
+        imageId: "sha256:" + "0".repeat(64),
+        repoDigests: ["highcastle/target-lab@sha256:" + "c".repeat(64)],
+      },
+      onStart: completedRun(makeRequest()),
+    });
+    const { controller } = harness({ runtime });
+    // request pins "c"*64 which matches the repoDigest, not the config id.
+    const exec = await controller.execute(makeRequest(), { workspaceId: WS });
+    expect(exec.kind).toBe("executed");
+  });
+
   it("alice/bob refs resolve through the static resolver", async () => {
     const resolver = new StaticSyntheticCredentialResolver();
     await expect(resolver.resolve(CREDENTIAL_REFS.alice)).resolves.toBe("lab-token-alice");

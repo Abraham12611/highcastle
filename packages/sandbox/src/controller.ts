@@ -122,6 +122,12 @@ export interface ReapReport {
   errors: string[];
 }
 
+/** Normalize a pinned digest (`sha256:x`, `repo@sha256:x`, or bare hex) to its hex. */
+export function normalizeDigest(digest: string): string {
+  const m = /([0-9a-f]{64})/.exec(digest);
+  return m?.[1] ?? digest.trim();
+}
+
 function delay(ms: number): { promise: Promise<"deadline">; cancel: () => void } {
   let resolveRef: () => void = () => undefined;
   const promise = new Promise<"deadline">((resolve) => {
@@ -184,8 +190,9 @@ export class SandboxController {
       return { kind: "denied", request: req, decision };
     }
 
-    // 3. Environment preconditions: runtime present, lab network internal.
-    const precheck = await this.preconditions();
+    // 3. Environment preconditions: runtime present, lab network internal,
+    //    and the running lab image matches the pinned digest.
+    const precheck = await this.preconditions(req);
     if (precheck !== null) {
       return { kind: "precondition_failed", request: req, reason: precheck };
     }
@@ -292,7 +299,7 @@ export class SandboxController {
     }
   }
 
-  private async preconditions(): Promise<string | null> {
+  private async preconditions(req: SandboxRequest): Promise<string | null> {
     if (!(await this.deps.runtime.isAvailable())) {
       return "container runtime is unavailable";
     }
@@ -304,6 +311,31 @@ export class SandboxController {
       return (
         `lab network ${this.config.labNetwork} is not internal — ` +
         `runner egress would not be contained; refusing to launch`
+      );
+    }
+    // Pinned target image digest: the lab container currently serving the
+    // alias must actually run the digest the scope approved. Fail closed on
+    // missing, ambiguous, or mismatched service mapping.
+    const svc = await this.deps.runtime.resolveServiceImage(
+      this.config.labNetwork,
+      req.targetServiceAlias,
+    );
+    if (svc.matchCount === 0) {
+      return `no container serves alias ${req.targetServiceAlias} on ${this.config.labNetwork}`;
+    }
+    if (svc.matchCount > 1) {
+      return `ambiguous target: ${svc.matchCount} containers claim alias ${req.targetServiceAlias}`;
+    }
+    const expected = normalizeDigest(req.targetImageDigest);
+    const actual = new Set(
+      [svc.imageId, ...svc.repoDigests]
+        .filter((d): d is string => d !== null)
+        .map(normalizeDigest),
+    );
+    if (!actual.has(expected)) {
+      return (
+        `target image digest mismatch: pinned ${expected} but running lab ` +
+        `image is ${svc.imageId ?? "unknown"} — refusing to launch`
       );
     }
     return null;

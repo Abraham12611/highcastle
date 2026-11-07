@@ -214,10 +214,16 @@ export async function runBolaInvoiceV1(
     return finish(inconclusive(inconclusiveReason), inconclusive(inconclusiveReason));
   }
   const metaError = validateLabMeta(meta.body);
+  // Handoff for L15: the observed revision/fixtureVersion is recorded verbatim
+  // so the oracle verifies actual facts, not runner booleans.
+  const observedMeta = parseMetaSummary(meta.body);
   emitAssertion(
     "precondition_meta",
     metaError === null
-      ? assertion(true, "lab meta matches frozen revision/fixture/owners contract")
+      ? assertion(
+          true,
+          `lab meta verified: revision=${observedMeta} fixture/owners canonical`,
+        )
       : inconclusive(metaError),
   );
   if (metaError !== null) {
@@ -296,6 +302,15 @@ export async function runBolaInvoiceV1(
   }
   emitAssertion("negative_cross_account", negative);
   return finish(baseline, negative);
+}
+
+function parseMetaSummary(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { revision?: unknown; fixtureVersion?: unknown };
+    return `${String(parsed.revision ?? "?")} fixtureVersion=${String(parsed.fixtureVersion ?? "?")}`;
+  } catch {
+    return "unparseable";
+  }
 }
 
 function parseActor(body: string): string | null {

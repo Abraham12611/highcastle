@@ -13,6 +13,7 @@ import type {
   ContainerRuntime,
   ManagedContainer,
   NetworkInfo,
+  ServiceImageResolution,
   StartedContainer,
 } from "../ports.ts";
 import type { PolicyDecision, SandboxPolicyGate } from "../ports.ts";
@@ -132,6 +133,8 @@ export interface FakeRuntimeOptions {
   startFails?: string;
   /** Containers reported by listManagedContainers (janitor input). */
   managedContainers?: ManagedContainer[];
+  /** Service resolution result for digest preconditions. */
+  serviceImage?: ServiceImageResolution;
 }
 
 export class FakeRuntime implements ContainerRuntime {
@@ -196,6 +199,16 @@ export class FakeRuntime implements ContainerRuntime {
 
   listManagedContainers(_k: string, _v: string): Promise<ManagedContainer[]> {
     return Promise.resolve(this.opts.managedContainers ?? []);
+  }
+
+  resolveServiceImage(_network: string, _alias: string): Promise<ServiceImageResolution> {
+    return Promise.resolve(
+      this.opts.serviceImage ?? {
+        matchCount: 1,
+        imageId: "sha256:" + "c".repeat(64),
+        repoDigests: [],
+      },
+    );
   }
 }
 

@@ -18,6 +18,7 @@ import type {
   ContainerRuntime,
   ManagedContainer,
   NetworkInfo,
+  ServiceImageResolution,
   StartedContainer,
 } from "./ports.ts";
 
@@ -187,6 +188,45 @@ export class DockerCliRuntime implements ContainerRuntime {
       running: runningStr === "true",
       exitCode: Number.isFinite(exitCode) ? exitCode : null,
     };
+  }
+
+  async resolveServiceImage(network: string, alias: string): Promise<ServiceImageResolution> {
+    const ids = await runDocker(["ps", "-aq", "--filter", `network=${network}`]);
+    if (ids.code !== 0) {
+      throw new SandboxUnavailableError(`docker ps failed: ${ids.stderr.trim()}`);
+    }
+    let matchCount = 0;
+    let imageId: string | null = null;
+    let repoDigests: string[] = [];
+    for (const id of ids.stdout.split("\n").map((l) => l.trim()).filter((l) => l !== "")) {
+      const nets = await runDocker([
+        "inspect",
+        "--format",
+        "{{json .NetworkSettings.Networks}}",
+        id,
+      ]);
+      if (nets.code !== 0) continue;
+      let claimsAlias = false;
+      try {
+        const parsed = JSON.parse(nets.stdout) as Record<string, { Aliases?: string[] }>;
+        claimsAlias = (parsed[network]?.Aliases ?? []).includes(alias);
+      } catch {
+        continue;
+      }
+      if (!claimsAlias) continue;
+      matchCount += 1;
+      const img = await runDocker(["inspect", "--format", "{{.Image}}", id]);
+      imageId = img.code === 0 ? img.stdout.trim() : null;
+      const rd = await runDocker(["inspect", "--format", "{{json .RepoDigests}}", imageId ?? id]);
+      if (rd.code === 0) {
+        try {
+          repoDigests = JSON.parse(rd.stdout) as string[];
+        } catch {
+          repoDigests = [];
+        }
+      }
+    }
+    return { matchCount, imageId, repoDigests };
   }
 
   async listManagedContainers(labelKey: string, labelValue: string): Promise<ManagedContainer[]> {
