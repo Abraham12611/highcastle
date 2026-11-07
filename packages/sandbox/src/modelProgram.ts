@@ -140,7 +140,9 @@ export class VultrProgramGenerator implements ModelProgramGeneratorPort {
           { role: "system", content: PROGRAM_SYSTEM_PROMPT },
           { role: "user", content: user },
         ],
-        max_tokens: 1024,
+        // Reasoning models (e.g. deepseek-v4.1) spend tokens on `reasoning`
+        // before emitting `content` — keep headroom or the program is empty.
+        max_tokens: 3072,
         temperature: 0.2,
       }),
       signal: AbortSignal.timeout(this.cfg.timeoutMs),
