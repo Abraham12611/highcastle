@@ -49,13 +49,48 @@ fields plus an injectable `now: Date` for deterministic tests.
 `EffectiveExecutionLimitsSchema`, `POLICY_ENGINE_VERSION` (stamped on every
 decision), `allowDecision`/`denyDecision`/`denyReason` builders, `deepFreeze`.
 
-### Scope hashing — `scope-hash.ts`
+### Scope hashing — `scope-hash.ts` (THE canonical hash, `scope-hash-v1`)
+
+One canonical hash function for the whole platform — L02 persists
+`scope_hash` at insert (and dedupes idempotent replays on it); this module
+re-verifies it at every policy evaluation. No other serialization may
+produce a `scopeHash`.
 
 | Export | Purpose |
 |---|---|
-| `computeScopeHash(scope)` | SHA-256 over a canonicalized scope: sorted keys, lowercased/sorted/deduped allow-lists, **excludes `status`** (mutable lifecycle) and `scopeHash` itself. Covers ids, timestamps, hosts, paths, packs, methods, all budgets, network profile, `version`. |
+| `SCOPE_HASH_VERSION` | `"scope-hash-v1"` — embedded in the hashed payload; bumping it changes every digest loudly. |
+| `ScopeHashFields` | Structural input: accepts plain field bags (L02's `CreateScopeInput`, `Date` expiry) AND branded `AuthorizationScope` rows (ISO expiry). |
+| `computeScopeHash(fields)` | SHA-256 of `"scope-hash-v1:" + stableStringify(canonical)`. Canonical content: actorUserId, allowedHosts/Methods/Paths/TestPackIds, deniedPaths, expiresAt (normalized to ISO UTC), maxConcurrency/Duration/Memory/Requests, networkProfileId, permittedEnvironmentId, projectId, targetId, version, workspaceId. |
 | `verifyScopeHash(scope)` | Constant-time recompute-and-compare; fails closed on malformed stored hash. |
-| `canonicalizeScope`, `stableStringify` | Exposed for audit/debugging and for L02/L18 to reproduce the hash byte-identically. |
+| `canonicalizeScope`, `stableStringify` | Exposed for audit/debugging; L02/L18 reproduce the hash byte-identically. |
+
+**Excluded by design:** `id` (row identity — hashing it would break L02's
+idempotent replay), `status` (lifecycle, not authority — enforced by
+`checkScopeStatus`), `approvedAt` (DB-set at insert), `scopeHash` (self),
+and non-contract extension columns (e.g. `maxCpuMillicores`) so a
+contract-parsed scope always recomputes the persisted digest.
+
+### Prerequisites — `prerequisites.ts` (separately-scoped setup ops)
+
+Test actions stay GET-only (`manifest.permittedMethods ∩
+scope.allowedMethods`). The owned lab additionally needs a small FIXED set
+of setup/read operations — session `POST /api/auth/login`, logout, whoami,
+health/ready/meta reads. These are declared per-pack in
+`PACK_PREREQUISITES` as exact method+path pairs on the `target-lab` alias —
+explicitly scoped prerequisites, never a widening of the test-action
+surface and never model-controllable. Scope `deniedPaths` still wins.
+
+| Export | Purpose |
+|---|---|
+| `PACK_PREREQUISITES` | Frozen per-pack declaration (`bola-invoice-v1`: login/logout POST, whoami/health/ready/meta GET). |
+| `resolveSetupOperations(packId)` | Prerequisite list echoed into `ApprovedExecution.setupOperations` for L14. |
+| `checkSetupOperationPermitted` | Gates `purpose: "setup"` requests → `setup_op_not_permitted` / `path_explicitly_denied`. |
+| `isSetupOperation`, `normalizeSetupPath` | Exact-match helpers. |
+
+`evaluateRequestAuthorization({ ..., purpose: "setup" })` returns
+`AuthorizedSetup` (kind `"setup"`) — distinct from test-action
+`AuthorizedRequest` (kind `"request"`), so a session POST can never
+masquerade as a test action.
 
 ### Scope gate — `scope-gate.ts`
 

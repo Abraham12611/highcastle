@@ -6,6 +6,7 @@ import {
   TestPackIdSchema,
   TestPackMethodSchema,
   type ScopeHash,
+  type TestPackMethod,
 } from "@highcastle/contracts";
 import {
   allowDecision,
@@ -27,6 +28,11 @@ import {
   getPackManifest,
   resolvePermittedMethods,
 } from "./packs.js";
+import {
+  checkSetupOperationPermitted,
+  normalizeSetupPath,
+  resolveSetupOperations,
+} from "./prerequisites.js";
 import { checkTargetAliasPermitted, resolveTargetServiceAlias } from "./target-alias.js";
 import { checkPathPermitted } from "./paths.js";
 import { assertSafeHostname, isHostInScope } from "./url-policy.js";
@@ -221,6 +227,7 @@ export function evaluatePlanAuthorization(input: PlanAuthorizationInput): Policy
         packVersion: manifest.version,
         targetServiceAlias: alias,
         permittedMethods: [...permittedMethods],
+        setupOperations: [...resolveSetupOperations(packId)],
         limits,
         expiresAt: scope.data.expiresAt,
       },
@@ -254,6 +261,14 @@ export interface RequestAuthorizationInput {
   host?: unknown;
   /** Pack the request belongs to (method must be in manifest ∩ scope). */
   packId: unknown;
+  /**
+   * "test" (default): a pack test action — method must be in the
+   * manifest∩scope intersection and path inside scope.
+   * "setup": an explicitly-declared runner prerequisite (e.g. the session
+   * login POST) — gated by PACK_PREREQUISITES, never by widening the
+   * test-action surface.
+   */
+  purpose?: "test" | "setup";
   now?: Date;
 }
 
@@ -286,27 +301,6 @@ export function evaluateRequestAuthorization(input: RequestAuthorizationInput): 
       return denyDecision(statusReasons, scope.data.scopeHash);
     }
 
-    const method = MethodParamSchema.safeParse(input.method);
-    if (!method.success) {
-      return denyDecision(
-        [
-          denyReason(
-            "method_not_permitted",
-            `method ${JSON.stringify(input.method)} is not an enumerated test method`,
-          ),
-        ],
-        scope.data.scopeHash,
-      );
-    }
-
-    const path = PathParamSchema.safeParse(input.path);
-    if (!path.success) {
-      return denyDecision(
-        [denyReason("path_not_permitted", "request path is malformed")],
-        scope.data.scopeHash,
-      );
-    }
-
     const packId = TestPackIdSchema.safeParse(input.packId);
     if (!packId.success) {
       return denyDecision(
@@ -324,19 +318,68 @@ export function evaluateRequestAuthorization(input: RequestAuthorizationInput): 
       return denyDecision(packCheck, scope.data.scopeHash);
     }
 
-    const methodCheck = checkMethodPermitted(scope.data, packId.data, method.data);
-    if (methodCheck.length > 0) {
-      return denyDecision(methodCheck, scope.data.scopeHash);
-    }
+    const purpose = input.purpose ?? "test";
 
-    const pathCheck = checkPathPermitted(scope.data, path.data);
-    if (!pathCheck.permitted || pathCheck.normalizedPath === null) {
-      return denyDecision(
-        [pathCheck.reason ?? denyReason("path_not_permitted", "path outside scope")],
-        scope.data.scopeHash,
+    // --- Purpose-specific action checks -----------------------------------
+    let approval:
+      | { kind: "request"; method: TestPackMethod; path: string }
+      | { kind: "setup"; method: "GET" | "POST"; path: string };
+
+    if (purpose === "setup") {
+      const setupReasons = checkSetupOperationPermitted(
+        packId.data,
+        scope.data.deniedPaths,
+        input.method,
+        input.path,
       );
+      if (setupReasons.length > 0) {
+        return denyDecision(setupReasons, scope.data.scopeHash);
+      }
+      const setupMethod = input.method === "POST" ? ("POST" as const) : ("GET" as const);
+      const setupPath = normalizeSetupPath(String(input.path)) ?? String(input.path);
+      approval = { kind: "setup" as const, method: setupMethod, path: setupPath };
+    } else {
+      const method = MethodParamSchema.safeParse(input.method);
+      if (!method.success) {
+        return denyDecision(
+          [
+            denyReason(
+              "method_not_permitted",
+              `method ${JSON.stringify(input.method)} is not an enumerated test method`,
+            ),
+          ],
+          scope.data.scopeHash,
+        );
+      }
+
+      const path = PathParamSchema.safeParse(input.path);
+      if (!path.success) {
+        return denyDecision(
+          [denyReason("path_not_permitted", "request path is malformed")],
+          scope.data.scopeHash,
+        );
+      }
+
+      const methodCheck = checkMethodPermitted(scope.data, packId.data, method.data);
+      if (methodCheck.length > 0) {
+        return denyDecision(methodCheck, scope.data.scopeHash);
+      }
+
+      const pathCheck = checkPathPermitted(scope.data, path.data);
+      if (!pathCheck.permitted || pathCheck.normalizedPath === null) {
+        return denyDecision(
+          [pathCheck.reason ?? denyReason("path_not_permitted", "path outside scope")],
+          scope.data.scopeHash,
+        );
+      }
+      approval = {
+        kind: "request" as const,
+        method: method.data,
+        path: pathCheck.normalizedPath,
+      };
     }
 
+    // --- Shared host check (purpose-independent) ---------------------------
     let host: string | null = null;
     if (input.host !== undefined) {
       const parsedHost = HostParamSchema.safeParse(input.host);
@@ -366,10 +409,8 @@ export function evaluateRequestAuthorization(input: RequestAuthorizationInput): 
 
     return allowDecision(
       {
-        kind: "request" as const,
+        ...approval,
         scopeId: scope.data.id,
-        method: method.data,
-        path: pathCheck.normalizedPath,
         host,
       },
       scope.data.scopeHash,

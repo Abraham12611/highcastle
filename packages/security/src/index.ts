@@ -29,6 +29,8 @@ export {
   EffectiveExecutionLimitsSchema,
   ApprovedExecutionSchema,
   AuthorizedRequestSchema,
+  AuthorizedSetupSchema,
+  SetupOperationSchema,
   PolicyDecisionSchema,
   denyReason,
   allowDecision,
@@ -38,15 +40,19 @@ export {
   type EffectiveExecutionLimits,
   type ApprovedExecution,
   type AuthorizedRequest,
+  type AuthorizedSetup,
+  type SetupOperation,
   type PolicyApproval,
   type PolicyDecision,
 } from "./decisions.js";
 
 export {
+  SCOPE_HASH_VERSION,
   canonicalizeScope,
   stableStringify,
   computeScopeHash,
   verifyScopeHash,
+  type ScopeHashFields,
   type ScopeHashInput,
 } from "./scope-hash.js";
 
@@ -76,6 +82,14 @@ export {
 } from "./packs.js";
 
 export { resolveTargetServiceAlias, checkTargetAliasPermitted } from "./target-alias.js";
+
+export {
+  PACK_PREREQUISITES,
+  resolveSetupOperations,
+  isSetupOperation,
+  checkSetupOperationPermitted,
+  normalizeSetupPath,
+} from "./prerequisites.js";
 
 export {
   MAX_REDIRECTS,

@@ -2,54 +2,98 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { AuthorizationScope, ScopeHash } from "@highcastle/contracts";
 
 /**
- * Immutable authorization-scope hashing.
+ * Immutable authorization-scope hashing — THE canonical scope hash.
  *
- * `scopeHash` is the tamper-evident fingerprint recorded on every scan,
- * attempt, proposal decision and audit event. Anyone holding a scope row can
- * recompute it to prove the scope was not widened after approval (replay
- * attack: approving a narrow scope then mutating `allowedHosts`/`maxRequests`
- * in the DB would change the hash and fail closed at claim time).
+ * This is the single hash function for the whole platform (coordinator /
+ * L02 alignment): `packages/db` persists `scope_hash` at insert time and
+ * performs idempotent-replay dedupe on it; this module re-verifies it at
+ * every policy evaluation. L02's `CreateScopeInput` maps 1:1 onto
+ * `ScopeHashFields` — callers pass plain field bags, DB rows or parsed
+ * `AuthorizationScope`s and get the byte-identical digest.
  *
- * Canonicalization rules — all deterministic and order-independent:
- * - The hash covers every authority-bearing field: ids, approval/expiration,
- *   allowed hosts/paths/packs/methods, all four budget numbers, network
- *   profile and scope `version`.
- * - `status` is EXCLUDED: it is mutable lifecycle, not authorized content.
- *   Revocation/expiry are enforced by `checkScopeStatus`, not by the hash;
- *   excluding it lets a revoked scope still verify against its snapshot.
- * - `scopeHash` is EXCLUDED (self-referential).
- * - Hostnames are lowercased; all allow/deny lists are sorted and
- *   de-duplicated — `{GET}` and `{GET,GET}`, and reordered host lists, hash
- *   identically because they authorize identically.
- * - Object keys are emitted in sorted order; output is lowercase hex SHA-256.
+ * Canonical content (v1) — every authority-bearing grant field:
+ *   actorUserId, allowedHosts, allowedMethods, allowedPaths,
+ *   allowedTestPackIds, deniedPaths, expiresAt, maxConcurrency,
+ *   maxDurationSeconds, maxMemoryMb, maxRequests, networkProfileId,
+ *   permittedEnvironmentId, projectId, targetId, version, workspaceId.
+ *
+ * Excluded, deliberately:
+ * - `id` — row identity, generated at insert; hashing it would break
+ *   idempotent replay (identical grant content must yield the same row).
+ * - `status` — mutable lifecycle; revocation/expiry are enforced by
+ *   `checkScopeStatus`, so a revoked scope still verifies against its
+ *   snapshot and denies for the RIGHT reason.
+ * - `approvedAt` — DB-set timestamp, unavailable at insert time; the
+ *   approval instant is audit data, not grant content.
+ * - `scopeHash` — self-referential.
+ * - Any non-contract extension columns (e.g. `maxCpuMillicores`): the
+ *   hash covers exactly the contract grant so a contract-parsed scope
+ *   always recomputes the persisted digest.
+ *
+ * Normalization:
+ * - Hostnames lowercased; every allow/deny list sorted and de-duplicated
+ *   (identical authority ⇒ identical hash).
+ * - `expiresAt` normalized to UTC ISO-8601 via `Date.toISOString()` so a
+ *   `Date` object and an ISO string hash identically.
+ * - Payload prefixed with the algorithm version tag; bumping
+ *   `SCOPE_HASH_VERSION` changes every digest loudly instead of colliding.
+ * - Object keys emitted in sorted order; output is lowercase hex SHA-256.
  */
 
-type ScopeWithOptionalLifecycle = Omit<AuthorizationScope, "status" | "scopeHash"> &
-  Partial<Pick<AuthorizationScope, "status" | "scopeHash">>;
+export const SCOPE_HASH_VERSION = "scope-hash-v1" as const;
 
-export type ScopeHashInput = ScopeWithOptionalLifecycle;
+/** Structural input — accepts plain field bags AND branded contract rows. */
+export interface ScopeHashFields {
+  actorUserId: string;
+  allowedHosts: readonly string[];
+  allowedMethods: readonly string[];
+  allowedPaths: readonly string[];
+  allowedTestPackIds: readonly string[];
+  deniedPaths: readonly string[];
+  expiresAt: string | Date;
+  maxConcurrency: number;
+  maxDurationSeconds: number;
+  maxMemoryMb: number;
+  maxRequests: number;
+  networkProfileId: string | null | undefined;
+  permittedEnvironmentId: string;
+  projectId: string;
+  targetId: string;
+  version: number;
+  workspaceId: string;
+}
+
+/** Backwards-compatible alias for the canonical input type. */
+export type ScopeHashInput = ScopeHashFields &
+  Partial<Pick<AuthorizationScope, "status" | "scopeHash" | "id" | "approvedAt">>;
 
 function sortedUnique(values: readonly string[]): string[] {
   return [...new Set(values)].sort();
 }
 
+function canonicalTimestamp(value: string | Date): string {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new RangeError(`expiresAt is not a parseable timestamp: ${JSON.stringify(value)}`);
+  }
+  return parsed.toISOString();
+}
+
 /** The exact object serialized for hashing. Exported for audit/debugging. */
-export function canonicalizeScope(scope: ScopeHashInput): Record<string, unknown> {
+export function canonicalizeScope(scope: ScopeHashFields): Record<string, unknown> {
   return {
     actorUserId: scope.actorUserId,
     allowedHosts: sortedUnique(scope.allowedHosts.map((h) => h.toLowerCase())),
     allowedMethods: sortedUnique(scope.allowedMethods),
     allowedPaths: sortedUnique(scope.allowedPaths),
     allowedTestPackIds: sortedUnique(scope.allowedTestPackIds),
-    approvedAt: scope.approvedAt,
     deniedPaths: sortedUnique(scope.deniedPaths),
-    expiresAt: scope.expiresAt,
-    id: scope.id,
+    expiresAt: canonicalTimestamp(scope.expiresAt),
     maxConcurrency: scope.maxConcurrency,
     maxDurationSeconds: scope.maxDurationSeconds,
     maxMemoryMb: scope.maxMemoryMb,
     maxRequests: scope.maxRequests,
-    networkProfileId: scope.networkProfileId,
+    networkProfileId: scope.networkProfileId ?? null,
     permittedEnvironmentId: scope.permittedEnvironmentId,
     projectId: scope.projectId,
     targetId: scope.targetId,
@@ -72,10 +116,14 @@ export function stableStringify(value: unknown): string {
   return `{${entries.join(",")}}`;
 }
 
-export function computeScopeHash(scope: ScopeHashInput): ScopeHash {
-  return createHash("sha256")
-    .update(stableStringify(canonicalizeScope(scope)), "utf8")
-    .digest("hex") as ScopeHash;
+/**
+ * THE canonical scope hash — the only function that may produce a
+ * `scopeHash`. DB persistence, seed fixtures and policy verification all
+ * call this (or `verifyScopeHash`); no other serialization is permitted.
+ */
+export function computeScopeHash(scope: ScopeHashFields): ScopeHash {
+  const canonical = `${SCOPE_HASH_VERSION}:${stableStringify(canonicalizeScope(scope))}`;
+  return createHash("sha256").update(canonical, "utf8").digest("hex") as ScopeHash;
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   verifyScopeHash,
 } from "./scope-hash.js";
 import { makeDemoScope } from "./testing.js";
+import type { AuthorizationScopeId } from "@highcastle/contracts";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -83,9 +84,29 @@ describe("stableStringify", () => {
 });
 
 describe("canonicalizeScope", () => {
-  it("excludes status and scopeHash", () => {
+  it("excludes row identity and lifecycle fields", () => {
     const canonical = canonicalizeScope(makeDemoScope());
-    expect(canonical).not.toHaveProperty("status");
-    expect(canonical).not.toHaveProperty("scopeHash");
+    for (const field of ["status", "scopeHash", "id", "approvedAt"]) {
+      expect(canonical, field).not.toHaveProperty(field);
+    }
+  });
+
+  it("hashes grant content, so two identical grants share one hash (L02 replay dedupe)", () => {
+    const a = makeDemoScope();
+    const b = makeDemoScope({
+      id: "77777777-7777-4777-8777-777777777777" as AuthorizationScopeId,
+      approvedAt: "2026-11-06T11:30:00.000Z",
+    });
+    expect(computeScopeHash(a)).toBe(computeScopeHash(b));
+  });
+
+  it("normalizes expiresAt to ISO — Date and string hash identically", () => {
+    const asString = makeDemoScope();
+    const asDate = { ...asString, expiresAt: new Date("2026-11-06T13:00:00.000Z") };
+    expect(computeScopeHash(asDate)).toBe(computeScopeHash(asString));
+  });
+
+  it("throws on an unparseable expiresAt (fail loud, not silent hash)", () => {
+    expect(() => computeScopeHash({ ...makeDemoScope(), expiresAt: "not-a-date" })).toThrow();
   });
 });

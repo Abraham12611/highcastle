@@ -46,6 +46,15 @@ describe("evaluatePlanAuthorization — positive", () => {
     expect(approval.packId).toBe("bola-invoice-v1");
     expect(approval.targetServiceAlias).toBe("target-lab");
     expect(approval.permittedMethods).toEqual(["GET"]);
+    // Setup ops are explicitly scoped prerequisites — POST login declared,
+    // GET-only test action surface NOT widened.
+    expect(approval.setupOperations).toContainEqual({
+      method: "POST",
+      path: "/api/auth/login",
+    });
+    expect(
+      approval.setupOperations.every((op) => op.method === "GET" || op.method === "POST"),
+    ).toBe(true);
     // effective limits = min(operator 16req/120s, scope 16req/60s, pack 8req/30s)
     expect(approval.limits.maxRequests).toBe(8);
     expect(approval.limits.maxDurationSeconds).toBe(30);
@@ -330,5 +339,82 @@ describe("evaluateRequestAuthorization — per-action gate", () => {
     const scope = makeDemoScope({ expiresAt: "2026-11-06T11:00:00.000Z" });
     const decision = evaluateRequestAuthorization({ ...okRequest(), scope });
     expect(denyCodes(decision)).toContain("scope_expired");
+  });
+});
+
+describe("evaluateRequestAuthorization — setup prerequisites", () => {
+  const setupRequest = (overrides: Record<string, unknown> = {}) => ({
+    scope: makeDemoScope(),
+    packId: "bola-invoice-v1",
+    method: "POST",
+    path: "/api/auth/login",
+    purpose: "setup" as const,
+    now: DEMO_NOW,
+    ...overrides,
+  });
+
+  it("permits the declared session-setup POST on the lab", () => {
+    const decision = evaluateRequestAuthorization(setupRequest());
+    expect(decision.decision).toBe("allow");
+    if (decision.decision !== "allow") return;
+    if (decision.approval.kind !== "setup") {
+      throw new Error("expected setup approval");
+    }
+    expect(decision.approval.method).toBe("POST");
+    expect(decision.approval.path).toBe("/api/auth/login");
+  });
+
+  it("permits declared read prerequisites (health, ready, whoami)", () => {
+    for (const [method, path] of [
+      ["GET", "/health"],
+      ["GET", "/ready"],
+      ["GET", "/api/meta"],
+      ["GET", "/api/auth/whoami"],
+      ["POST", "/api/auth/logout"],
+    ] as const) {
+      const decision = evaluateRequestAuthorization(setupRequest({ method, path }));
+      expect(decision.decision, `${method} ${path}`).toBe("allow");
+    }
+  });
+
+  it("denies a setup POST that is not a declared prerequisite", () => {
+    for (const path of [
+      "/api/invoices/inv_A", // real route, but not a prerequisite
+      "/api/auth/login/../admin",
+      "/api/admin",
+      "/api/auth/login/extra",
+    ]) {
+      const decision = evaluateRequestAuthorization(setupRequest({ path }));
+      expect(decision.decision, path).toBe("deny");
+      expect(denyCodes(decision)).toContain("setup_op_not_permitted");
+    }
+  });
+
+  it("denies setup verbs outside GET/POST (no PUT/DELETE ever)", () => {
+    for (const method of ["PUT", "DELETE", "PATCH"]) {
+      const decision = evaluateRequestAuthorization(
+        setupRequest({ method, path: "/api/auth/login" }),
+      );
+      expect(decision.decision, method).toBe("deny");
+      expect(denyCodes(decision)).toContain("setup_op_not_permitted");
+    }
+  });
+
+  it("denies setup ops when a denied scope prefix covers them", () => {
+    const scope = makeDemoScope({ deniedPaths: ["/api/auth"] });
+    const decision = evaluateRequestAuthorization(setupRequest({ scope }));
+    expect(denyCodes(decision)).toContain("path_explicitly_denied");
+  });
+
+  it("does NOT let a POST through the test-action path", () => {
+    const decision = evaluateRequestAuthorization({
+      scope: makeDemoScope(),
+      packId: "bola-invoice-v1",
+      method: "POST",
+      path: "/api/auth/login",
+      // purpose: "test" (default) — POST must stay denied as a test action
+      now: DEMO_NOW,
+    });
+    expect(denyCodes(decision)).toContain("method_not_permitted");
   });
 });

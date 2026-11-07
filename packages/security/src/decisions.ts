@@ -57,6 +57,7 @@ export const PolicyDenyCodeSchema = z.enum([
   "path_not_permitted",
   "path_explicitly_denied",
   "host_out_of_scope",
+  "setup_op_not_permitted",
   "budget_exceeded",
   // --- Model proposal rejections ---
   "proposal_empty",
@@ -102,7 +103,19 @@ export type EffectiveExecutionLimits = Readonly<z.infer<typeof EffectiveExecutio
  * *only* shape the executor can receive: enumerated pack, allowlisted service
  * alias, narrowed method list and intersected caps — never a raw host, URL,
  * command or credential value.
+ *
+ * A non-test-action operation the runner may perform as a prerequisite —
+ * e.g. the session-setup POST on the owned lab. Fixed per pack in policy
+ * code (`PACK_PREREQUISITES`); the model and the scope cannot add to it.
  */
+export const SetupOperationSchema = z
+  .object({
+    method: z.enum(["GET", "POST"]),
+    path: z.string().min(1).max(128),
+  })
+  .strict();
+export type SetupOperation = Readonly<z.infer<typeof SetupOperationSchema>>;
+
 export const ApprovedExecutionSchema = z
   .object({
     /** Discriminant for the approval union — plan-level execution grant. */
@@ -111,7 +124,13 @@ export const ApprovedExecutionSchema = z
     packId: TestPackIdSchema,
     packVersion: SemVerSchema,
     targetServiceAlias: TargetServiceAliasSchema,
+    /** Test-action methods: pack manifest ∩ scope (GET-only for H). */
     permittedMethods: z.array(TestPackMethodSchema).min(1),
+    /**
+     * Explicit, separately-scoped runner prerequisites (session setup,
+     * readiness reads). NOT test actions — never widens permittedMethods.
+     */
+    setupOperations: z.array(SetupOperationSchema).max(8),
     limits: EffectiveExecutionLimitsSchema,
     /** Execution must finish before the scope expires. */
     expiresAt: IsoUtcDateTimeSchema,
@@ -134,8 +153,26 @@ export const AuthorizedRequestSchema = z
   .strict();
 export type AuthorizedRequest = Readonly<z.infer<typeof AuthorizedRequestSchema>>;
 
-const ApprovalSchema = z.union([ApprovedExecutionSchema, AuthorizedRequestSchema]);
-export type PolicyApproval = ApprovedExecution | AuthorizedRequest;
+/** Single explicitly-scoped prerequisite operation grant (e.g. login POST). */
+export const AuthorizedSetupSchema = z
+  .object({
+    /** Discriminant for the approval union — prerequisite grant. */
+    kind: z.literal("setup"),
+    scopeId: AuthorizationScopeIdSchema,
+    method: SetupOperationSchema.shape.method,
+    /** Exact declared prerequisite path. */
+    path: z.string().min(1).max(128),
+    host: z.string().min(1).max(253).nullable(),
+  })
+  .strict();
+export type AuthorizedSetup = Readonly<z.infer<typeof AuthorizedSetupSchema>>;
+
+const ApprovalSchema = z.union([
+  ApprovedExecutionSchema,
+  AuthorizedRequestSchema,
+  AuthorizedSetupSchema,
+]);
+export type PolicyApproval = ApprovedExecution | AuthorizedRequest | AuthorizedSetup;
 
 export const PolicyDecisionSchema = z.discriminatedUnion("decision", [
   z
