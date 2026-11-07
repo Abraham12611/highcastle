@@ -155,6 +155,7 @@ export async function runAttempt(
   const run = await sandbox.execute(request, {
     workspaceId,
     signal: input.signal,
+    expectedRevision: input.targetRevision,
   });
 
   if (run.kind === "denied") {
