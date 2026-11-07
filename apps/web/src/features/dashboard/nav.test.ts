@@ -47,9 +47,11 @@ describe("route builders (L09/L10 contract)", () => {
   });
 
   it("sign-in links carry a validated relative returnTo", () => {
+    // The auth route group /(auth)/sign-in serves public path /sign-in;
+    // /auth/sign-in does not exist (no such route, no rewrite).
     const href = appPaths.signIn("/app/w/demo/overview");
-    expect(href).toBe("/auth/sign-in?returnTo=%2Fapp%2Fw%2Fdemo%2Foverview");
-    expect(href.startsWith("/auth/sign-in?returnTo=%2F")).toBe(true);
+    expect(href).toBe("/sign-in?returnTo=%2Fapp%2Fw%2Fdemo%2Foverview");
+    expect(href.startsWith("/sign-in?returnTo=%2F")).toBe(true);
   });
 
   it("workspace sections link every entity to its real route", () => {

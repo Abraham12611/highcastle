@@ -35,7 +35,8 @@ export const appPaths = {
     `${workspacePath(workspaceSlug)}/projects/${projectId}/scans/new`,
   scopePolicy: (workspaceSlug: string, projectId: string) =>
     `${workspacePath(workspaceSlug)}/projects/${projectId}/policy/scope`,
-  signIn: (returnTo: string) => `/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
+  // NOTE: the auth route lives at /(auth)/sign-in, i.e. public path /sign-in.
+  signIn: (returnTo: string) => `/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
 };
 
 export interface WorkspaceNavCounts {

@@ -56,12 +56,12 @@ describe("honest states (no fabricated data)", () => {
       h(UnauthorizedPanel, { returnTo: "/app/w/demo/overview", reason: "signed-out" }),
     );
     expect(signedOut).toContain("Sign in required");
-    expect(signedOut).toContain("/auth/sign-in?returnTo=%2Fapp%2Fw%2Fdemo%2Foverview");
+    expect(signedOut).toContain("/sign-in?returnTo=%2Fapp%2Fw%2Fdemo%2Foverview");
     const noAccess = html(
       h(UnauthorizedPanel, { returnTo: "/app/w/demo/overview", reason: "no-access" }),
     );
     expect(noAccess).toContain("No access to this workspace");
-    expect(noAccess).not.toContain("/auth/sign-in");
+    expect(noAccess).not.toContain("/sign-in");
   });
 
   it("readiness lists pass/fail per check without invented blockers", () => {
