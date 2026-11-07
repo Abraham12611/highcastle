@@ -86,6 +86,9 @@ importers:
       pg:
         specifier: 8.23.1
         version: 8.23.1
+      pg-ad45e98bb7b7a165:
+        specifier: npm:pg@8.23.1
+        version: pg@8.23.1
       pg-boss:
         specifier: 12.38.1
         version: 12.38.1(@opentelemetry/api@1.10.0)
