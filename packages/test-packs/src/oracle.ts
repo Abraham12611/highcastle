@@ -275,8 +275,18 @@ export function adjudicateAttempt(input: BolaAttemptInput): BolaAttemptAdjudicat
  * Replay adjudication for the SAME versioned pack executed against the
  * patched target: cross-account denial + working own access →
  * `verified_fixed` (canonical matrix reused, not restated).
+ *
+ * Fail-closed gate (replay invariant): a patched run whose preconditions
+ * did not hold — wrong pinned revision, fixture drift, failed session
+ * setup, exceeded budget — grounds NO replay verdict. Even apparently
+ * successful legs (baseline pass + cross-account denial) report
+ * `inconclusive` when `preconditionsOk` is false, because the oracle
+ * cannot tell which target it actually measured.
  */
 export function adjudicateReplay(patchedRun: BolaAttemptAdjudication): BolaReplayAdjudication {
+  if (!patchedRun.preconditionsOk) {
+    return { attemptVerdict: patchedRun, replayVerdict: "inconclusive" };
+  }
   const replayVerdict = evaluateReplayVerdict({
     legitimateRead: patchedRun.baseline,
     unauthorizedReadDenied: patchedRun.securityCheck,

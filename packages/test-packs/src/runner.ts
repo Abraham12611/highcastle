@@ -30,8 +30,9 @@
  *   to the fixture credential and pins the target digest; this adapter
  *   receives the already-resolved value and a base URL (loopback in tests).
  * - L04 policy: URL guardrails here are minimal (http/https, no embedded
- *   credentials); scope allowlisting stays in the controller — this adapter
- *   must never be pointed at an arbitrary host by anyone but a test.
+ *   credentials, redirects rejected outright); scope allowlisting stays in
+ *   the controller — this adapter must never be pointed at an arbitrary
+ *   host by anyone but a test.
  * - L16 orchestrator: consumes `PackRunResult` and `toSandboxResult`.
  */
 
@@ -191,9 +192,14 @@ export async function runBolaPack(options: PackRunOptions): Promise<PackRunResul
     let bodyText = "";
     let revisionEcho: string | null = null;
     try {
+      // Fail closed on redirects: a 3xx that points anywhere — another host,
+      // a login page, a dead alias — must never be silently followed. With
+      // `redirect: "error"` the fetch rejects, the leg stays unobserved, and
+      // the oracle reports `inconclusive` instead of grading a stranger.
       const requestInit: RequestInit = {
         method,
         headers,
+        redirect: "error",
         signal: AbortSignal.timeout(perRequestTimeoutMs),
       };
       if (init?.body !== undefined) {

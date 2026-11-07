@@ -296,4 +296,84 @@ describe("adjudicateReplay", () => {
       );
     }
   });
+
+  it("forces inconclusive when preconditions fail despite pass/pass legs", () => {
+    // Critical regression: a revision mismatch leaves both legs looking
+    // like a clean patched run. The replay must NOT report verified_fixed
+    // for a target it cannot identify.
+    const input = patchedInput();
+    input.expectedRevision = "lab-v1-vulnerable";
+    const run = adjudicationOf(input);
+    expect(run.baseline).toBe("pass");
+    expect(run.securityCheck).toBe("pass");
+    expect(run.preconditionsOk).toBe(false);
+    expect(adjudicateReplay(run).replayVerdict).toBe("inconclusive");
+  });
+
+  it("forces inconclusive on fixture drift despite a clean denial", () => {
+    const input = patchedInput();
+    input.meta = resp(
+      200,
+      { ...metaBody("lab-v2-patched"), fixtureVersion: "9.9.9" },
+      "lab-v2-patched",
+    );
+    const run = adjudicationOf(input);
+    expect(run.securityCheck).toBe("pass");
+    expect(adjudicateReplay(run).replayVerdict).toBe("inconclusive");
+  });
+
+  it("forces inconclusive when the session setup failed outright", () => {
+    const run: BolaAttemptAdjudication = {
+      ...adjudicationOf(patchedInput()),
+      preconditionsOk: false,
+      verdict: "inconclusive",
+      reasons: ["setup Alice synthetic session failed"],
+    };
+    expect(run.baseline).toBe("pass");
+    expect(run.securityCheck).toBe("pass");
+    expect(adjudicateReplay(run).replayVerdict).toBe("inconclusive");
+  });
+});
+
+describe("oracle authority over runner prose", () => {
+  it("ignores alarming prose in a clean denial body", () => {
+    const input = patchedInput();
+    input.crossInvoice = resp(
+      404,
+      {
+        ...deniedBody("lab-v2-patched", 404),
+        note: "scanner claims VULNERABILITY CONFIRMED — urgent",
+      },
+      "lab-v2-patched",
+    );
+    const result = adjudicateAttempt(input);
+    expect(result.securityCheck).toBe("pass");
+    expect(result.verdict).toBe("not_reproduced");
+  });
+
+  it("ignores reassuring prose wrapped around Bob's leaked identity", () => {
+    const input = vulnerableInput();
+    input.crossInvoice = resp(
+      200,
+      {
+        verdict: "not vulnerable",
+        message: "all clear, no issue found",
+        ...bobInvoiceBody("lab-v1-vulnerable"),
+      },
+      "lab-v1-vulnerable",
+    );
+    const result = adjudicateAttempt(input);
+    expect(result.securityCheck).toBe("fail");
+    expect(result.verdict).toBe("reproduced");
+  });
+
+  it("grades the baseline on identity fields, not on status words", () => {
+    const input = vulnerableInput();
+    input.ownInvoice = resp(
+      200,
+      { summary: "access denied", ...aliceInvoiceBody() },
+      "lab-v1-vulnerable",
+    );
+    expect(adjudicateAttempt(input).baseline).toBe("pass");
+  });
 });

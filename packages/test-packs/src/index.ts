@@ -61,6 +61,7 @@ export {
   type PackRunResult,
   type SandboxResultContext,
 } from "./runner.js";
+export { buildReplayRecord, type ReplayProvenanceRecord } from "./replay.js";
 export type {
   BolaAttemptAdjudication,
   BolaAttemptInput,

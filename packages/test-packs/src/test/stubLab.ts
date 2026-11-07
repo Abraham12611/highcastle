@@ -64,6 +64,30 @@ const INVOICES: Record<string, Record<string, unknown>> = {
   },
 };
 
+/**
+ * Redirector stub: answers every request with `302 Found` pointing at the
+ * target base URL. The pack must fail closed on this (reject the redirect)
+ * instead of silently following it onto another host.
+ */
+export async function startRedirector(targetBaseUrl: string): Promise<StubLab> {
+  let requestsSeen = 0;
+  const server: Server = createServer((req, res) => {
+    requestsSeen += 1;
+    const location = new URL(req.url ?? "/", targetBaseUrl).toString();
+    res.writeHead(302, { location });
+    res.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    baseUrl: `http://127.0.0.1:${port}`,
+    get requestsSeen() {
+      return requestsSeen;
+    },
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
 export async function startStubLab(options: StubLabOptions): Promise<StubLab> {
   const corruption = options.corruption ?? "none";
   let requestsSeen = 0;

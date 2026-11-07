@@ -52,6 +52,28 @@ const result = toSandboxResult(run, { runnerId, nonce }); // SandboxResult
 
 Only the two known fixture IDs are requested. No enumeration.
 
+## Evidence contract with the runner (L14 coordination)
+
+The runner supplies **observations only** — one `ObservedHttpResponse`
+per leg (`status`, parsed `body`, `revisionEcho`) plus the pinned
+`expectedRevision`. The runner's own assertion text, log prose, or any
+scanner claim is not an input to the verdict and cannot confirm a
+vulnerability or a fix: `adjudicateAttempt` / `adjudicateReplay` derive
+every verdict from observed fields against the trusted fixture copy.
+`SandboxResult` assertion flags are oracle-derived labels for the
+controller, never verdict inputs. Redirects fail closed (`redirect:
+"error"`): a 3xx anywhere leaves the leg unobserved and the run
+`inconclusive` instead of grading a stranger's response.
+
+## Replay provenance (`src/replay.ts`)
+
+`buildReplayRecord(original, patched, replay)` links two independently
+recorded attempts — original vulnerable run + patched replay run — with
+explicit revision and fixture provenance for both sides. It throws on
+cross-wired adjudications or reused attempt IDs. The original attempt is
+never mutated; an `inconclusive` patched run stays `inconclusive` in the
+record and is never upgraded.
+
 ## Verdict rules (oracle, `src/oracle.ts`)
 
 | P1 own access | S1 cross-account | Verdict |
@@ -62,7 +84,10 @@ Only the two known fixture IDs are requested. No enumeration.
 
 HTTP 200 alone never classifies. Failed preconditions (wrong revision,
 fixture drift, broken baseline, 5xx, ambiguous body) force
-`inconclusive`. Replay verdicts reuse the canonical contract matrices.
+`inconclusive` — including in `adjudicateReplay`, which reports
+`inconclusive` (never `verified_fixed`) when `preconditionsOk` is false,
+even for apparently successful legs. Replay verdicts otherwise reuse the
+canonical contract matrices.
 
 ## Cross-team interfaces (read-only)
 
