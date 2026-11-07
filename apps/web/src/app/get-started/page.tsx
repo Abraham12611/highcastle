@@ -40,8 +40,9 @@ export default function GetStartedPage() {
             URL verification lane).
           </li>
           <li>
-            Connect GitHub (read-only repo analysis) — <em>coming soon</em>{" "}
-            (E9 GitHub connection lane).
+            Connect GitHub (read-only repo analysis) — <em>coming soon</em>.
+            Server-side OAuth credentials are provisioned; the connect
+            endpoint and repo picker land with the E9 lane.
           </li>
         </ul>
       </section>

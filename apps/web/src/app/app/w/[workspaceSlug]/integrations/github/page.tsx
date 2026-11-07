@@ -76,7 +76,9 @@ export default async function GithubIntegrationPage({
         <h2 id="gh-connect">Repository connection</h2>
         <ComingSoon title="GitHub connection" owner="the E9 GitHub-connection lane">
           Read-only repo analysis and explicit commit pinning land with that
-          lane&apos;s API. No repositories are connected today.
+          lane&apos;s connect endpoint and repo picker (server-side OAuth
+          credentials are already provisioned under E9-owned env names).
+          No repositories are connected today.
         </ComingSoon>
       </section>
       <section aria-labelledby="gh-targets">

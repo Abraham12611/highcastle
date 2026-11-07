@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
+
+/**
+ * Clerk is the selected account provider (coordinator direction). The
+ * provider mounts ONLY when the publishable key is configured, so local
+ * builds, CI, and the keyless demo path keep working exactly as before.
+ * Route protection unification stays with E5 (auth lane).
+ */
+const CLERK_KEY = process.env["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"];
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.HIGHCASTLE_APP_URL ?? "http://localhost:3000"),
@@ -25,9 +34,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const body = <body className="hc-root">{children}</body>;
+  if (!CLERK_KEY) return <html lang="en">{body}</html>;
   return (
     <html lang="en">
-      <body className="hc-root">{children}</body>
+      <ClerkProvider>{body}</ClerkProvider>
     </html>
   );
 }
