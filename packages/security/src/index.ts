@@ -130,3 +130,33 @@ export {
   type PlanAuthorizationInput,
   type RequestAuthorizationInput,
 } from "./policy.js";
+
+export {
+  ReconError,
+  DEFAULT_RECON_LIMITS,
+  resolveAndPinTarget,
+  runPassiveRecon,
+  type ReconErrorCode,
+  type DnsResolver,
+  type TlsSession,
+  type HttpResponse,
+  type FetchRequest,
+  type SocketFactory,
+  type ReconLimits,
+  type ResolvedTarget,
+  type FetchedPage,
+  type ReconRunResult,
+} from "./recon-fetcher.js";
+
+export {
+  VERIFICATION_TTL_MS,
+  WELL_KNOWN_PATH,
+  DNS_RECORD_PREFIX,
+  newVerificationChallenge,
+  verifyDnsTxt,
+  verifyWellKnown,
+  type VerificationChallenge,
+  type VerifyOutcome,
+} from "./site-verify.js";
+
+export { analyzePassivePages, standardLimitations } from "./passive-checks.js";

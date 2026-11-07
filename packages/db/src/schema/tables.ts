@@ -6,3 +6,4 @@ export * from "./scans.js";
 export * from "./attempts.js";
 export * from "./findings.js";
 export * from "./audit.js";
+export * from "./builder.js";

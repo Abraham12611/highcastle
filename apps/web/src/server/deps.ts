@@ -1,4 +1,5 @@
 import type { Database } from "@highcastle/db";
+import type { DnsResolver, SocketFactory } from "@highcastle/security";
 import type { JobQueue } from "./queue";
 import type { RateLimiter } from "./rate-limit";
 import type { Session } from "./session";
@@ -14,6 +15,12 @@ export interface BffDeps {
   session: Session;
   now?: Date;
   scanLaunchLimiter?: RateLimiter;
+  /** Passive-recon I/O — tests inject fakes so no real network leaves the
+   *  process. When absent, flows use the production DNS/TLS impls. */
+  recon?: {
+    resolver: DnsResolver;
+    fetcher: SocketFactory;
+  };
 }
 
 export function requestTime(deps: BffDeps): Date {

@@ -217,6 +217,13 @@ export function isBlockedResolvedAddress(ip: string): boolean {
   if (first === 0x20 && v6[1] === 0x01 && v6[2] === 0x0d && v6[3] === 0xb8) {
     return true;
   }
+  // 2001:0000::/32 Teredo — embeds a client IPv4 in the low bits; a banned
+  // v4 could smuggle through, so the whole tunnel range is refused.
+  if (first === 0x20 && v6[1] === 0x01 && v6[2] === 0x00 && v6[3] === 0x00) {
+    return true;
+  }
+  // 2002::/16 6to4 — first hextets after 2002 embed the relay's IPv4.
+  if (first === 0x20 && v6[1] === 0x02) return true;
   // 64:ff9b::/96 NAT64 well-known prefix — treat with the mapped-v4 rules
   if (first === 0x00 && v6[1] === 0x64 && v6[2] === 0xff && v6[3] === 0x9b) {
     return true;
