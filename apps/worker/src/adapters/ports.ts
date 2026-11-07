@@ -195,10 +195,19 @@ export interface UpsertFindingResult {
   created: boolean;
 }
 
-export interface ReplayObservationInput {
-  legitimateRead: "pass" | "fail" | "unknown";
-  unauthorizedReadDenied: "pass" | "fail" | "unknown";
-  stillReadsCrossAccount: boolean;
+/**
+ * Mirrors L02's `ReplayOracleEvidence` — the persisted-oracle contract for
+ * replay completion. `oracleEvidenceId` must name a stored `oracle`
+ * evidence artifact for the replay scan's attempt; preconditionsOk is the
+ * verifier's true P0/P2 status, not a proxy boolean.
+ */
+export interface ReplayOracleEvidenceInput {
+  oracleEvidenceId: string;
+  oracleVersion: string;
+  baseline: "pass" | "fail" | "unknown";
+  securityCheck: "pass" | "fail" | "unknown";
+  attemptVerdict: "reproduced" | "not_reproduced" | "inconclusive";
+  preconditionsOk: boolean;
 }
 
 export interface CreateReplayScanInput {
@@ -288,7 +297,7 @@ export interface OrchestratorStore {
   completeReplay(
     workspaceId: string,
     replayId: string,
-    observation: ReplayObservationInput,
+    evidence: ReplayOracleEvidenceInput,
   ): Promise<ReplayRecord>;
 
   /** Create the `replay_verification` scan a replay job executes under. */

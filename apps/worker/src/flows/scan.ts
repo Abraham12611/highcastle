@@ -27,7 +27,8 @@ import {
   type ScanStatus,
 } from "@highcastle/contracts";
 import { ScanStateConflictError } from "../adapters/errors.js";
-import type { AttemptRecord, HypothesisInput, PlanDecision } from "../adapters/ports.js";
+import type { AttemptAdjudication,
+  AttemptRecord, HypothesisInput, PlanDecision } from "../adapters/ports.js";
 import type { OrchestratorDeps } from "./deps.js";
 import { emit } from "./events.js";
 import { runAttempt, type ApprovedPlan, type AttemptRunResult } from "./execute-attempt.js";
@@ -40,6 +41,8 @@ export interface ScanJobPayload {
 export interface ScanJobResult {
   status: "completed" | "partial" | "failed" | "canceled" | "skipped";
   reason?: string;
+  /** Verifier adjudication produced this run (for replay evidence). */
+  adjudication?: AttemptAdjudication;
 }
 
 /** Plan pinned by a replay instead of produced by inference. */
@@ -381,6 +384,7 @@ export async function executeScanJob(
   // Planning output cached for this invocation only; a resumed run
   // re-derives it from the persisted proposal + a fresh policy eval.
   let cachedPlan: PlanningResult | null = null;
+  let lastAdjudication: AttemptAdjudication | null = null;
 
   // Defensive bound: the stage loop must always make progress; a broken
   // transition table surfaces as an exception, not a hot loop.
@@ -492,6 +496,7 @@ export async function executeScanJob(
           });
           return { status: "failed", reason: "sandbox_precondition" };
         }
+        if (run.adjudication) lastAdjudication = run.adjudication;
         if (run.outcome === "timeout" || run.outcome === "failed") {
           await deps.store.transitionScan(workspaceId, scanId, {
             to: "verifying",
@@ -586,7 +591,10 @@ export async function executeScanJob(
           },
         });
         deps.cancelRegistry.release(scanId);
-        return { status: terminal };
+        return {
+          status: terminal,
+          ...(lastAdjudication ? { adjudication: lastAdjudication } : {}),
+        };
       }
 
       default:

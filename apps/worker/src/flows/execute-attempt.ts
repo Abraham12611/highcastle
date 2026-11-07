@@ -67,9 +67,12 @@ function sha256Hex(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-/** Opaque actor credential ref — the value never leaves the controller. */
+/**
+ * Opaque actor credential ref — canonical form resolved by the L14 sandbox
+ * controller (`ref:synthetic:<role>_session`, e.g. CREDENTIAL_REFS.alice).
+ */
 export function actorCredentialRef(role: "alice" | "bob"): string {
-  return `ref:synthetic:${role}`;
+  return `ref:synthetic:${role}_session`;
 }
 
 /**

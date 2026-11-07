@@ -31,7 +31,7 @@ import type {
   FindingRecord,
   OrchestratorStore,
   PublishScanEventInput,
-  ReplayObservationInput,
+  ReplayOracleEvidenceInput,
   ReplayRecord,
   ScanEventPublisher,
   ScanTransitionInput,
@@ -293,17 +293,19 @@ export class InMemoryStore implements OrchestratorStore {
     return r && r.workspaceId === ws ? r : null;
   }
 
-  async completeReplay(ws: string, id: string, observation: ReplayObservationInput) {
+  async completeReplay(ws: string, id: string, evidence: ReplayOracleEvidenceInput) {
     const replay = await this.getReplay(ws, id);
     if (!replay) throw new ScanStateConflictError(`replay ${id} not found`);
     if (replay.verdict !== null) {
       throw new ScanStateConflictError("replay already completed");
     }
+    // Mirrors L02's recompute-from-evidence gate incl. precondition force.
     let verdict: ReplayVerdict = "inconclusive";
-    if (observation.stillReadsCrossAccount) verdict = "still_vulnerable";
-    else if (observation.unauthorizedReadDenied === "pass" && observation.legitimateRead === "pass")
+    if (!evidence.preconditionsOk) verdict = "inconclusive";
+    else if (evidence.attemptVerdict === "reproduced") verdict = "still_vulnerable";
+    else if (evidence.securityCheck === "pass" && evidence.baseline === "pass")
       verdict = "verified_fixed";
-    else if (observation.unauthorizedReadDenied === "pass" && observation.legitimateRead === "fail")
+    else if (evidence.securityCheck === "pass" && evidence.baseline === "fail")
       verdict = "regression";
     const next = { ...replay, verdict };
     this.replays.set(id, next);

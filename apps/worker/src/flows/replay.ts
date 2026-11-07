@@ -10,9 +10,18 @@
  * - If the original attempt was never confirmed-by-execution, the replay
  *   completes `inconclusive` — a replay cannot manufacture a confirmation.
  */
+import { createHash } from "node:crypto";
 import type { OrchestratorDeps } from "./deps.js";
 import { emit } from "./events.js";
 import { executeScanJob } from "./scan.js";
+
+function sha256Hex(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+function eventScanIdOf(replayScanId: string | null, replay: { originalScanId: string }): string {
+  return replayScanId ?? replay.originalScanId;
+}
 import type { AttemptAdjudication, ReplayRecord } from "../adapters/ports.js";
 
 export interface ReplayJobPayload {
@@ -67,30 +76,55 @@ export async function executeReplayJob(
           },
         },
       );
-      if (scanResult.status === "completed" || scanResult.status === "partial") {
-        adjudication = await latestAdjudication(deps, workspaceId, replayScanId);
+      if (
+        (scanResult.status === "completed" || scanResult.status === "partial") &&
+        scanResult.adjudication
+      ) {
+        adjudication = scanResult.adjudication;
       }
     }
   }
 
-  const { replayVerdict } = await deps.verifier.adjudicateReplay(
-    adjudication ?? {
-      attemptId: replay.originalAttemptId,
-      oracleVersion: "unavailable",
-      baseline: "unknown",
-      securityCheck: "unknown",
-      verdict: "inconclusive",
-      preconditionsOk: false,
-      reasons: preconditionOk
-        ? ["replay execution did not produce a complete adjudication"]
-        : ["original attempt was not confirmed by execution"],
-    },
-  );
+  const effective = adjudication ?? {
+    attemptId: replay.originalAttemptId,
+    oracleVersion: "unavailable",
+    baseline: "unknown" as const,
+    securityCheck: "unknown" as const,
+    verdict: "inconclusive" as const,
+    preconditionsOk: false,
+    reasons: preconditionOk
+      ? ["replay execution did not produce a complete adjudication"]
+      : ["original attempt was not confirmed by execution"],
+  };
+  const { replayVerdict } = await deps.verifier.adjudicateReplay(effective);
+
+  // Persist the oracle adjudication as an evidence artifact for exactly
+  // this replay scan's attempt — L02 requires it before completion.
+  const replayAttempts = replayScanId
+    ? await deps.store.listAttempts(workspaceId, replayScanId)
+    : [];
+  const replayAttempt = replayAttempts.sort(
+    (a, b) => b.attemptNumber - a.attemptNumber,
+  )[0];
+  const artifact = await deps.store.createEvidenceArtifact({
+    workspaceId,
+    scanId: eventScanIdOf(replayScanId, replay),
+    attemptId: replayAttempt?.id ?? null,
+    artifactKind: "oracle",
+    storageKind: "db",
+    storageKey: `oracle/replay/${replayId}/${replayAttempt?.id ?? "none"}`,
+    sha256: sha256Hex(JSON.stringify(effective)),
+    byteSize: JSON.stringify(effective).length,
+    contentType: "application/json",
+  });
 
   const completed = await deps.store.completeReplay(workspaceId, replayId, {
-    legitimateRead: adjudication?.baseline ?? "unknown",
-    unauthorizedReadDenied: adjudication?.securityCheck ?? "unknown",
-    stillReadsCrossAccount: adjudication?.verdict === "reproduced",
+    oracleEvidenceId: artifact.id,
+    oracleVersion: effective.oracleVersion,
+    baseline: effective.baseline,
+    securityCheck: effective.securityCheck,
+    attemptVerdict: effective.verdict,
+    preconditionsOk: effective.preconditionsOk,
   });
 
   // Events are emitted on the replay scan when present, else the original.
@@ -119,36 +153,6 @@ export async function executeReplayJob(
   return {
     status: "completed",
     replayVerdict: completed.verdict ?? replayVerdict,
-  };
-}
-
-/** Re-derive the attempt adjudication persisted during the replay scan. */
-async function latestAdjudication(
-  deps: OrchestratorDeps,
-  workspaceId: string,
-  scanId: string,
-): Promise<AttemptAdjudication | null> {
-  const attempts = await deps.store.listAttempts(workspaceId, scanId);
-  const latest = attempts.sort((a, b) => b.attemptNumber - a.attemptNumber)[0];
-  if (!latest || latest.verifierVerdict === null) return null;
-  return {
-    attemptId: latest.id,
-    oracleVersion: latest.oracleVersion ?? "unknown",
-    baseline:
-      latest.positiveControlPassed === true
-        ? "pass"
-        : latest.positiveControlPassed === false
-          ? "fail"
-          : "unknown",
-    securityCheck:
-      latest.negativeSecurityConditionMet === true
-        ? "pass"
-        : latest.negativeSecurityConditionMet === false
-          ? "fail"
-          : "unknown",
-    verdict: latest.verifierVerdict,
-    preconditionsOk: latest.positiveControlPassed === true,
-    reasons: [latest.verdictReasonCode ?? "recorded adjudication"],
   };
 }
 
