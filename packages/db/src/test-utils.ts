@@ -72,6 +72,7 @@ export interface FixtureChain {
   workspaceId: string;
   projectId: string;
   environmentId: string;
+  envRevision: string;
   targetId: string;
   scopeId: string;
   scopeHash: string;
@@ -98,20 +99,22 @@ export async function createFixtureChain(db: Database): Promise<FixtureChain> {
     kind: "demo",
     createdBy: ownerId,
   });
+  const envRevision = `lab-v1-vulnerable`;
   const env = await createEnvironment(db, {
     workspaceId: ws.id,
     projectId: project.id,
     label: `env-${n}`,
     kind: "attack_twin",
-    currentRevision: `rev-${n}`,
+    currentRevision: envRevision,
     fixtureVersion: "1.0.0",
+    provisionStatus: "ready",
   });
   const target = await createTarget(db, {
     workspaceId: ws.id,
     projectId: project.id,
     environmentId: env.id,
     label: `target-${n}`,
-    canonicalOrigin: "https://target-lab.highcastle.local",
+    canonicalOrigin: "https://target-lab.internal",
     targetKind: "demo",
   });
   await verifyTarget(db, ws.id, target.id, {
@@ -123,8 +126,8 @@ export async function createFixtureChain(db: Database): Promise<FixtureChain> {
     projectId: project.id,
     targetId: target.id,
     actorUserId: ownerId,
-    allowedHosts: ["target-lab.highcastle.local"],
-    allowedPaths: ["/invoices"],
+    allowedHosts: ["target-lab"],
+    allowedPaths: ["/api/invoices"],
     allowedTestPackIds: ["bola-invoice-v1"],
     allowedMethods: ["GET"],
     maxDurationSeconds: 120,
@@ -139,6 +142,7 @@ export async function createFixtureChain(db: Database): Promise<FixtureChain> {
     workspaceId: ws.id,
     projectId: project.id,
     environmentId: env.id,
+    envRevision,
     targetId: target.id,
     scopeId: scope.id,
     scopeHash: scope.scopeHash,

@@ -1,12 +1,16 @@
-import { evaluateReplayVerdict } from "@highcastle/contracts";
+import { evaluateAttemptVerdict, evaluateReplayVerdict } from "@highcastle/contracts";
 import { and, desc, eq } from "drizzle-orm";
 import type { Database, DbExecutor } from "../client.js";
 import {
+  environments,
+  evidenceArtifacts,
   findingHistory,
   findingOccurrences,
   findings,
   remediations,
   replays,
+  scans,
+  testAttempts,
 } from "../schema/tables.js";
 import { DbError } from "../errors.js";
 
@@ -354,27 +358,53 @@ export async function listReplaysForFinding(
     .orderBy(desc(replays.createdAt));
 }
 
-export interface ReplayObservation {
-  /** Legitimate own-invoice read on the patched revision. */
-  legitimateRead: "pass" | "fail" | "unknown";
-  /** Cross-account read on the patched revision (`pass` = denied). */
-  unauthorizedReadDenied: "pass" | "fail" | "unknown";
-  /** Patched run still returned another tenant's data. */
-  stillReadsCrossAccount: boolean;
+/**
+ * Recorded oracle evidence for a replay run. Field-for-field compatible with
+ * L15 `BolaAttemptAdjudication` (minus its `attemptId`/`reasons`, which live
+ * in the linked evidence artifact): the legs the independent oracle derived
+ * from observed HTTP facts, plus the precondition gate. The replay verdict
+ * is re-derived here from these legs — callers never supply a verdict or a
+ * bare "passed" boolean.
+ */
+export interface ReplayOracleEvidence {
+  /** Persisted `evidence_artifacts` row (kind `oracle`) holding the adjudication. */
+  oracleEvidenceId: string;
+  /** Oracle version that produced the adjudication (e.g. `bola-oracle-v1`). */
+  oracleVersion: string;
+  /** P1: legitimate own-invoice read on the patched revision. */
+  baseline: "pass" | "fail" | "unknown";
+  /** S1: cross-account read on the patched revision (`pass` = denied). */
+  securityCheck: "pass" | "fail" | "unknown";
+  /** Verdict the oracle recorded over these legs (consistency-checked). */
+  attemptVerdict: "reproduced" | "not_reproduced" | "inconclusive";
+  /** P0/P2 preconditions held (right revision, fixtures intact). */
+  preconditionsOk: boolean;
 }
 
 /**
- * Complete a replay from recorded oracle observations. The verdict is derived
- * by `evaluateReplayVerdict()` (contracts) — never supplied by the caller.
- * `verified_fixed` additionally flips the finding
- * `pending_verification` → `verified_fixed` with a history row;
- * `still_vulnerable` re-opens a `pending_verification` finding.
+ * Complete a replay from persisted oracle evidence — never from
+ * caller-supplied assertion booleans.
+ *
+ * Integrity gates (all inside one transaction):
+ * - the replay must reference a completed replay scan in the same workspace
+ *   + project, run in the patched environment at the patched revision;
+ * - the patched environment's current revision must still equal the replay's
+ *   pinned `patched_revision` (the target must not have moved underneath);
+ * - a persisted `oracle` evidence artifact for exactly that replay scan
+ *   (and its attempt) must exist — the verdict is derived from the recorded
+ *   legs, recomputed here via the contracts matrices;
+ * - failed preconditions force `inconclusive`, even when the legs superficially
+ *   resemble a passing matrix row.
+ *
+ * `verified_fixed` flips the finding `pending_verification` → `verified_fixed`
+ * with a history row; `still_vulnerable` re-opens a `pending_verification`
+ * finding to `in_progress`.
  */
 export async function completeReplay(
   db: Database,
   workspaceId: string,
   replayId: string,
-  observation: ReplayObservation,
+  evidence: ReplayOracleEvidence,
 ) {
   return db.transaction(async (tx) => {
     const replay = await getReplay(tx, workspaceId, replayId);
@@ -382,13 +412,129 @@ export async function completeReplay(
     if (replay.verdict !== null) {
       throw DbError.conflict("replay is already completed", { replayId });
     }
-    const verdict = evaluateReplayVerdict(observation);
+    if (!replay.replayScanId) {
+      throw DbError.conflict("replay has no execution scan; record the replay scan first", {
+        replayId,
+      });
+    }
+
+    // Correct replay/target relationship: the replay scan lives in the same
+    // tenant + project, ran in the patched environment at the pinned revision.
+    const [replayScan] = await tx
+      .select()
+      .from(scans)
+      .where(
+        and(
+          eq(scans.id, replay.replayScanId),
+          eq(scans.workspaceId, workspaceId),
+          eq(scans.projectId, replay.projectId),
+        ),
+      )
+      .limit(1);
+    if (!replayScan) {
+      throw DbError.conflict("replay scan is missing or belongs to another tenant/project", {
+        replayId,
+      });
+    }
+    if (replay.patchedEnvironmentId) {
+      if (replayScan.environmentId !== replay.patchedEnvironmentId) {
+        throw DbError.conflict("replay scan did not run in the patched environment", {
+          replayId,
+        });
+      }
+      const [patchedEnv] = await tx
+        .select()
+        .from(environments)
+        .where(
+          and(
+            eq(environments.id, replay.patchedEnvironmentId),
+            eq(environments.workspaceId, workspaceId),
+          ),
+        )
+        .limit(1);
+      if (!patchedEnv) throw DbError.notFound("environment", replay.patchedEnvironmentId);
+      if (patchedEnv.currentRevision !== replay.patchedRevision) {
+        throw DbError.conflict(
+          `patched environment moved from ${replay.patchedRevision} to ${patchedEnv.currentRevision}; re-run the replay`,
+          { replayId },
+        );
+      }
+    }
+    if (replayScan.targetRevision !== replay.patchedRevision) {
+      throw DbError.conflict(
+        `replay scan revision ${replayScan.targetRevision} does not match patched revision ${replay.patchedRevision}`,
+        { replayId },
+      );
+    }
+
+    // Persisted oracle evidence: kind `oracle`, same tenant, attached to the
+    // replay scan (and its attempt). No artifact → no verdict.
+    const [artifact] = await tx
+      .select()
+      .from(evidenceArtifacts)
+      .where(
+        and(
+          eq(evidenceArtifacts.id, evidence.oracleEvidenceId),
+          eq(evidenceArtifacts.workspaceId, workspaceId),
+          eq(evidenceArtifacts.scanId, replay.replayScanId),
+          eq(evidenceArtifacts.artifactKind, "oracle"),
+        ),
+      )
+      .limit(1);
+    if (!artifact) {
+      throw DbError.conflict("no persisted oracle evidence for this replay scan", {
+        replayId,
+      });
+    }
+    if (!artifact.attemptId) {
+      throw DbError.conflict("oracle evidence is not attached to a replay attempt", {
+        replayId,
+      });
+    }
+    const [linkedAttempt] = await tx
+      .select({ id: testAttempts.id })
+      .from(testAttempts)
+      .where(
+        and(
+          eq(testAttempts.id, artifact.attemptId),
+          eq(testAttempts.scanId, replay.replayScanId),
+          eq(testAttempts.workspaceId, workspaceId),
+        ),
+      )
+      .limit(1);
+    if (!linkedAttempt) {
+      throw DbError.conflict("oracle evidence attempt does not belong to the replay scan", {
+        replayId,
+      });
+    }
+
+    // Derive — never accept — the verdicts from the recorded legs.
+    const recomputedAttemptVerdict = evaluateAttemptVerdict({
+      baseline: evidence.baseline,
+      securityCheck: evidence.securityCheck,
+    });
+    if (recomputedAttemptVerdict !== evidence.attemptVerdict) {
+      throw DbError.conflict(
+        `recorded attempt verdict ${evidence.attemptVerdict} is inconsistent with legs ${evidence.baseline}/${evidence.securityCheck}`,
+        { replayId },
+      );
+    }
+    const verdict = evidence.preconditionsOk
+      ? evaluateReplayVerdict({
+          legitimateRead: evidence.baseline,
+          unauthorizedReadDenied: evidence.securityCheck,
+          stillReadsCrossAccount: evidence.attemptVerdict === "reproduced",
+        })
+      : "inconclusive";
+
     const now = new Date();
     const [completed] = await tx
       .update(replays)
       .set({
-        positiveAssertionPassed: observation.legitimateRead === "pass",
-        negativeAssertionPassed: observation.unauthorizedReadDenied === "pass",
+        positiveAssertionPassed: evidence.baseline === "pass",
+        negativeAssertionPassed: evidence.securityCheck === "pass",
+        oracleEvidenceId: artifact.id,
+        oracleVersion: evidence.oracleVersion,
         verdict,
         completedAt: now,
       })

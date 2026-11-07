@@ -1,6 +1,12 @@
 import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import type { Database, DbExecutor } from "../client.js";
-import { authorizationScopes, scanEvents, scans, isTerminalScanStatus } from "../schema/tables.js";
+import {
+  authorizationScopes,
+  environments,
+  scanEvents,
+  scans,
+  isTerminalScanStatus,
+} from "../schema/tables.js";
 import { DbError } from "../errors.js";
 
 /** Allowed scan lifecycle transitions (spec § Scan lifecycle). */
@@ -91,6 +97,53 @@ export async function createScan(db: Database, input: CreateScanInput) {
       });
     }
 
+    // Execution environment: the scan must run in the scope's permitted
+    // environment (mirrors L04 `checkScopeRelations`: permitted env only).
+    const environmentId = input.environmentId ?? scope.permittedEnvironmentId;
+    if (environmentId !== scope.permittedEnvironmentId) {
+      throw new DbError("scope_denied", "scan environment is outside the authorized scope", {
+        scopeId: input.scopeId,
+      });
+    }
+    const [env] = await tx
+      .select()
+      .from(environments)
+      .where(
+        and(
+          eq(environments.id, environmentId),
+          eq(environments.workspaceId, input.workspaceId),
+          eq(environments.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    if (!env) throw DbError.notFound("environment", environmentId);
+    if (env.provisionStatus !== "ready") {
+      throw new DbError(
+        "unprocessable",
+        `environment provision status ${env.provisionStatus} is not ready`,
+        { environmentId },
+      );
+    }
+    // Revision pin: evidence is attributed to the environment's current
+    // revision — a scan naming any other revision is stale by construction.
+    if (input.targetRevision !== env.currentRevision) {
+      throw new DbError(
+        "stale_revision",
+        `scan revision ${input.targetRevision} does not match environment revision ${env.currentRevision}`,
+        { environmentId },
+      );
+    }
+
+    // Test-pack allowlist: the model/scan may only narrow to approved packs.
+    const unapproved = input.testPackIds.filter((pack) => !scope.allowedTestPackIds.includes(pack));
+    if (unapproved.length > 0) {
+      throw new DbError(
+        "scope_denied",
+        `test packs not authorized by scope: ${unapproved.join(", ")}`,
+        { scopeId: input.scopeId },
+      );
+    }
+
     const [row] = await tx
       .insert(scans)
       .values({
@@ -99,7 +152,7 @@ export async function createScan(db: Database, input: CreateScanInput) {
         scopeId: input.scopeId,
         sourceSnapshotRef: input.sourceSnapshotRef ?? null,
         targetId: input.targetId,
-        environmentId: input.environmentId ?? null,
+        environmentId,
         targetRevision: input.targetRevision,
         fixtureVersion: input.fixtureVersion ?? null,
         scanType: input.scanType ?? "targeted_red_team",
@@ -322,8 +375,7 @@ export async function appendScanEvent(db: Database, input: AppendEventInput) {
         // returns numbers — coerce before incrementing, or `max + 1`
         // silently becomes string concatenation ("1" + 1 = "11").
         const maxRaw = maxRow.max;
-        const max =
-          typeof maxRaw === "string" ? Number.parseInt(maxRaw, 10) : (maxRaw ?? 0);
+        const max = typeof maxRaw === "string" ? Number.parseInt(maxRaw, 10) : (maxRaw ?? 0);
         const [row] = await tx
           .insert(scanEvents)
           .values({

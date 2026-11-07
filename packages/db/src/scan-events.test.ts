@@ -32,7 +32,7 @@ describe("scan events and lifecycle", () => {
       scopeId: f.scopeId,
       targetId: f.targetId,
       environmentId: f.environmentId,
-      targetRevision: "rev-1",
+      targetRevision: f.envRevision,
       testPackIds: ["bola-invoice-v1"],
       requestedByUserId: f.ownerId,
       idempotencyKey: `scan-${f.workspaceId}`,
@@ -151,6 +151,6 @@ describe("scan events and lifecycle", () => {
       idempotencyKey: `scan-${f.workspaceId}`,
     });
     expect(again.id).toBe(scan.id);
-    expect(again.targetRevision).toBe("rev-1");
+    expect(again.targetRevision).toBe(f.envRevision);
   });
 });

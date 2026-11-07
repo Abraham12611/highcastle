@@ -184,6 +184,14 @@ export const replays = pgTable(
     positiveAssertionPassed: boolean("positive_assertion_passed"),
     negativeAssertionPassed: boolean("negative_assertion_passed"),
     /**
+     * Link to the persisted oracle evidence artifact (`evidence_artifacts`,
+     * kind `oracle`) the verdict was derived from. NULL until completion —
+     * a replay with no recorded oracle evidence can never be `verified_fixed`.
+     */
+    oracleEvidenceId: uuid("oracle_evidence_id"),
+    /** Oracle version string recorded alongside the verdict (e.g. `bola-oracle-v1`). */
+    oracleVersion: text("oracle_version"),
+    /**
      * Derived ONLY by `evaluateReplayVerdict()` from recorded observations —
      * never set from client input. NULL until the replay scan completes.
      */

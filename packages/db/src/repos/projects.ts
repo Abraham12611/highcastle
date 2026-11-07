@@ -92,6 +92,11 @@ export interface CreateEnvironmentInput {
   currentRevision: string;
   fixtureVersion: string;
   networkProfileId?: string | null;
+  /**
+   * Provisioning state. New environments start `provisioning` unless the
+   * lab is already live (demo fixtures pass `ready` explicitly).
+   */
+  provisionStatus?: "provisioning" | "ready" | "degraded" | "destroyed" | "failed";
 }
 
 /** Environment must belong to the same workspace + project (verified join). */
@@ -109,6 +114,7 @@ export async function createEnvironment(db: DbExecutor, input: CreateEnvironment
       currentRevision: input.currentRevision,
       fixtureVersion: input.fixtureVersion,
       networkProfileId: input.networkProfileId ?? null,
+      provisionStatus: input.provisionStatus ?? "provisioning",
     })
     .returning();
   if (!row) throw new DbError("internal", "environment insert returned no row");

@@ -39,7 +39,7 @@ describe("workspace isolation", () => {
       scopeId: a.scopeId,
       targetId: a.targetId,
       environmentId: a.environmentId,
-      targetRevision: "rev-a",
+      targetRevision: a.envRevision,
       testPackIds: ["bola-invoice-v1"],
       requestedByUserId: a.ownerId,
     });
@@ -57,7 +57,7 @@ describe("workspace isolation", () => {
         scopeId: a.scopeId,
         targetId: b.targetId,
         environmentId: b.environmentId,
-        targetRevision: "rev-b",
+        targetRevision: b.envRevision,
         testPackIds: ["bola-invoice-v1"],
         requestedByUserId: b.ownerId,
       }),
@@ -75,7 +75,7 @@ describe("workspace isolation", () => {
         scopeId: otherProject.scopeId,
         targetId: a.targetId,
         environmentId: a.environmentId,
-        targetRevision: "rev-a",
+        targetRevision: a.envRevision,
         testPackIds: ["bola-invoice-v1"],
         requestedByUserId: a.ownerId,
       }),
@@ -93,14 +93,14 @@ describe("workspace isolation", () => {
     const outsider = await createWorkspace(tdb.db, {
       slug: "outsider-ws",
       name: "Outsider",
-      ownerUserId: "99999999-9999-4999-8999-999999999999",
+      ownerUserId: "c0000000-0000-4000-8000-000000000099",
     });
     expect(await getWorkspaceMember(tdb.db, outsider.id, a.ownerId)).toBeNull();
     await expect(
       createWorkspace(tdb.db, {
         slug: "outsider-ws",
         name: "Outsider again",
-        ownerUserId: "99999999-9999-4999-8999-999999999999",
+        ownerUserId: "c0000000-0000-4000-8000-000000000099",
       }),
     ).rejects.toBeInstanceOf(Error);
   });

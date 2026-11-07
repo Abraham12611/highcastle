@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { createFixtureChain, createTestDb, type TestDb } from "./test-utils.js";
+import { createFixtureChain, createTestDb, type FixtureChain, type TestDb } from "./test-utils.js";
 import {
   createAttempt,
   createEvidenceArtifact,
@@ -19,6 +19,8 @@ import {
   upsertFindingFromVerdict,
 } from "./repos/findings.js";
 import { createScan } from "./repos/scans.js";
+import { createEnvironment } from "./repos/projects.js";
+import { createAuthorizationScope } from "./repos/scopes.js";
 import { recordAuditEvent } from "./repos/audit.js";
 
 /**
@@ -49,7 +51,7 @@ describe("findings and replays", () => {
       scopeId: f.scopeId,
       targetId: f.targetId,
       environmentId: f.environmentId,
-      targetRevision: "rev-1",
+      targetRevision: f.envRevision,
       testPackIds: ["bola-invoice-v1"],
       requestedByUserId: f.ownerId,
     });
@@ -60,9 +62,90 @@ describe("findings and replays", () => {
       packVersion: "1.0.0",
       planHash: "plan-1",
       scopeHash: f.scopeHash,
-      targetRevision: "rev-1",
+      targetRevision: f.envRevision,
     });
     return { f, scan, attempt };
+  }
+
+  /**
+   * Full replay harness: patched L11 environment (`lab-v2-patched`), its own
+   * approval scope, a replay scan pinned to the patched revision, a replay
+   * attempt, and the persisted `oracle` evidence artifact the verdict must
+   * be derived from. Mirrors the L16 replay job wiring.
+   */
+  async function openPatchedReplay(
+    f: FixtureChain,
+    input: { findingId: string; originalScanId: string; originalAttemptId: string },
+  ) {
+    const patchedEnv = await createEnvironment(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      label: "patched twin",
+      kind: "attack_twin",
+      currentRevision: "lab-v2-patched",
+      fixtureVersion: "1.0.0",
+      provisionStatus: "ready",
+    });
+    const patchedScope = await createAuthorizationScope(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      targetId: f.targetId,
+      actorUserId: f.ownerId,
+      allowedHosts: ["target-lab"],
+      allowedPaths: ["/api/invoices"],
+      allowedTestPackIds: ["bola-invoice-v1"],
+      allowedMethods: ["GET"],
+      maxDurationSeconds: 60,
+      maxRequests: 16,
+      maxConcurrency: 1,
+      maxMemoryMb: 256,
+      permittedEnvironmentId: patchedEnv.id,
+      expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+    });
+    const replayScan = await createScan(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      scopeId: patchedScope.id,
+      targetId: f.targetId,
+      environmentId: patchedEnv.id,
+      targetRevision: "lab-v2-patched",
+      testPackIds: ["bola-invoice-v1"],
+      requestedByUserId: f.ownerId,
+    });
+    const replayAttempt = await createAttempt(tdb.db, {
+      workspaceId: f.workspaceId,
+      scanId: replayScan.id,
+      packId: "bola-invoice-v1",
+      packVersion: "1.0.0",
+      planHash: "plan-replay",
+      scopeHash: patchedScope.scopeHash,
+      targetRevision: "lab-v2-patched",
+    });
+    const oracleArtifact = await createEvidenceArtifact(tdb.db, {
+      workspaceId: f.workspaceId,
+      scanId: replayScan.id,
+      attemptId: replayAttempt.id,
+      artifactKind: "oracle",
+      storageKind: "db",
+      storageKey: "obj-oracle-adjudication-0001",
+      sha256: "b".repeat(64),
+      byteSize: 256,
+      contentType: "application/json",
+    });
+    const replay = await createReplay(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      findingId: input.findingId,
+      originalAttemptId: input.originalAttemptId,
+      originalScanId: input.originalScanId,
+      replayScanId: replayScan.id,
+      patchedEnvironmentId: patchedEnv.id,
+      patchedRevision: "lab-v2-patched",
+      packId: "bola-invoice-v1",
+      packVersion: "1.0.0",
+      approvalScopeId: patchedScope.id,
+    });
+    return { patchedEnv, patchedScope, replayScan, replayAttempt, oracleArtifact, replay };
   }
 
   const findingInput = (over: Record<string, unknown> = {}) => ({
@@ -75,7 +158,7 @@ describe("findings and replays", () => {
     severity: "high" as const,
     confidence: "supported_by_analysis" as const,
     scanId: "",
-    targetRevision: "rev-1",
+    targetRevision: "lab-v1-vulnerable",
     oracleVerdict: "reproduced" as const,
     ...over,
   });
@@ -174,7 +257,7 @@ describe("findings and replays", () => {
       scopeId: g.scopeId,
       targetId: g.targetId,
       environmentId: g.environmentId,
-      targetRevision: "rev-g",
+      targetRevision: g.envRevision,
       testPackIds: ["bola-invoice-v1"],
       requestedByUserId: g.ownerId,
     });
@@ -228,41 +311,101 @@ describe("findings and replays", () => {
       actorType: "user",
     });
 
-    // Replay linkage: original attempt/scan referenced, verdict derived.
-    const replay = await createReplay(tdb.db, {
-      workspaceId: f.workspaceId,
-      projectId: f.projectId,
+    // Replay linkage: patched run, persisted oracle evidence, derived verdict.
+    const { oracleArtifact, replay } = await openPatchedReplay(f, {
       findingId: finding.id,
-      originalAttemptId: attempt.id,
       originalScanId: scan.id,
-      replayScanId: scan.id,
-      patchedEnvironmentId: f.environmentId,
-      patchedRevision: "demo-patched-sha",
-      packId: "bola-invoice-v1",
-      packVersion: "1.0.0",
-      approvalScopeId: f.scopeId,
+      originalAttemptId: attempt.id,
     });
     expect(replay.verdict).toBeNull();
 
-    const completed = await completeReplay(tdb.db, f.workspaceId, replay.id, {
-      legitimateRead: "pass",
-      unauthorizedReadDenied: "pass",
-      stillReadsCrossAccount: false,
-    });
+    const legs = {
+      oracleEvidenceId: oracleArtifact.id,
+      oracleVersion: "bola-oracle-v1",
+      baseline: "pass" as const,
+      securityCheck: "pass" as const,
+      attemptVerdict: "not_reproduced" as const,
+      preconditionsOk: true,
+    };
+    const completed = await completeReplay(tdb.db, f.workspaceId, replay.id, legs);
     expect(completed.verdict).toBe("verified_fixed");
+    expect(completed.oracleEvidenceId).toBe(oracleArtifact.id);
+    expect(completed.oracleVersion).toBe("bola-oracle-v1");
     expect((await getFinding(tdb.db, f.workspaceId, finding.id))?.remediationStatus).toBe(
       "verified_fixed",
     );
     expect((await getReplay(tdb.db, f.workspaceId, replay.id))?.completedAt).not.toBeNull();
 
     // Double completion is a conflict, not a silent overwrite.
+    await expect(completeReplay(tdb.db, f.workspaceId, replay.id, legs)).rejects.toMatchObject({
+      code: "conflict",
+    });
+  });
+
+  it("refuses verified_fixed without persisted oracle evidence", async () => {
+    const { f, scan, attempt } = await openScanWithAttempt();
+    const { finding } = await upsertFindingFromVerdict(
+      tdb.db,
+      findingInput({
+        workspaceId: f.workspaceId,
+        projectId: f.projectId,
+        scanId: scan.id,
+        attemptId: attempt.id,
+        confidence: "confirmed_by_execution",
+      }),
+    );
+    await triageFinding(tdb.db, {
+      workspaceId: f.workspaceId,
+      findingId: finding.id,
+      toStatus: "pending_verification",
+      reason: "patch ready, replay now",
+      actorType: "user",
+    });
+    const { replay } = await openPatchedReplay(f, {
+      findingId: finding.id,
+      originalScanId: scan.id,
+      originalAttemptId: attempt.id,
+    });
+    // Unknown artifact ID: no persisted oracle evidence, no verdict.
     await expect(
       completeReplay(tdb.db, f.workspaceId, replay.id, {
-        legitimateRead: "pass",
-        unauthorizedReadDenied: "pass",
-        stillReadsCrossAccount: false,
+        oracleEvidenceId: "00000000-0000-4000-8000-000000000099",
+        oracleVersion: "bola-oracle-v1",
+        baseline: "pass",
+        securityCheck: "pass",
+        attemptVerdict: "not_reproduced",
+        preconditionsOk: true,
       }),
     ).rejects.toMatchObject({ code: "conflict" });
+    // Inconsistent legs vs recorded attempt verdict: fail closed.
+    const second = await openPatchedReplay(f, {
+      findingId: finding.id,
+      originalScanId: scan.id,
+      originalAttemptId: attempt.id,
+    });
+    await expect(
+      completeReplay(tdb.db, f.workspaceId, second.replay.id, {
+        oracleEvidenceId: second.oracleArtifact.id,
+        oracleVersion: "bola-oracle-v1",
+        baseline: "pass",
+        securityCheck: "pass",
+        attemptVerdict: "reproduced",
+        preconditionsOk: true,
+      }),
+    ).rejects.toMatchObject({ code: "conflict" });
+    // Failed preconditions force inconclusive — never verified_fixed.
+    const forced = await completeReplay(tdb.db, f.workspaceId, second.replay.id, {
+      oracleEvidenceId: second.oracleArtifact.id,
+      oracleVersion: "bola-oracle-v1",
+      baseline: "pass",
+      securityCheck: "pass",
+      attemptVerdict: "not_reproduced",
+      preconditionsOk: false,
+    });
+    expect(forced.verdict).toBe("inconclusive");
+    expect((await getFinding(tdb.db, f.workspaceId, finding.id))?.remediationStatus).toBe(
+      "pending_verification",
+    );
   });
 
   it("still_vulnerable replay re-opens a pending finding", async () => {
@@ -284,20 +427,18 @@ describe("findings and replays", () => {
       reason: "patch candidate, replaying",
       actorType: "user",
     });
-    const replay = await createReplay(tdb.db, {
-      workspaceId: f.workspaceId,
-      projectId: f.projectId,
+    const { oracleArtifact, replay } = await openPatchedReplay(f, {
       findingId: finding.id,
-      originalAttemptId: attempt.id,
       originalScanId: scan.id,
-      patchedRevision: "demo-patched-sha",
-      packId: "bola-invoice-v1",
-      packVersion: "1.0.0",
+      originalAttemptId: attempt.id,
     });
     const completed = await completeReplay(tdb.db, f.workspaceId, replay.id, {
-      legitimateRead: "pass",
-      unauthorizedReadDenied: "fail",
-      stillReadsCrossAccount: true,
+      oracleEvidenceId: oracleArtifact.id,
+      oracleVersion: "bola-oracle-v1",
+      baseline: "pass",
+      securityCheck: "fail",
+      attemptVerdict: "reproduced",
+      preconditionsOk: true,
     });
     expect(completed.verdict).toBe("still_vulnerable");
     expect((await getFinding(tdb.db, f.workspaceId, finding.id))?.remediationStatus).toBe(

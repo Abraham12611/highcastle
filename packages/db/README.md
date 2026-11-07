@@ -29,15 +29,38 @@ transactions and the deterministic demo seed for HighCastle.
   (`active → revoked`) and `expireAuthorizationScopes()` mutate status.
   Re-authorization inserts a new versioned row; scans snapshot
   `scope_id` + `scope_hash`.
-- `verified_fixed` is awarded only by `completeReplay()` from recorded
-  oracle observations — `triageFinding()` rejects it at runtime and in types.
+- `scope_hash` is the canonical `scope-hash-v1` digest — a byte-identical
+  mirror of L04 `@highcastle/security` `computeScopeHash` (same field set,
+  same `stableStringify`, same version tag). Equivalence is pinned by
+  `src/scope-hash.test.ts`, which asserts a digest produced by L04's actual
+  code plus tamper/status/vector semantics. Once L04 merges, this module
+  must delegate to it instead of mirroring. Note: L04's canonical grant
+  excludes this package's `max_cpu_millicores` storage column (flagged for
+  L04 in PR #18).
+- Scope approval verifies cross-entity ownership (project active; target
+  verified + unexpired; environment in the same workspace + project).
+  Scan creation additionally requires the scope's permitted environment
+  (ready), a test-pack subset of the scope allowlist, and a target revision
+  equal to the environment's current revision (`stale_revision` otherwise).
+- `verified_fixed` is awarded only by `completeReplay()` from a persisted
+  `oracle` evidence artifact linked to the replay scan + attempt: the
+  replay/scan/environment/revision relationships are re-checked, the legs
+  are consistency-checked, the verdict is re-derived via the contracts
+  matrices, and failed preconditions force `inconclusive`.
+  `triageFinding()` rejects `verified_fixed` at runtime and in types.
 - `finding_history` and `audit_events` are append-only (no update/delete API).
 - `user_id` columns are plain UUIDs with NO foreign key into auth tables:
   Better Auth tables are generated and owned by L05.
-- Deferred to their lanes (NOT in migration `0001`): `workspace_invites`,
+- Deferred to their lanes (NOT in migrations `0001`–`0002`): `workspace_invites`,
   `project_sources`, `target_verifications`, `test_approvals`,
   `github_installations`, `integration_events`, `scheduled_scans`,
   `notifications`, `usage_records`, `api_keys`, pg-boss internals.
+- Migration `0002_replay_oracle_evidence` adds `replays.oracle_evidence_id`
+  + `replays.oracle_version` (provenance for the derived replay verdict).
+- Demo seed alignment (L11 lab): revisions `lab-v1-vulnerable` /
+  `lab-v2-patched`, execution alias `target-lab`, origin
+  `https://target-lab.internal`, fixture set `alice-bob-invoices@1.0.0`,
+  opaque credential refs `ref:synthetic:<role>`.
 
 ## Commands
 

@@ -21,11 +21,21 @@ import { recordAuditEvent } from "./repos/audit.js";
  * Bob owns `tenant_B`/`invoice_B`; no production PII, no real credentials.
  * The invoice SaaS rows themselves live in the target-lab (L11); this seed
  * holds the HighCastle-side tenant/project/scope records that point at it.
+ *
+ * Lab alignment (L11 contract, `apps/target-lab`):
+ * - revisions are exactly `lab-v1-vulnerable` (attack twin) and
+ *   `lab-v2-patched` (patched twin); fixture set `alice-bob-invoices@1.0.0`;
+ * - the only scope-legal execution alias is `target-lab`, so the locked
+ *   scope allows host `target-lab` and the target origin is
+ *   `https://target-lab.internal` (L04 policy resolves the alias to the
+ *   pinned image at execution time — the hostname never leaves the lab net);
+ * - credential refs are opaque handles (`ref:synthetic:<role>`), resolved by
+ *   the controller; token values never touch this database.
  */
 export const DEMO_IDS = {
-  ownerUserId: "11111111-1111-4111-8111-111111111111",
-  aliceUserId: "22222222-2222-4222-8222-222222222222",
-  bobUserId: "33333333-3333-4333-8333-333333333333",
+  ownerUserId: "b0000000-0000-4000-8000-000000000001",
+  aliceUserId: "b0000000-0000-4000-8000-000000000002",
+  bobUserId: "b0000000-0000-4000-8000-000000000003",
   workspaceId: "a0a0a0a0-0000-4000-8000-000000000001",
   projectId: "a0a0a0a0-0000-4000-8000-000000000002",
   vulnerableEnvId: "a0a0a0a0-0000-4000-8000-000000000003",
@@ -42,11 +52,12 @@ export const DEMO = {
   projectSlug: "invoice-auth-demo",
   projectName: "Invoice Authorization Demo",
   projectDescription: "Two-user invoice authorization demo: Alice must not read Bob's invoices.",
-  vulnerableRevision: "demo-vulnerable-sha",
-  patchedRevision: "demo-patched-sha",
+  vulnerableRevision: "lab-v1-vulnerable",
+  patchedRevision: "lab-v2-patched",
   fixtureVersion: "1.0.0",
-  targetOrigin: "https://target-lab.highcastle.local",
-  scopeHost: "target-lab.highcastle.local",
+  targetOrigin: "https://target-lab.internal",
+  scopeHost: "target-lab",
+  approvedAt: "2026-11-07T00:00:00.000Z",
 } as const;
 
 export interface SeedDemoResult {
@@ -104,18 +115,18 @@ export async function seedDemo(db: Database): Promise<SeedDemoResult> {
     });
   }
 
-  // 3. Environments: vulnerable attack-twin + patched twin.
+  // 3. Environments: L11 vulnerable + patched revisions (idempotent by ID).
   const existingVuln = await getEnvironment(db, workspaceId, ids.vulnerableEnvId);
   if (!existingVuln) {
     await createEnvironment(db, {
       id: ids.vulnerableEnvId,
       workspaceId,
       projectId: ids.projectId,
-      label: "Vulnerable attack-twin",
+      label: "Vulnerable attack-twin (lab-v1-vulnerable)",
       kind: "attack_twin",
       currentRevision: DEMO.vulnerableRevision,
       fixtureVersion: DEMO.fixtureVersion,
-      networkProfileId: "lab-isolated",
+      networkProfileId: "lab-isolated-net",
     });
   }
   const existingPatched = await getEnvironment(db, workspaceId, ids.patchedEnvId);
@@ -124,11 +135,11 @@ export async function seedDemo(db: Database): Promise<SeedDemoResult> {
       id: ids.patchedEnvId,
       workspaceId,
       projectId: ids.projectId,
-      label: "Patched attack-twin",
+      label: "Patched attack-twin (lab-v2-patched)",
       kind: "attack_twin",
       currentRevision: DEMO.patchedRevision,
       fixtureVersion: DEMO.fixtureVersion,
-      networkProfileId: "lab-isolated",
+      networkProfileId: "lab-isolated-net",
     });
   }
 
@@ -140,7 +151,7 @@ export async function seedDemo(db: Database): Promise<SeedDemoResult> {
       workspaceId,
       projectId: ids.projectId,
       environmentId: ids.vulnerableEnvId,
-      label: "Invoice lab (vulnerable)",
+      label: "Synthetic invoice lab",
       canonicalOrigin: DEMO.targetOrigin,
       targetKind: "demo",
     });
@@ -161,7 +172,7 @@ export async function seedDemo(db: Database): Promise<SeedDemoResult> {
       label: "Alice (tenant_A)",
       role: "alice",
       fixtureSubjectId: "user_A",
-      credentialSecretRef: "ref:synthetic:alice_session",
+      credentialSecretRef: "ref:synthetic:alice",
     });
   }
   if (!identities.some((i) => i.id === ids.bobIdentityId)) {
@@ -172,11 +183,12 @@ export async function seedDemo(db: Database): Promise<SeedDemoResult> {
       label: "Bob (tenant_B)",
       role: "bob",
       fixtureSubjectId: "user_B",
-      credentialSecretRef: "ref:synthetic:bob_session",
+      credentialSecretRef: "ref:synthetic:bob",
     });
   }
 
   // 6. Locked authorization scope (idempotent by content hash → fixed ID).
+  // Budgets mirror the L04 demo grant so policy evaluation agrees.
   const existingScope = await getScope(db, workspaceId, ids.scopeId);
   let scopeHash: string;
   if (existingScope) {
@@ -184,22 +196,23 @@ export async function seedDemo(db: Database): Promise<SeedDemoResult> {
   } else {
     const created = await createAuthorizationScope(db, {
       id: ids.scopeId,
+      approvedAt: new Date(DEMO.approvedAt),
       workspaceId,
       projectId: ids.projectId,
       targetId: ids.targetId,
       actorUserId: ids.ownerUserId,
       version: 1,
       allowedHosts: [DEMO.scopeHost],
-      allowedPaths: ["/invoices", "/api/invoices"],
-      deniedPaths: ["/admin"],
+      allowedPaths: ["/api/invoices"],
+      deniedPaths: ["/api/invoices/admin"],
       allowedTestPackIds: ["bola-invoice-v1"],
       allowedMethods: ["GET"],
-      maxDurationSeconds: 120,
-      maxRequests: 8,
-      maxConcurrency: 2,
-      maxMemoryMb: 512,
-      maxCpuMillicores: 1000,
-      networkProfileId: "lab-isolated",
+      maxDurationSeconds: 60,
+      maxRequests: 16,
+      maxConcurrency: 1,
+      maxMemoryMb: 256,
+      maxCpuMillicores: 500,
+      networkProfileId: "lab-isolated-net",
       permittedEnvironmentId: ids.vulnerableEnvId,
       expiresAt: new Date("2030-01-01T00:00:00.000Z"),
     });

@@ -2,7 +2,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createFixtureChain, createTestDb, type TestDb } from "./test-utils.js";
 import { createAttempt } from "./repos/attempts.js";
 import { createScan, listScans } from "./repos/scans.js";
-import { expireAuthorizationScopes, getScope, revokeAuthorizationScope } from "./repos/scopes.js";
+import {
+  createAuthorizationScope,
+  expireAuthorizationScopes,
+  getScope,
+  revokeAuthorizationScope,
+} from "./repos/scopes.js";
+import { createEnvironment, createTarget, updateProject } from "./repos/projects.js";
 
 /**
  * Immutable scopes + transactional integrity.
@@ -48,7 +54,7 @@ describe("scopes and transactions", () => {
       scopeId: f.scopeId,
       targetId: f.targetId,
       environmentId: f.environmentId,
-      targetRevision: "rev-1",
+      targetRevision: f.envRevision,
       testPackIds: ["bola-invoice-v1"],
       requestedByUserId: f.ownerId,
     };
@@ -68,7 +74,7 @@ describe("scopes and transactions", () => {
         scopeId: g.scopeId,
         targetId: g.targetId,
         environmentId: g.environmentId,
-        targetRevision: "rev-1",
+        targetRevision: g.envRevision,
         testPackIds: ["bola-invoice-v1"],
         requestedByUserId: g.ownerId,
       }),
@@ -84,7 +90,7 @@ describe("scopes and transactions", () => {
         scopeId: "00000000-0000-4000-8000-000000000000",
         targetId: f.targetId,
         environmentId: f.environmentId,
-        targetRevision: "rev-1",
+        targetRevision: f.envRevision,
         testPackIds: ["bola-invoice-v1"],
         requestedByUserId: f.ownerId,
       }),
@@ -100,7 +106,7 @@ describe("scopes and transactions", () => {
       scopeId: f.scopeId,
       targetId: f.targetId,
       environmentId: f.environmentId,
-      targetRevision: "rev-1",
+      targetRevision: f.envRevision,
       testPackIds: ["bola-invoice-v1"],
       requestedByUserId: f.ownerId,
     });
@@ -111,10 +117,174 @@ describe("scopes and transactions", () => {
       packVersion: "1.0.0",
       planHash: "plan-retry",
       scopeHash: f.scopeHash,
-      targetRevision: "rev-1",
+      targetRevision: f.envRevision,
     };
     const first = await createAttempt(tdb.db, input);
     const second = await createAttempt(tdb.db, input);
     expect(second.id).toBe(first.id);
+  });
+
+  it("refuses scope approval for an unverified target", async () => {
+    const f = await createFixtureChain(tdb.db);
+    const draft = await createTarget(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      label: "unverified",
+      canonicalOrigin: "https://target-lab.internal",
+      targetKind: "demo",
+    });
+    await expect(
+      createAuthorizationScope(tdb.db, {
+        workspaceId: f.workspaceId,
+        projectId: f.projectId,
+        targetId: draft.id,
+        actorUserId: f.ownerId,
+        allowedHosts: ["target-lab"],
+        allowedPaths: ["/api/invoices"],
+        allowedTestPackIds: ["bola-invoice-v1"],
+        allowedMethods: ["GET"],
+        maxDurationSeconds: 60,
+        maxRequests: 16,
+        maxConcurrency: 1,
+        maxMemoryMb: 256,
+        permittedEnvironmentId: f.environmentId,
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "scope_denied" });
+  });
+
+  it("refuses scope approval for an archived project", async () => {
+    const f = await createFixtureChain(tdb.db);
+    await updateProject(tdb.db, f.workspaceId, f.projectId, { lifecycle: "archived" });
+    await expect(
+      createAuthorizationScope(tdb.db, {
+        workspaceId: f.workspaceId,
+        projectId: f.projectId,
+        targetId: f.targetId,
+        actorUserId: f.ownerId,
+        allowedHosts: ["target-lab"],
+        allowedPaths: ["/api/invoices"],
+        allowedTestPackIds: ["bola-invoice-v1"],
+        allowedMethods: ["GET"],
+        maxDurationSeconds: 60,
+        maxRequests: 16,
+        maxConcurrency: 1,
+        maxMemoryMb: 256,
+        permittedEnvironmentId: f.environmentId,
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "scope_denied" });
+  });
+
+  it("refuses scope approval when the environment belongs to another project", async () => {
+    const f = await createFixtureChain(tdb.db);
+    const g = await createFixtureChain(tdb.db);
+    await expect(
+      createAuthorizationScope(tdb.db, {
+        workspaceId: f.workspaceId,
+        projectId: f.projectId,
+        targetId: f.targetId,
+        actorUserId: f.ownerId,
+        allowedHosts: ["target-lab"],
+        allowedPaths: ["/api/invoices"],
+        allowedTestPackIds: ["bola-invoice-v1"],
+        allowedMethods: ["GET"],
+        maxDurationSeconds: 60,
+        maxRequests: 16,
+        maxConcurrency: 1,
+        maxMemoryMb: 256,
+        permittedEnvironmentId: g.environmentId,
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "not_found" });
+  });
+
+  it("refuses scans outside the permitted environment, pack or revision", async () => {
+    const f = await createFixtureChain(tdb.db);
+    const otherEnv = await createEnvironment(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      label: "other",
+      kind: "staging",
+      currentRevision: "lab-v1-vulnerable",
+      fixtureVersion: "1.0.0",
+      provisionStatus: "ready",
+    });
+    const base = {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      scopeId: f.scopeId,
+      targetId: f.targetId,
+      testPackIds: ["bola-invoice-v1"],
+      requestedByUserId: f.ownerId,
+    };
+    // Wrong environment (not the scope's permitted one).
+    await expect(
+      createScan(tdb.db, {
+        ...base,
+        environmentId: otherEnv.id,
+        targetRevision: "lab-v1-vulnerable",
+      }),
+    ).rejects.toMatchObject({ code: "scope_denied" });
+    // Unapproved test pack.
+    await expect(
+      createScan(tdb.db, {
+        ...base,
+        environmentId: f.environmentId,
+        targetRevision: f.envRevision,
+        testPackIds: ["bola-invoice-v1", "unknown-pack"],
+      }),
+    ).rejects.toMatchObject({ code: "scope_denied" });
+    // Stale revision: evidence would be attributed to the wrong build.
+    await expect(
+      createScan(tdb.db, {
+        ...base,
+        environmentId: f.environmentId,
+        targetRevision: "lab-v0-ancient",
+      }),
+    ).rejects.toMatchObject({ code: "stale_revision" });
+  });
+
+  it("refuses scans when the permitted environment is not ready", async () => {
+    const f = await createFixtureChain(tdb.db);
+    const pendingEnv = await createEnvironment(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      label: "provisioning twin",
+      kind: "attack_twin",
+      currentRevision: "lab-v1-vulnerable",
+      fixtureVersion: "1.0.0",
+      provisionStatus: "provisioning",
+    });
+    // Scope approval does not require readiness (approval may precede
+    // provisioning), but execution does.
+    const pendingScope = await createAuthorizationScope(tdb.db, {
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      targetId: f.targetId,
+      actorUserId: f.ownerId,
+      allowedHosts: ["target-lab"],
+      allowedPaths: ["/api/invoices"],
+      allowedTestPackIds: ["bola-invoice-v1"],
+      allowedMethods: ["GET"],
+      maxDurationSeconds: 60,
+      maxRequests: 16,
+      maxConcurrency: 1,
+      maxMemoryMb: 256,
+      permittedEnvironmentId: pendingEnv.id,
+      expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+    });
+    await expect(
+      createScan(tdb.db, {
+        workspaceId: f.workspaceId,
+        projectId: f.projectId,
+        scopeId: pendingScope.id,
+        targetId: f.targetId,
+        environmentId: pendingEnv.id,
+        targetRevision: "lab-v1-vulnerable",
+        testPackIds: ["bola-invoice-v1"],
+        requestedByUserId: f.ownerId,
+      }),
+    ).rejects.toMatchObject({ code: "unprocessable" });
   });
 });
