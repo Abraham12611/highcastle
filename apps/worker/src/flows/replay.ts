@@ -169,17 +169,21 @@ async function ensureReplayScan(
     return null;
   }
   const originalScan = await deps.store.getScan(replay.workspaceId, replay.originalScanId);
-  const environment = await deps.store.getEnvironment(
-    replay.workspaceId,
-    replay.patchedEnvironmentId,
-  );
-  if (!originalScan || !environment) return null;
+  const [environment, scope] = await Promise.all([
+    deps.store.getEnvironment(replay.workspaceId, replay.patchedEnvironmentId),
+    deps.store.getScope(replay.workspaceId, replay.approvalScopeId),
+  ]);
+  if (!originalScan || !environment || !scope) return null;
 
+  // L04's relation gate requires scope.targetId === scan.targetId AND
+  // target.environmentId === scan.environmentId — the replay binds the
+  // approval scope's target (which must live in the patched environment),
+  // never the original vulnerable-env target.
   const scan = await deps.store.createReplayScan({
     workspaceId: replay.workspaceId,
     projectId: replay.projectId,
     scopeId: replay.approvalScopeId,
-    targetId: originalScan.targetId,
+    targetId: scope.targetId,
     environmentId: replay.patchedEnvironmentId,
     targetRevision: replay.patchedRevision,
     fixtureVersion: environment.fixtureVersion,
