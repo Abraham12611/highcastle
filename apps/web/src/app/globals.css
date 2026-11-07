@@ -4,6 +4,7 @@
 
 /* Tailwind v4: generate hc-* utilities referenced by @highcastle/ui sources. */
 @source "../../../packages/ui/src";
+@import "@highcastle/ui/styles.css";
 
 /*
  * HighCastle theme — Nocturne Signal tokens + component classes ship in
