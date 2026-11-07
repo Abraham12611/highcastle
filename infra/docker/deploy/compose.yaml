@@ -1,0 +1,260 @@
+# HighCastle production deployment — Docker Compose (L19).
+#
+# Topology contract (docs/security/02_CONTAINMENT_AND_AUTHORIZATION.md):
+#   edge    — public ingress: Caddy <-> web only. The ONLY published ports.
+#   control — web <-> worker control channel; has outbound egress (worker ->
+#             api.vultrinference.com, web -> GitHub OAuth). No lab access.
+#   data    — INTERNAL network (no gateway, no egress): Postgres is reachable
+#             here and nowhere else, and cannot reach anything outbound.
+#   runner  — EXTERNAL, INTERNAL network `highcastle-runner` (no gateway, no
+#             egress, no external DNS). Ephemeral sandbox runners created by
+#             the worker's trusted SandboxController join this network, where
+#             `target-lab` is the ONLY resolvable service. Created outside
+#             compose (infra/scripts/lab-up.sh / deploy.sh) because L14's
+#             verify-containment.sh and ops tooling manage it too.
+#
+# Secrets arrive ONLY through ${HIGHCASTLE_SECRETS_DIR} env files (default
+# /etc/highcastle on the VM). No env_file is ever mounted into target-lab or
+# sandbox runners — runners get a two-key env allowlist from the controller.
+#
+# Bring-up (see infra/vultr/README.md for the full runbook):
+#   infra/scripts/lab-up.sh          # or: docker network create --internal highcastle-runner
+#   docker compose -f compose.yaml up -d
+#
+# The `target-lab` service alias is contract-fixed (packages/contracts
+# TargetServiceAliasSchema = z.enum(["target-lab"])). Its image is selected by
+# TARGET_LAB_IMAGE: deploy the vulnerable revision for the initial scan and
+# swap to the pinned patched image/digest for replay — the alias and network
+# never change, so the runner can never be steered to a non-lab host.
+
+name: highcastle
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  # ---------------------------------------------------------------- edge ---
+  # Public TLS termination. The only service with published ports.
+  caddy:
+    <<: *hardening
+    image: caddy:2.9.1-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      HIGHCASTLE_DOMAIN: ${HIGHCASTLE_DOMAIN:?HIGHCASTLE_DOMAIN is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    tmpfs:
+      - /tmp
+    read_only: true
+    networks:
+      - edge
+    depends_on:
+      web:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------- data ---
+  # Private Postgres. Internal network only: no published port, no egress.
+  postgres:
+    <<: *hardening
+    image: postgres:16.6-alpine
+    env_file:
+      # POSTGRES_DB/POSTGRES_USER/POSTGRES_PASSWORD — single-sourced here so
+      # DATABASE_URL can't silently diverge from the actual DB identity.
+      - path: ${HIGHCASTLE_SECRETS_DIR:-/etc/highcastle}/postgres.env
+        required: true
+    environment:
+      # postgres owns no TCP listener outside `data`; TLS inside the internal
+      # network is unnecessary — firewall + internal net are the boundary.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    tmpfs:
+      - /var/run/postgresql
+      - /tmp
+    read_only: true
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    logging: *default-logging
+
+  # One-shot schema migrator (L02 packages/db). Runs to completion before
+  # web/worker start; re-run with `docker compose run --rm migrate` after
+  # pulling a release that adds migrations.
+  migrate:
+    build:
+      context: ../../..
+      dockerfile: infra/docker/deploy/db-migrate.Dockerfile
+    image: highcastle/db-migrate:${HIGHCASTLE_RELEASE:-dev}
+    env_file:
+      # migrate.env carries DATABASE_URL only — least-privilege, not the
+      # full worker secret set.
+      - path: ${HIGHCASTLE_SECRETS_DIR:-/etc/highcastle}/migrate.env
+        required: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    logging: *default-logging
+
+  # ----------------------------------------------------------------- web ---
+  # Next.js control plane: UI, API route handlers, SSE. Server-only secrets.
+  web:
+    <<: *hardening
+    build:
+      context: ../../..
+      dockerfile: infra/docker/deploy/web.Dockerfile
+    image: highcastle/web:${HIGHCASTLE_RELEASE:-dev}
+    env_file:
+      - path: ${HIGHCASTLE_SECRETS_DIR:-/etc/highcastle}/web.env
+        required: true
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    tmpfs:
+      - /tmp
+      # Next writes its ISR/image cache under .next; scratch is tmpfs so the
+      # container can stay non-privileged without a writable rootfs hack.
+      - /app/.next/cache
+    networks:
+      - edge
+      - control
+      - data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+
+  # -------------------------------------------------------------- worker ---
+  # pg-boss orchestrator AND the trusted sandbox controller: it is the only
+  # service allowed to talk to the host container runtime (docker.sock).
+  # It is NOT on the runner network, is never publicly reachable, and the
+  # runners it creates receive no docker.sock, no mounts and a two-key env.
+  worker:
+    <<: *hardening
+    build:
+      context: ../../..
+      dockerfile: infra/docker/deploy/worker.Dockerfile
+    image: highcastle/worker:${HIGHCASTLE_RELEASE:-dev}
+    env_file:
+      - path: ${HIGHCASTLE_SECRETS_DIR:-/etc/highcastle}/worker.env
+        required: true
+    environment:
+      NODE_ENV: production
+      WORKER_PORT: "3010"
+      # Trusted-controller wiring for @highcastle/sandbox (L14):
+      HIGHCASTLE_RUNNER_IMAGE: ${HIGHCASTLE_RUNNER_IMAGE:-highcastle/runner:0.1.0}
+      HIGHCASTLE_LAB_NETWORK: highcastle-runner
+      HIGHCASTLE_LAB_ORIGIN: http://target-lab:3000
+      # Digest of the lab image currently serving `target-lab`; written into
+      # scan snapshots by the orchestrator (L16). Refresh after lab swaps.
+      HIGHCASTLE_TARGET_IMAGE_DIGEST: ${HIGHCASTLE_TARGET_IMAGE_DIGEST:-}
+    volumes:
+      # Trusted controller -> host Docker daemon. Sandbox workers/runners
+      # NEVER receive this; see docs/security/02_CONTAINMENT_AND_AUTHORIZATION.
+      - /var/run/docker.sock:/var/run/docker.sock
+    tmpfs:
+      - /tmp
+    networks:
+      - control
+      - data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3010/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+
+  # ------------------------------------------------------------ target-lab -
+  # Owned synthetic invoice lab — the ONLY service a sandbox runner can
+  # reach. Lives exclusively on the internal `highcastle-runner` network:
+  # no published port, no egress, no secrets. Image selected by
+  # TARGET_LAB_IMAGE so vulnerable/patched revisions rotate under the same
+  # contract-fixed alias for replay.
+  target-lab:
+    <<: *hardening
+    image: ${TARGET_LAB_IMAGE:-highcastle/target-lab:lab-v1-vulnerable}
+    tmpfs:
+      - /tmp
+    read_only: true
+    networks:
+      runner:
+        aliases:
+          - target-lab
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging: *default-logging
+
+networks:
+  edge:
+    name: highcastle-edge
+  control:
+    name: highcastle-control
+  data:
+    name: highcastle-data
+    internal: true
+  runner:
+    name: highcastle-runner
+    # external: created by infra/scripts/lab-up.sh / deploy.sh with
+    # `docker network create --internal`. Scripts + the L14 controller verify
+    # .Internal==true at launch; compose just consumes it.
+    external: true
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
