@@ -63,7 +63,11 @@ async function request<T>(
     };
     return { ok: false, error: failure };
   }
-  const data = parse(body);
+  // L18 BFF returns the shared API success envelope { data: T }.
+  const payload = typeof body === "object" && body !== null
+    ? (body as Record<string, unknown>).data
+    : undefined;
+  const data = parse(payload);
   if (data === null) {
     return {
       ok: false,
