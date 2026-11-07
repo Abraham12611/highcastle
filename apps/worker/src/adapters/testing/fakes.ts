@@ -288,6 +288,14 @@ export class InMemoryStore implements OrchestratorStore {
     return replay;
   }
 
+  async linkReplayScan(ws: string, id: string, replayScanId: string) {
+    const r = await this.getReplay(ws, id);
+    if (!r) throw new ScanStateConflictError(`replay ${id} not found`);
+    const next = { ...r, replayScanId };
+    this.replays.set(id, next);
+    return next;
+  }
+
   async getReplay(ws: string, id: string) {
     const r = this.replays.get(id);
     return r && r.workspaceId === ws ? r : null;

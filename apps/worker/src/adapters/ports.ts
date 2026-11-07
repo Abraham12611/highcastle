@@ -293,6 +293,18 @@ export interface OrchestratorStore {
     approvalScopeId?: string | null;
   }): Promise<ReplayRecord>;
   getReplay(workspaceId: string, replayId: string): Promise<ReplayRecord | null>;
+
+  /**
+   * Persist `replay_scan_id` on the replay row after the worker opens the
+   * execution scan. L02's `completeReplay` refuses to complete a replay
+   * that has no linked execution scan — this write is required, not
+   * optional, and must happen before completion is attempted.
+   */
+  linkReplayScan(
+    workspaceId: string,
+    replayId: string,
+    replayScanId: string,
+  ): Promise<ReplayRecord>;
   /** Derives the verdict from observations; flips finding on verified_fixed. */
   completeReplay(
     workspaceId: string,

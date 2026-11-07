@@ -31,6 +31,7 @@ import {
   upsertFindingFromVerdict,
   completeReplay as dbCompleteReplay,
   agentProposals,
+  replays,
   runnerInstances,
   testAttempts,
   type Database,
@@ -121,6 +122,16 @@ export class DbOrchestratorStore implements OrchestratorStore {
 
   completeReplay = (ws: string, replayId: string, evidence: ReplayOracleEvidenceInput) =>
     dbCompleteReplay(this.db, ws, replayId, evidence) as Promise<never>;
+
+  async linkReplayScan(ws: string, replayId: string, replayScanId: string) {
+    const [row] = await this.db
+      .update(replays)
+      .set({ replayScanId })
+      .where(and(eq(replays.id, replayId), eq(replays.workspaceId, ws)))
+      .returning();
+    if (!row) throw new Error(`replay ${replayId} not found for link`);
+    return row as never;
+  }
 
   async createReplayScan(input: CreateReplayScanInput) {
     return createScan(this.db, {

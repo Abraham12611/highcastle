@@ -192,5 +192,7 @@ async function ensureReplayScan(
     requestedByUserId: originalScan.requestedByUserId,
     idempotencyKey: `replay-scan:${replay.id}`,
   });
+  // L02's completeReplay requires the execution scan linked on the row.
+  await deps.store.linkReplayScan(replay.workspaceId, replay.id, scan.id);
   return scan.id;
 }
