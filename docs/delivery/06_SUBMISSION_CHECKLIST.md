@@ -53,3 +53,29 @@ explicit approval.
 - [ ] Repo URL resolves publicly with README rendering (diagram included).
 - [ ] Video plays without permission prompts.
 - [ ] lablab.ai entry lists all three links correctly.
+
+## 5. Submission content pack
+
+- [ ] Project description: problem (AI-speed shipping outpaces
+      verification), ICP (builders/developers), Proof-Engine loop,
+      safety scope — final wording with coordinator, no unimplemented
+      features claimed.
+- [ ] Screenshots: existing L07 captures in `demo-assets/l07/` reviewed
+      for secrets/PII; retake on the deployed SHA if UI drifted.
+- [ ] Cover art: original HighCastle art only (pixel-fortress mark,
+      Nocturne Signal tokens); no copied or AGPL sources.
+- [ ] Links: public demo URL, public repo URL, video URL, architecture
+      doc path — all verified live before submitting.
+- [ ] Licensing: MIT-compatible code + original assets; `LICENSE` and
+      `SECURITY.md` current.
+- [ ] Tags: AI security, Vultr, proof-based testing (final list with
+      coordinator).
+
+## 6. Closing time (owner-verified only)
+
+- Supplied brief and gate #33 state **2026-11-09 00:00 WAT** — this is
+  the working target, NOT a confirmed dashboard timestamp.
+- [ ] Owner confirms the exact closing timestamp from the lablab.ai
+      participant dashboard and posts it here. Do not assume the public
+      event date is the exact cutoff. This lane cannot access the
+      dashboard, so the field stays open until the owner reports it.

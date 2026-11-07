@@ -28,6 +28,7 @@ flowchart TB
     Judge --> DNS --> WEB
     WEB --> PG
     WEB --> WORKER
+    WEB -->|SSE timeline + Last-Event-ID resume| Judge
     WORKER --> PG
     WORKER -->|hypothesis + test plan| VSI
     VSI -->|structured proposal| WORKER
@@ -40,6 +41,16 @@ flowchart TB
     WORKER -->|persist evidence + verdict| PG
     WORKER -->|artifacts| OBJ
 ```
+
+## Events, SSE resume, and browser UI
+
+Scan progress is persisted as sequenced `scan_events` rows in PostgreSQL
+before publish. The browser timeline subscribes over authenticated SSE
+and rehydrates with `Last-Event-ID` after disconnect — refresh or
+restart loses nothing. Routes: landing → controlled demo → workspace
+dashboard → scan wizard → live scan view → finding + fix prompt →
+before/after replay comparison. UI never invents numbers: every row
+links to its stored attempt, evidence, or replay record.
 
 ## Data-flow rules (enforced, not advisory)
 
