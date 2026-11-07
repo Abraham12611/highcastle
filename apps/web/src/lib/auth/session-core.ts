@@ -30,6 +30,10 @@ export const DEMO_WORKSPACE_ID = "a0a0a0a0-0000-4000-8000-000000000001" as const
 export const DEMO_PROJECT_ID = "a0a0a0a0-0000-4000-8000-000000000002" as const;
 /** The only target alias a demo session may be scoped to — matches contracts TargetServiceAliasSchema. */
 export const DEMO_TARGET_ALIAS = "target-lab" as const;
+/** The only test pack a demo scan may run (bola-invoice pack, GET-only, synthetic). */
+export const DEMO_PACK_ID = "bola-invoice-v1" as const;
+/** The pre-approved demo scope row (L02 seed). Guests inherit it; they can never create scopes. */
+export const DEMO_SCOPE_ID = "a0a0a0a0-0000-4000-8000-000000000008" as const;
 
 export type ExperienceMode = "builder" | "developer";
 

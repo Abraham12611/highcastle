@@ -1,4 +1,4 @@
-import { failClosedDeps, resolveSession } from "./deps";
+import { failClosedStore, liveDeps, resolveSession } from "./deps";
 import { handleScanStream } from "./handler";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function GET(
     lastEventId: request.headers.get("last-event-id"),
     afterParam: url.searchParams.get("after"),
     session: await resolveSession(),
-    deps: failClosedDeps(),
+    deps: liveDeps(failClosedStore()),
     signal: request.signal,
   });
 }
