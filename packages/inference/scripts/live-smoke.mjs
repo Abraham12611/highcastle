@@ -47,11 +47,18 @@ try {
     routeSummary: "GET /api/invoices/:id",
     packVersion: "1.0.0",
   });
+  const responseModel = result.metadata.responseModel;
+  const substituted =
+    typeof responseModel === "string" &&
+    responseModel.length > 0 &&
+    responseModel !== result.metadata.model;
   console.log(
     JSON.stringify(
       {
         provider: result.metadata.provider,
         model: result.metadata.model,
+        responseModel: safeLabel(responseModel),
+        modelSubstituted: substituted,
         requestId: safeLabel(result.metadata.requestId),
         latencyMs: result.metadata.latencyMs,
         tokensInput: result.metadata.tokensInput,
@@ -68,6 +75,12 @@ try {
       2,
     ),
   );
+  if (substituted) {
+    console.error(
+      `SMOKE MODEL MISMATCH: requested ${result.metadata.model} but provider reported ${responseModel}.`,
+    );
+    process.exit(3);
+  }
   process.exit(result.validationStatus === "valid" ? 0 : 2);
 } catch (error) {
   if (error instanceof VultrInferenceError) {

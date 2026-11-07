@@ -37,7 +37,10 @@ if (result.validationStatus === "valid") {
 } else {
   // result.rejectionCode + result.issues are auditable; propagate inconclusive.
 }
-// result.metadata: provider/model/requestId/latencyMs/tokens*/outcome/errorCode.
+// result.metadata: provider/model/requestId/latencyMs/tokens*/outcome/errorCode,
+// plus responseModel (the model the provider envelope actually reported).
+// Compare responseModel to model to detect silent substitution: exit 3
+// from the smoke script on mismatch.
 ```
 
 ## Real Vultr smoke test (requires operator credentials)
@@ -53,7 +56,7 @@ pnpm --filter @highcastle/inference smoke
 ```
 
 The script makes exactly one bounded hypothesis call against the owned
-synthetic invoice context and prints only safe metadata (model, request ID,
+synthetic invoice context and prints only safe metadata (model, provider-reported responseModel, request ID,
 latency, token counts, validation status, rejection code when invalid).
 It never prints the key, prompts, or raw bodies, and exits non-zero on any
 transport failure. Without `HIGHCASTLE_RUN_LIVE_SMOKE=1` it performs no

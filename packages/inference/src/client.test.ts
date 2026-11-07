@@ -37,19 +37,23 @@ function testConfig(overrides?: Partial<ResolvedVultrConfig>): ResolvedVultrConf
 
 function completionResponse(
   content: string,
-  init?: { status?: number; headers?: Record<string, string>; id?: string },
+  init?: {
+    status?: number;
+    headers?: Record<string, string>;
+    id?: string;
+    model?: string | null;
+  },
 ): Response {
-  return new Response(
-    JSON.stringify({
-      id: init?.id ?? "vultr-req-1",
-      choices: [{ message: { content } }],
-      usage: { prompt_tokens: 42, completion_tokens: 77 },
-    }),
-    {
-      status: init?.status ?? 200,
-      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-    },
-  );
+  const envelope: Record<string, unknown> = {
+    id: init?.id ?? "vultr-req-1",
+    choices: [{ message: { content } }],
+    usage: { prompt_tokens: 42, completion_tokens: 77 },
+  };
+  if (init?.model !== undefined) envelope["model"] = init.model;
+  return new Response(JSON.stringify(envelope), {
+    status: init?.status ?? 200,
+    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+  });
 }
 
 function stubFetch(handler: (url: string, init: RequestInit) => Promise<Response>): typeof fetch {
@@ -277,6 +281,54 @@ describe("VultrInferenceClient.generateHypothesis", () => {
 
     expect(result.proposal).toBeNull();
     expect(result.metadata.outcome).toBe("malformed");
+  });
+});
+
+describe("provider-reported model capture", () => {
+  it("records the envelope model alongside the requested model", async () => {
+    const fetchImpl = stubFetch(async () =>
+      completionResponse(VALID_PROPOSAL_CONTENT, { model: "test-model-id" }),
+    );
+    const client = new VultrInferenceClient(testConfig({ maxRetries: 0 }), {
+      fetchImpl,
+      sleep: noSleep,
+    });
+
+    const result = await client.generateHypothesis(INPUT);
+
+    expect(result.validationStatus).toBe("valid");
+    expect(result.metadata.model).toBe("test-model-id");
+    expect(result.metadata.responseModel).toBe("test-model-id");
+  });
+
+  it("surfaces silent substitution instead of assuming the requested model", async () => {
+    const fetchImpl = stubFetch(async () =>
+      completionResponse(VALID_PROPOSAL_CONTENT, { model: "other-model" }),
+    );
+    const client = new VultrInferenceClient(testConfig({ maxRetries: 0 }), {
+      fetchImpl,
+      sleep: noSleep,
+    });
+
+    const result = await client.generateHypothesis(INPUT);
+
+    expect(result.validationStatus).toBe("valid");
+    expect(result.metadata.model).toBe("test-model-id");
+    expect(result.metadata.responseModel).toBe("other-model");
+  });
+
+  it("reports null responseModel when the envelope carries none", async () => {
+    const fetchImpl = stubFetch(async () =>
+      completionResponse(VALID_PROPOSAL_CONTENT),
+    );
+    const client = new VultrInferenceClient(testConfig({ maxRetries: 0 }), {
+      fetchImpl,
+      sleep: noSleep,
+    });
+
+    const result = await client.generateHypothesis(INPUT);
+
+    expect(result.metadata.responseModel).toBeNull();
   });
 });
 

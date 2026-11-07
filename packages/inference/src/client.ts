@@ -40,7 +40,16 @@ import {
 
 export interface ModelCallMetadata {
   provider: "vultr";
+  /** Model requested by the operator (env-selected). */
   model: string;
+  /**
+   * Model actually reported by the provider envelope (`model` field).
+   * Compare against `model` to detect silent substitution — the official
+   * quickstart warns unknown requested IDs may route to a default.
+   * Null when the envelope carries no model field (e.g. error paths
+   * that never parsed an envelope).
+   */
+  responseModel: string | null;
   requestId: string | null;
   latencyMs: number;
   tokensInput: number | null;
@@ -76,6 +85,7 @@ const defaultSleep = (ms: number): Promise<void> =>
 const ChatCompletionResponseSchema = z
   .object({
     id: z.string().optional(),
+    model: z.string().optional(),
     choices: z
       .array(
         z.object({
@@ -327,11 +337,13 @@ export class VultrInferenceClient {
         latencyMs,
         null,
         null,
+        extractResponseModel(parsed),
       );
     }
     const content = envelope.data.choices[0]?.message.content ?? null;
     const requestId =
       envelope.data.id ?? response.headers.get("x-request-id");
+    const responseModel = envelope.data.model ?? null;
     const tokensInput =
       envelope.data.usage?.prompt_tokens ?? null;
     const tokensOutput =
@@ -346,6 +358,7 @@ export class VultrInferenceClient {
         latencyMs,
         tokensInput,
         tokensOutput,
+        responseModel,
       );
     }
     const parsedProposal = parseModelProposal(content);
@@ -361,6 +374,7 @@ export class VultrInferenceClient {
         metadata: {
           provider: "vultr",
           model: this.config.model,
+          responseModel,
           requestId,
           latencyMs,
           tokensInput,
@@ -385,6 +399,7 @@ export class VultrInferenceClient {
       latencyMs,
       tokensInput,
       tokensOutput,
+      responseModel,
     );
   }
 
@@ -397,6 +412,7 @@ export class VultrInferenceClient {
     latencyMs: number,
     tokensInput: number | null,
     tokensOutput: number | null,
+    responseModel: string | null,
   ): HypothesisResult {
     return {
       proposal: null,
@@ -407,6 +423,7 @@ export class VultrInferenceClient {
       metadata: {
         provider: "vultr",
         model: this.config.model,
+        responseModel,
         requestId: requestId ?? null,
         latencyMs,
         tokensInput,
@@ -416,6 +433,19 @@ export class VultrInferenceClient {
       },
     };
   }
+}
+
+/**
+ * Best-effort extraction of the provider-reported model from an envelope
+ * that failed strict validation (e.g. unparseable choices but a top-level
+ * string `model`). Returns null unless it is a non-empty string.
+ */
+function extractResponseModel(parsed: unknown): string | null {
+  if (typeof parsed === "object" && parsed !== null) {
+    const model = (parsed as Record<string, unknown>)["model"];
+    if (typeof model === "string" && model.trim().length > 0) return model;
+  }
+  return null;
 }
 
 function isAbortError(error: unknown): boolean {
