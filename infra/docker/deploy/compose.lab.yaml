@@ -1,0 +1,62 @@
+# HighCastle standalone target-lab — NO SECRETS REQUIRED (L19).
+#
+# Purpose: local/CI integration bring-up for the sandbox boundary without
+# deploying the control plane. It starts ONLY the lab on the internal
+# `highcastle-runner` network under the contract-fixed alias `target-lab`,
+# which is exactly what L14's SandboxController and verify-containment.sh
+# require. Nothing here holds credentials and nothing can egress.
+#
+# This file is the deployment-side resolution of the L11/L14 integration
+# mismatch: L11's apps/target-lab/compose.yaml keeps its non-internal
+# `highcastle-lab` bridge for developer convenience and is NOT modified;
+# deployment instead places the SAME lab image onto the dedicated internal
+# `highcastle-runner` network that the controller verifies at launch time.
+#
+# Usage (wrapper handles network creation):
+#   infra/scripts/lab-up.sh                     # vulnerable revision (default)
+#   LAB_REVISION=lab-v2-patched infra/scripts/lab-up.sh   # patched replay target
+#
+# Or manually:
+#   docker network create --internal highcastle-runner   # once, idempotent
+#   docker compose -f compose.lab.yaml up -d
+
+name: highcastle-lab
+
+services:
+  target-lab:
+    build:
+      context: ../..
+      dockerfile: apps/target-lab/Dockerfile
+      args:
+        LAB_REVISION: ${LAB_REVISION:-lab-v1-vulnerable}
+        SOURCE_GIT_SHA: ${SOURCE_GIT_SHA:-}
+    image: ${TARGET_LAB_IMAGE:-highcastle/target-lab:lab-v1-vulnerable}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      runner:
+        aliases:
+          - target-lab
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  runner:
+    name: highcastle-runner
+    # external: provisioned by lab-up.sh / deploy.sh with `--internal`.
+    external: true
