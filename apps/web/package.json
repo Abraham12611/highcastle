@@ -12,6 +12,8 @@
     "test": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/db --filter @highcastle/security --filter @highcastle/test-packs build && vitest run"
   },
   "dependencies": {
+    "@clerk/backend": "3.27.0",
+    "@clerk/nextjs": "7.9.25",
     "@highcastle/contracts": "workspace:*",
     "@highcastle/db": "workspace:*",
     "@highcastle/security": "workspace:*",

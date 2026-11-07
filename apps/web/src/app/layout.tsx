@@ -24,10 +24,14 @@ export const metadata: Metadata = {
   },
 };
 
+import { ClerkProvider } from "@clerk/nextjs";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="hc-root">{children}</body>
+      <body className="hc-root">
+        <ClerkProvider>{children}</ClerkProvider>
+      </body>
     </html>
   );
 }
