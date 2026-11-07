@@ -239,7 +239,7 @@ async function main(): Promise<number> {
       requestsMade: pack.requestsMade,
     },
     containmentEventIds: [],
-    artifactDigests: [],
+    artifactDigests: programSha !== null ? [programSha] : [],
     completedAt: nowIso(),
   };
   if (pack.fatalError !== null) {
