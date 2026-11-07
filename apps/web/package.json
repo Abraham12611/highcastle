@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm --filter @highcastle/contracts build && next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "pnpm --filter @highcastle/contracts build && next typegen && tsc --noEmit",
+    "test": "pnpm --filter @highcastle/contracts build && vitest run"
   },
   "dependencies": {
+    "@highcastle/contracts": "workspace:*",
     "next": "16.4.5",
     "react": "19.3.1",
     "react-dom": "19.3.1"

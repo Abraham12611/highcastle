@@ -62,6 +62,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@highcastle/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       next:
         specifier: 16.4.5
         version: 16.4.5(@babel/core@7.29.13)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -101,7 +104,14 @@ importers:
         version: 5.1.0(@types/node@24.19.2)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   apps/worker:
+    dependencies:
+      '@highcastle/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.15
+        version: 0.5.15
       '@eslint/js':
         specifier: 'catalog:'
         version: 9.39.5
