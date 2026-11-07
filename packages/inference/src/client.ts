@@ -120,23 +120,28 @@ function parseRetryAfterMs(value: string | null): number | null {
   return null;
 }
 
-function errorCodeForStatus(
-  status: number,
-  bodyText: string,
-): { code: InferenceErrorCode; message: string } {
-  const snippet = bodyText.slice(0, 300);
+/**
+ * Map an HTTP failure to a typed error using ONLY the numeric status —
+ * never the raw provider body, which may contain secret-shaped material
+ * that must not reach logs or error messages.
+ */
+function errorCodeForStatus(status: number): {
+  code: InferenceErrorCode;
+  message: string;
+} {
   if (status === 429) {
     return {
       code: "rate_limited",
-      message: `Vultr inference rate limit hit (429). Backing off. Detail: ${snippet}`,
+      message:
+        "Vultr inference rate limit hit (HTTP 429). Backing off before retry.",
     };
   }
-  if (status === 404 && /model/i.test(bodyText)) {
+  if (status === 404) {
     return {
       code: "unavailable_model",
       message:
-        "Vultr reports the configured model is unknown or unavailable (404). " +
-        `Select a model ID from the live Vultr catalog. Detail: ${snippet}`,
+        "Vultr inference endpoint reported not found (HTTP 404). " +
+        "Select a model ID from the live Vultr catalog.",
     };
   }
   if (status === 401 || status === 403) {
@@ -150,12 +155,12 @@ function errorCodeForStatus(
   if (status >= 500) {
     return {
       code: "provider_error",
-      message: `Vultr inference server error (HTTP ${status}). Detail: ${snippet}`,
+      message: `Vultr inference server error (HTTP ${status}).`,
     };
   }
   return {
     code: "provider_error",
-    message: `Vultr inference request failed (HTTP ${status}). Detail: ${snippet}`,
+    message: `Vultr inference request failed (HTTP ${status}).`,
   };
 }
 
@@ -210,11 +215,13 @@ export class VultrInferenceClient {
         const response = await this.postCompletions(requestBody);
         const latencyMs = this.now() - startedAt;
         if (!response.ok) {
-          const bodyText = await response.text().catch(() => "");
+          // Drain the body to free the connection, but never echo provider
+          // text into errors or logs — it may be secret-shaped.
+          await response.text().catch(() => "");
           const retryAfterMs = response.headers
             ? parseRetryAfterMs(response.headers.get("retry-after"))
             : null;
-          const mapped = errorCodeForStatus(response.status, bodyText);
+          const mapped = errorCodeForStatus(response.status);
           if (
             (mapped.code === "rate_limited" ||
               mapped.code === "provider_error") &&
@@ -257,9 +264,11 @@ export class VultrInferenceClient {
           }
           throw timeout;
         }
+        // Never echo the engine exception message: custom fetch layers
+        // may include request details. Static category text is safe.
         const network = new VultrInferenceError(
           "provider_error",
-          `Vultr inference network failure: ${toSafeMessage(error)}.`,
+          "Vultr inference network failure.",
         );
         if (attempt < this.config.maxRetries) {
           await this.sleep(backoffMs(attempt));
@@ -283,6 +292,9 @@ export class VultrInferenceClient {
         },
         body,
         signal: controller.signal,
+        // Never follow redirects with a credential-bearing request:
+        // a 3xx that surfaces here becomes a provider_error instead.
+        redirect: "error",
       });
     } finally {
       clearTimeout(timer);
@@ -414,11 +426,6 @@ function isAbortError(error: unknown): boolean {
       "name" in error &&
       (error as { name?: unknown }).name === "AbortError")
   );
-}
-
-function toSafeMessage(error: unknown): string {
-  if (error instanceof Error) return error.message.slice(0, 200);
-  return "unknown network error";
 }
 
 /** Keep a bounded preview of provider text for diagnostics, not storage. */

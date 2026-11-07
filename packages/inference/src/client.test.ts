@@ -280,6 +280,114 @@ describe("VultrInferenceClient.generateHypothesis", () => {
   });
 });
 
+describe("redirect handling", () => {
+  it("rejects redirects instead of following them with credentials", async () => {
+    let calls = 0;
+    let redirectMode: string | undefined;
+    const fetchImpl = stubFetch(async (_url, init) => {
+      calls += 1;
+      redirectMode = init.redirect;
+      return new Response(
+        JSON.stringify({
+          error: "moved",
+          api_key: "sk-redirect-secret-abcdef123456",
+        }),
+        {
+          status: 302,
+          headers: { location: "https://evil.example/r" },
+        },
+      );
+    });
+    const client = new VultrInferenceClient(
+      testConfig({ maxRetries: 0 }),
+      { fetchImpl, sleep: noSleep },
+    );
+
+    const error = await client
+      .generateHypothesis(INPUT)
+      .then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+    expect(redirectMode).toBe("error");
+    expect(calls).toBe(1);
+    expect(error).toBeInstanceOf(VultrInferenceError);
+    expect((error as VultrInferenceError).code).toBe("provider_error");
+    expect(String(error)).not.toContain("sk-redirect-secret-abcdef123456");
+  });
+});
+
+describe("provider error sanitization", () => {
+  it("never echoes credential-shaped provider text into error messages", async () => {
+    const fetchImpl = stubFetch(async () => {
+      return new Response(
+        JSON.stringify({
+          error: "boom",
+          api_key: "sk-provider-secret-abcdef123456",
+          detail: "client_secret=topsecretvalue123",
+        }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    });
+    const client = new VultrInferenceClient(
+      testConfig({ maxRetries: 0 }),
+      { fetchImpl, sleep: noSleep },
+    );
+
+    const error = await client
+      .generateHypothesis(INPUT)
+      .then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+    expect(error).toBeInstanceOf(VultrInferenceError);
+    expect((error as VultrInferenceError).code).toBe("provider_error");
+    const text = String(error);
+    expect(text).not.toContain("sk-provider-secret-abcdef123456");
+    expect(text).not.toContain("topsecretvalue123");
+    expect(text).toContain("500");
+  });
+
+  it("never echoes network exception text into error messages", async () => {
+    const fetchImpl = stubFetch(async () => {
+      throw new TypeError("fetch failed for key sk-network-secret-abcdef123456");
+    });
+    const client = new VultrInferenceClient(
+      testConfig({ maxRetries: 0 }),
+      { fetchImpl, sleep: noSleep },
+    );
+
+    const error = await client
+      .generateHypothesis(INPUT)
+      .then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+    expect(error).toBeInstanceOf(VultrInferenceError);
+    expect(String(error)).not.toContain("sk-network-secret-abcdef123456");
+  });
+
+  it("maps a bare 404 to unavailable_model without sniffing the body", async () => {
+    const fetchImpl = stubFetch(async () => {
+      return new Response("not found", { status: 404 });
+    });
+    const client = new VultrInferenceClient(
+      testConfig({ maxRetries: 0 }),
+      { fetchImpl, sleep: noSleep },
+    );
+
+    const error = await client
+      .generateHypothesis(INPUT)
+      .then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+    expect(error).toBeInstanceOf(VultrInferenceError);
+    expect((error as VultrInferenceError).code).toBe("unavailable_model");
+    expect(String(error)).toContain("404");
+  });
+});
+
 describe("non-Vultr fallback is blocked", () => {
   it("fromEnv refuses an OpenAI endpoint instead of using it", () => {
     expect(() =>

@@ -113,4 +113,13 @@ describe("redactForStorage", () => {
     expect(text).not.toContain("abc.def.ghi");
     expect(text).toContain("[redacted]");
   });
+
+  it("redacts inline credential assignments in free text", () => {
+    const redacted = redactForStorage(
+      "login failed for api_key=hunter2value; password: s3cret-stuff here",
+    );
+    expect(String(redacted)).not.toContain("hunter2value");
+    expect(String(redacted)).not.toContain("s3cret-stuff");
+    expect(String(redacted)).toContain("[redacted]");
+  });
 });

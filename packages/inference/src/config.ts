@@ -70,6 +70,12 @@ function readPositiveInt(
   return Math.min(parsed, cap);
 }
 
+/**
+ * The only accepted inference base path: the documented Vultr
+ * Serverless Inference OpenAI-compatible root.
+ */
+export const ALLOWED_BASE_PATH = "/v1";
+
 function normalizeBaseUrl(raw: string): string {
   let url: URL;
   try {
@@ -86,6 +92,12 @@ function normalizeBaseUrl(raw: string): string {
       "VULTR_INFERENCE_BASE_URL must use https.",
     );
   }
+  if (url.username !== "" || url.password !== "") {
+    throw new VultrInferenceError(
+      "invalid_config",
+      "VULTR_INFERENCE_BASE_URL must not embed credentials in URL userinfo.",
+    );
+  }
   if (url.hostname.toLowerCase() !== VULTR_API_HOST) {
     throw new VultrInferenceError(
       "non_vultr_endpoint_blocked",
@@ -94,7 +106,26 @@ function normalizeBaseUrl(raw: string): string {
         `no silent fallback to another provider is permitted.`,
     );
   }
-  return url.toString().replace(/\/+$/, "");
+  if (url.port !== "") {
+    throw new VultrInferenceError(
+      "invalid_config",
+      "VULTR_INFERENCE_BASE_URL must not specify an unexpected port.",
+    );
+  }
+  if (url.search !== "" || url.hash !== "") {
+    throw new VultrInferenceError(
+      "invalid_config",
+      "VULTR_INFERENCE_BASE_URL must not include a query string or fragment.",
+    );
+  }
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  if (path !== ALLOWED_BASE_PATH) {
+    throw new VultrInferenceError(
+      "invalid_config",
+      "VULTR_INFERENCE_BASE_URL must be exactly the documented Vultr base path /v1.",
+    );
+  }
+  return `https://${VULTR_API_HOST}${ALLOWED_BASE_PATH}`;
 }
 
 /**

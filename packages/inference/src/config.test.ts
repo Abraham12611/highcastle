@@ -95,6 +95,55 @@ describe("resolveVultrConfig", () => {
     expect(capped.maxTokens).toBeLessThanOrEqual(4096);
   });
 
+  it("rejects credentials embedded in URL userinfo", () => {
+    for (const baseUrl of [
+      "https://user:pass@api.vultrinference.com/v1",
+      "https://api-key-here@api.vultrinference.com/v1",
+    ]) {
+      const error = (() => {
+        try {
+          resolveVultrConfig(ENV({ VULTR_INFERENCE_BASE_URL: baseUrl }));
+          return null;
+        } catch (caught) {
+          return caught;
+        }
+      })();
+      expect(error).toBeInstanceOf(VultrInferenceError);
+      expect((error as VultrInferenceError).code).toBe("invalid_config");
+    }
+  });
+
+  it("rejects query strings, fragments, and unexpected ports", () => {
+    for (const baseUrl of [
+      "https://api.vultrinference.com/v1?api_key=abc",
+      "https://api.vultrinference.com/v1#fragment",
+      "https://api.vultrinference.com:8443/v1",
+    ]) {
+      expect(() =>
+        resolveVultrConfig(ENV({ VULTR_INFERENCE_BASE_URL: baseUrl })),
+      ).toThrowError(VultrInferenceError);
+    }
+  });
+
+  it("allows only the documented Vultr base path", () => {
+    for (const baseUrl of [
+      "https://api.vultrinference.com",
+      "https://api.vultrinference.com/",
+      "https://api.vultrinference.com/v2",
+      "https://api.vultrinference.com/v1/extra",
+      "https://api.vultrinference.com/v1/../admin",
+    ]) {
+      expect(() =>
+        resolveVultrConfig(ENV({ VULTR_INFERENCE_BASE_URL: baseUrl })),
+      ).toThrowError(VultrInferenceError);
+    }
+    expect(
+      resolveVultrConfig(
+        ENV({ VULTR_INFERENCE_BASE_URL: "https://api.vultrinference.com/v1/" }),
+      ).baseUrl,
+    ).toBe("https://api.vultrinference.com/v1");
+  });
+
   it("never exposes the key in the log-safe description", () => {
     const config = resolveVultrConfig(
       ENV({ VULTR_INFERENCE_API_KEY: "sk-super-secret-value" }),

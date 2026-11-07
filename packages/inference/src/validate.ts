@@ -152,7 +152,11 @@ export function redactForStorage(value: unknown, depth = 0): unknown {
   if (typeof value === "string") {
     const cleaned = value
       .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redacted]")
-      .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/gi, "Bearer [redacted]");
+      .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/gi, "Bearer [redacted]")
+      .replace(
+        /(api[_-]?key|client[_-]?secret|password|passwd|pwd)\s*[:=]\s*['"]?[^\s,'"]+/gi,
+        "$1=[redacted]",
+      );
     return cleaned.length > 2000 ? `${cleaned.slice(0, 2000)}…` : cleaned;
   }
   if (Array.isArray(value)) {
