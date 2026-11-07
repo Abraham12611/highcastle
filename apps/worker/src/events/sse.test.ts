@@ -19,9 +19,7 @@ import { InMemoryEventStore } from "./store-memory.js";
 import type { EventStore } from "./ports.js";
 
 const SCAN_ID = ScanIdSchema.parse("11111111-1111-4111-8111-111111111111");
-const WORKSPACE_ID = WorkspaceIdSchema.parse(
-  "22222222-2222-4222-8222-222222222222",
-);
+const WORKSPACE_ID = WorkspaceIdSchema.parse("22222222-2222-4222-8222-222222222222");
 
 function seedStore(events: Array<Partial<ScanEvent>>): InMemoryEventStore {
   const store = new InMemoryEventStore();
@@ -87,13 +85,11 @@ describe("parseResumeCursor", () => {
 
   it("rejects invalid, negative, and fractional cursors", () => {
     for (const bad of ["abc", "-1", "1.5", "NaN"]) {
-      expect(() =>
-        parseResumeCursor({ lastEventId: bad, after: 0 }),
-      ).toThrow(EventValidationError);
+      expect(() => parseResumeCursor({ lastEventId: bad, after: 0 })).toThrow(EventValidationError);
     }
-    expect(() =>
-      parseResumeCursor({ lastEventId: null, after: "nope" }),
-    ).toThrow(EventValidationError);
+    expect(() => parseResumeCursor({ lastEventId: null, after: "nope" })).toThrow(
+      EventValidationError,
+    );
   });
 });
 
@@ -179,11 +175,7 @@ describe("streamScanEvents", () => {
   });
 
   it("delivers live events and recovers gaps on the next poll", async () => {
-    const batches: ScanEvent[][] = [
-      [makeEvent(1)],
-      [],
-      [makeEvent(2), makeEvent(3)],
-    ];
+    const batches: ScanEvent[][] = [[makeEvent(1)], [], [makeEvent(2), makeEvent(3)]];
     let calls = 0;
     const store: EventStore = {
       async append(): Promise<ScanEvent> {
@@ -284,8 +276,8 @@ describe("streamScanEvents", () => {
 function makeEvent(seq: number): ScanEvent {
   return {
     id: ScanEventIdSchema.parse(
-    `00000000-0000-4000-8000-0000000000${String(seq).padStart(2, "0")}`,
-  ),
+      `00000000-0000-4000-8000-0000000000${String(seq).padStart(2, "0")}`,
+    ),
     workspaceId: WORKSPACE_ID,
     scanId: SCAN_ID,
     seq,

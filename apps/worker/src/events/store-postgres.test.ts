@@ -1,8 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import {
-  ScanIdSchema,
-  WorkspaceIdSchema,
-} from "@highcastle/contracts";
+import { ScanIdSchema, WorkspaceIdSchema } from "@highcastle/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PgPool } from "./store-postgres.js";
 import { PostgresEventStore } from "./store-postgres.js";
@@ -48,10 +45,7 @@ describe("PostgresEventStore (PGlite)", () => {
   beforeEach(async () => {
     db = new PGlite();
     await db.exec(DDL);
-    await db.query("INSERT INTO scans (id, workspace_id) VALUES ($1, $2)", [
-      SCAN_ID,
-      WORKSPACE_ID,
-    ]);
+    await db.query("INSERT INTO scans (id, workspace_id) VALUES ($1, $2)", [SCAN_ID, WORKSPACE_ID]);
     store = new PostgresEventStore(db as unknown as PgPool);
   });
 
@@ -102,9 +96,7 @@ describe("PostgresEventStore (PGlite)", () => {
     const scanId = ScanIdSchema.parse(SCAN_ID);
     const workspaceId = WorkspaceIdSchema.parse(WORKSPACE_ID);
     const foreign = WorkspaceIdSchema.parse(FOREIGN_WORKSPACE_ID);
-    const missing = ScanIdSchema.parse(
-      "99999999-9999-4999-8999-999999999999",
-    );
+    const missing = ScanIdSchema.parse("99999999-9999-4999-8999-999999999999");
     await expect(
       store.append({
         workspaceId: foreign,

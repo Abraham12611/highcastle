@@ -51,18 +51,11 @@ export interface ListEventsOptions {
 
 export interface EventStore {
   append(input: AppendEventInput): Promise<ScanEvent>;
-  list(
-    scanId: ScanId,
-    workspaceId: WorkspaceId,
-    options?: ListEventsOptions,
-  ): Promise<ScanEvent[]>;
+  list(scanId: ScanId, workspaceId: WorkspaceId, options?: ListEventsOptions): Promise<ScanEvent[]>;
 }
 
 export interface ScanAuthorization {
-  authorizeScanRead(
-    session: Session,
-    scanId: ScanId,
-  ): Promise<ScanScope | null>;
+  authorizeScanRead(session: Session, scanId: ScanId): Promise<ScanScope | null>;
 }
 
 /** Fired after an event is durably persisted. Never before. */

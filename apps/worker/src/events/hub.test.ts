@@ -31,9 +31,7 @@ describe("EventHub", () => {
     const hub = new EventHub();
     const controller = new AbortController();
     controller.abort();
-    await expect(hub.waitFor("scan-1", controller.signal)).resolves.toBe(
-      "aborted",
-    );
+    await expect(hub.waitFor("scan-1", controller.signal)).resolves.toBe("aborted");
     expect(hub.pendingCount()).toBe(0);
   });
 

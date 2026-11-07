@@ -21,11 +21,7 @@ export const POLL_INTERVAL_MS_DEFAULT = 500;
 export const HEARTBEAT_MS_DEFAULT = 15_000;
 
 /** `id: <seq>\nevent: <name>\ndata: <json>\n\n` per the SSE wire format. */
-export function encodeSseEvent(
-  id: number,
-  name: string,
-  dataJson: string,
-): string {
+export function encodeSseEvent(id: number, name: string, dataJson: string): string {
   return `id: ${id}\nevent: ${name}\ndata: ${dataJson}\n\n`;
 }
 
@@ -84,15 +80,12 @@ export function parseResumeCursor(args: {
   lastEventId: string | null | undefined;
   after: unknown;
 }): number {
-  const header =
-    typeof args.lastEventId === "string" ? args.lastEventId.trim() : "";
+  const header = typeof args.lastEventId === "string" ? args.lastEventId.trim() : "";
   try {
     if (header !== "") return ScanEventCursorSchema.parse(header);
     return ScanEventCursorSchema.parse(args.after ?? 0);
   } catch (error) {
-    throw new EventValidationError(
-      error instanceof Error ? error.message : "invalid event cursor",
-    );
+    throw new EventValidationError(error instanceof Error ? error.message : "invalid event cursor");
   }
 }
 

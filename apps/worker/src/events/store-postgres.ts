@@ -1,14 +1,6 @@
-import type {
-  ScanEvent,
-  ScanId,
-  WorkspaceId,
-} from "@highcastle/contracts";
+import type { ScanEvent, ScanId, WorkspaceId } from "@highcastle/contracts";
 import { EventStoreError } from "./errors.js";
-import type {
-  AppendEventInput,
-  EventStore,
-  ListEventsOptions,
-} from "./ports.js";
+import type { AppendEventInput, EventStore, ListEventsOptions } from "./ports.js";
 
 /**
  * Postgres-backed `EventStore` over the documented `scans` / `scan_events`
@@ -66,7 +58,10 @@ export class PostgresEventStore implements EventStore {
     const current = new Promise<void>((resolve) => {
       release = resolve;
     });
-    this.tails.set(input.scanId, previous.then(() => current));
+    this.tails.set(
+      input.scanId,
+      previous.then(() => current),
+    );
     await previous;
     try {
       return await this.appendInner(input);
@@ -137,14 +132,8 @@ export class PostgresEventStore implements EventStore {
     return result.rows.map((row) => toScanEvent(row as unknown as ScanEventRow));
   }
 
-  private async requireScan(
-    scanId: ScanId,
-    workspaceId: WorkspaceId,
-  ): Promise<void> {
-    const result = await this.pool.query(
-      "SELECT workspace_id FROM scans WHERE id = $1",
-      [scanId],
-    );
+  private async requireScan(scanId: ScanId, workspaceId: WorkspaceId): Promise<void> {
+    const result = await this.pool.query("SELECT workspace_id FROM scans WHERE id = $1", [scanId]);
     const owner = result.rows[0]?.["workspace_id"];
     if (owner === undefined || owner !== workspaceId) {
       // Unknown scan and foreign workspace read identically: missing.
@@ -170,8 +159,7 @@ function toScanEvent(row: ScanEventRow): ScanEvent {
     safeSummary: String(row.safe_summary),
     payloadRedacted: (row.payload_redacted ?? {}) as Record<string, unknown>,
     attemptId: (row.attempt_id ?? null) as ScanEvent["attemptId"],
-    occurredAt:
-      occurredAt instanceof Date ? occurredAt.toISOString() : String(occurredAt),
+    occurredAt: occurredAt instanceof Date ? occurredAt.toISOString() : String(occurredAt),
   };
 }
 
