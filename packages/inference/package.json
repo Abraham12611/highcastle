@@ -1,0 +1,42 @@
+{
+  "name": "@highcastle/inference",
+  "version": "0.1.0",
+  "description": "HighCastle Vultr Serverless Inference adapter — server-only structured hypothesis planning. Lane L12.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "scripts"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "smoke": "node ./scripts/live-smoke.mjs"
+  },
+  "dependencies": {
+    "@highcastle/contracts": "workspace:*",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  }
+}
