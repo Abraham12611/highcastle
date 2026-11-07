@@ -19,6 +19,7 @@
     "@highcastle/ui": "workspace:*",
     "drizzle-orm": "0.45.4",
     "next": "16.4.5",
+    "pg": "8.23.1",
     "pg-boss": "12.38.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
