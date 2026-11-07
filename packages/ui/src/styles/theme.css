@@ -1,0 +1,62 @@
+/*
+ * HighCastle "Nocturne Signal" — Tailwind v4 theme mapping.
+ *
+ * Import AFTER `@import "tailwindcss";` in the app stylesheet:
+ *
+ *   @import "tailwindcss";
+ *   @import "@highcastle/ui/theme.css";
+ *   @import "@highcastle/ui/styles.css";        // component classes
+ *   @source "../../packages/ui/src";            // or the installed path
+ *
+ * Exposes utilities like bg-hc-bg, text-hc-primary, border-hc-line,
+ * font-display, shadow-pixel, rounded-hc. Values mirror tokens.css —
+ * src/tokens.test.ts asserts parity so the two files cannot drift.
+ */
+
+@theme {
+  --color-hc-bg: #080d1a;
+  --color-hc-surface-1: #10192a;
+  --color-hc-surface-2: #18263b;
+  --color-hc-surface-3: #22344c;
+  --color-hc-line: #30445b;
+  --color-hc-line-strong: #46607f;
+
+  --color-hc-text: #eff8f7;
+  --color-hc-muted: #9fb2c5;
+  --color-hc-subtle: #829cb2;
+
+  --color-hc-primary: #62f5d1;
+  --color-hc-primary-deep: #0d5b58;
+  --color-hc-primary-ink: #052423;
+  --color-hc-violet: #a48bff;
+  --color-hc-violet-deep: #3d3377;
+  --color-hc-cyan: #63cfff;
+  --color-hc-cyan-deep: #134d6b;
+  --color-hc-coral: #ff708a;
+  --color-hc-coral-deep: #6b2033;
+  --color-hc-orange: #ffa66b;
+  --color-hc-orange-deep: #6b3d1d;
+  --color-hc-amber: #ffd46b;
+  --color-hc-amber-deep: #5d4a1c;
+  --color-hc-low: #8cabc1;
+  --color-hc-success: #75e7b4;
+  --color-hc-success-deep: #14503b;
+  --color-hc-focus: #b8fff0;
+
+  --font-display:
+    "Departure Mono", "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --font-body:
+    Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  --radius-hc-sm: 4px;
+  --radius-hc: 6px;
+  --radius-hc-lg: 10px;
+
+  --shadow-pixel: 3px 3px 0 0 rgb(0 0 0 / 0.45);
+  --shadow-pixel-primary: 3px 3px 0 0 var(--color-hc-primary-deep);
+  --shadow-elevated: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -12px rgb(0 0 0 / 0.65);
+}
