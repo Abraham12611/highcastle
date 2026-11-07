@@ -26,6 +26,24 @@ export interface ParsedProbe {
   at: string;
 }
 
+/** Pattern A: the guest program's real execution outcome. */
+export interface ParsedProgramResult {
+  status: "ok" | "program_error" | "budget_exceeded" | "timeout" | "denied";
+  output: string;
+  requestsMade: number;
+  durationMs: number;
+  programSha256: string;
+  at: string;
+}
+
+const VALID_PROGRAM_STATUSES = new Set([
+  "ok",
+  "program_error",
+  "budget_exceeded",
+  "timeout",
+  "denied",
+]);
+
 /** One observed step response — the L15 oracle handoff unit. */
 export interface ParsedObservation {
   step: string;
@@ -41,6 +59,8 @@ export interface ParsedRunnerOutput {
   probes: ParsedProbe[];
   /** Well-formed observation lines for the independent oracle. */
   observations: ParsedObservation[];
+  /** Pattern A guest outcome line, when the runner executed model-authored code. */
+  programResult: ParsedProgramResult | null;
   /** Validated SandboxResult, or null when absent/invalid/mismatched. */
   result: SandboxResult | null;
   /** Why the result is absent, when it is. */
@@ -68,6 +88,7 @@ const VALID_OBSERVATION_STEPS = new Set([
   "whoami",
   "own_invoice",
   "cross_invoice",
+  "program",
 ]);
 
 function isObservationLine(v: Record<string, unknown>): boolean {
@@ -106,6 +127,7 @@ export function parseRunnerOutput(
 ): ParsedRunnerOutput {
   const probes: ParsedProbe[] = [];
   const observations: ParsedObservation[] = [];
+  let programResult: ParsedProgramResult | null = null;
   let result: SandboxResult | null = null;
   let resultError: string | null = null;
   let malformedLines = 0;
@@ -154,6 +176,33 @@ export function parseRunnerOutput(
     if (
       typeof parsed === "object" &&
       parsed !== null &&
+      (parsed as Record<string, unknown>)["type"] === "program_result"
+    ) {
+      const v = parsed as Record<string, unknown>;
+      if (
+        typeof v["status"] === "string" &&
+        VALID_PROGRAM_STATUSES.has(v["status"]) &&
+        typeof v["output"] === "string" &&
+        typeof v["requestsMade"] === "number" &&
+        typeof v["durationMs"] === "number" &&
+        typeof v["programSha256"] === "string" &&
+        v["programSha256"].length === 64 &&
+        typeof v["at"] === "string"
+      ) {
+        programResult = {
+          status: v["status"] as ParsedProgramResult["status"],
+          output: v["output"].slice(0, 4096),
+          requestsMade: v["requestsMade"],
+          durationMs: v["durationMs"],
+          programSha256: v["programSha256"],
+          at: v["at"],
+        };
+      }
+      continue;
+    }
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
       (parsed as Record<string, unknown>)["type"] === "result"
     ) {
       resultSeen = true;
@@ -189,6 +238,7 @@ export function parseRunnerOutput(
   return {
     probes,
     observations,
+    programResult,
     result,
     resultError,
     malformedLines,

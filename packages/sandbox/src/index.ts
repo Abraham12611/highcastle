@@ -17,6 +17,7 @@ export * from "./dockerArgs.ts";
 export * from "./dockerRuntime.ts";
 export * from "./output.ts";
 export * from "./registry.ts";
+export * from "./modelProgram.ts";
 export * from "./controller.ts";
 export type {
   RunnerEnvelope,

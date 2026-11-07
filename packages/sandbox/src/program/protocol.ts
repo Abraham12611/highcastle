@@ -34,6 +34,12 @@ export interface RunnerEnvelope {
   labOrigin: string;
   request: SandboxRequest;
   secrets: RunnerSecrets;
+  /**
+   * Pattern A: model-authored guest source authorized by the controller.
+   * Present ⇒ the runner executes it via the constrained `lab.get` API in a
+   * `node:vm` context INSIDE the hardened container — never on the host.
+   */
+  program?: { language: "js-subset-v1"; source: string };
 }
 
 // --- stdout line shapes ---
@@ -92,10 +98,24 @@ export interface AssertionLine extends RunnerLineBase {
  */
 export interface ObservationLine extends RunnerLineBase {
   type: "observation";
-  step: "health" | "ready" | "meta" | "whoami" | "own_invoice" | "cross_invoice";
+  step: "health" | "ready" | "meta" | "whoami" | "own_invoice" | "cross_invoice" | "program";
   status: number;
   body: unknown;
   revisionEcho: string | null;
+}
+
+/**
+ * `program_result` — Pattern A execution outcome: status, bounded redacted
+ * return value, and the request budget actually consumed. Real output
+ * evidence, not a claim.
+ */
+export interface ProgramResultLine extends RunnerLineBase {
+  type: "program_result";
+  status: "ok" | "program_error" | "budget_exceeded" | "timeout" | "denied";
+  output: string;
+  requestsMade: number;
+  durationMs: number;
+  programSha256: string;
 }
 
 export interface LogLine extends RunnerLineBase {
@@ -110,4 +130,11 @@ export interface ResultLine extends RunnerLineBase {
 }
 
 export type RunnerLine =
-  StartedLine | ProbeLine | ExchangeLine | AssertionLine | ObservationLine | LogLine | ResultLine;
+  | StartedLine
+  | ProbeLine
+  | ExchangeLine
+  | AssertionLine
+  | ObservationLine
+  | ProgramResultLine
+  | LogLine
+  | ResultLine;

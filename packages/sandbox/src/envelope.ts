@@ -17,6 +17,8 @@ export function buildRunnerEnvelope(params: {
   labOrigin: string;
   request: SandboxRequest;
   actorBearerToken: string;
+  /** Pattern A: authorized model-authored source (validated + sha-pinned). */
+  program?: { language: "js-subset-v1"; source: string };
 }): RunnerEnvelope {
   return {
     protocolVersion: RUNNER_PROTOCOL_VERSION,
@@ -24,6 +26,7 @@ export function buildRunnerEnvelope(params: {
     labOrigin: params.labOrigin,
     request: params.request,
     secrets: { actorBearerToken: params.actorBearerToken },
+    ...(params.program !== undefined ? { program: params.program } : {}),
   };
 }
 

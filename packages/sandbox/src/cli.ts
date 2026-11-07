@@ -18,6 +18,11 @@ import { randomUUID } from "node:crypto";
 import type { AttemptId, SandboxRequest, ScanId, WorkspaceId } from "@highcastle/contracts";
 
 import { StaticSyntheticCredentialResolver, CREDENTIAL_REFS } from "./credentials.ts";
+import {
+  authorizeModelProgram,
+  resolveProgramGeneratorConfig,
+  VultrProgramGenerator,
+} from "./modelProgram.ts";
 import { SandboxController } from "./controller.ts";
 import { DockerCliRuntime } from "./dockerRuntime.ts";
 import { InMemoryRunnerRegistry } from "./registry.ts";
@@ -105,13 +110,47 @@ async function main(): Promise<number> {
       process.stdout.write(`${JSON.stringify(execution, null, 2)}\n`);
       return execution.kind === "executed" && execution.outcome === "completed" ? 0 : 1;
     }
+    case "pattern-a": {
+      // Issue #54 end-to-end: live Vultr inference → authorize → execute in
+      // the ephemeral container → print program + real output + evidence.
+      const cfg = resolveProgramGeneratorConfig();
+      if (cfg === null) {
+        process.stderr.write(
+          "pattern-a requires VULTR_INFERENCE_API_KEY + VULTR_INFERENCE_MODEL\n",
+        );
+        process.exit(2);
+      }
+      const generator = new VultrProgramGenerator(cfg);
+      const draft = await generator.generate({
+        objective:
+          "Probe the synthetic invoice lab for broken object authorization: " +
+          "verify the fixture manifest, identify as alice, read invoice_A, " +
+          "attempt Bob's invoice_B, and report observed facts.",
+        allowedPaths: [
+          "/health",
+          "/ready",
+          "/api/meta",
+          "/api/auth/whoami",
+          "/api/invoices/invoice_A",
+          "/api/invoices/invoice_B",
+        ],
+        maxRequests: 8,
+      });
+      const program = authorizeModelProgram(draft);
+      const execution = await makeController().execute(demoRequest(), {
+        workspaceId: process.env["HIGHCASTLE_WORKSPACE_ID"] as WorkspaceId,
+        program,
+      });
+      process.stdout.write(JSON.stringify({ program, execution }, null, 2) + "\n");
+      return execution.kind === "executed" && execution.outcome === "completed" ? 0 : 1;
+    }
     case "reap": {
       const report = await controller.reconcileOrphans();
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
       return report.errors.length === 0 ? 0 : 1;
     }
     default:
-      process.stderr.write("usage: node dist/cli.js <check|run|reap>\n");
+      process.stderr.write("usage: node dist/cli.js <check|run|pattern-a|reap>\n");
       return 2;
   }
 }
