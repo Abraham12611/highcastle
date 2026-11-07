@@ -5,13 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm --filter @highcastle/contracts build && tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "pnpm --filter @highcastle/contracts build && tsc --noEmit",
+    "test": "pnpm --filter @highcastle/contracts build && vitest run"
+  },
+  "dependencies": {
+    "@highcastle/contracts": "workspace:*"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
     "@eslint/js": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
