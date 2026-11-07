@@ -76,6 +76,17 @@ explicit approval.
 - Supplied brief and gate #33 state **2026-11-09 00:00 WAT** — this is
   the working target, NOT a confirmed dashboard timestamp.
 - [ ] Owner confirms the exact closing timestamp from the lablab.ai
-      participant dashboard and posts it here. Do not assume the public
-      event date is the exact cutoff. This lane cannot access the
-      dashboard, so the field stays open until the owner reports it.
+      participant dashboard and records it below. Do not assume the
+      public event date is the exact cutoff.
+
+### Owner handoff (fill in, then check the box above)
+
+- Dashboard path checked: lablab.ai → event “Vultr Agent Rush” →
+  participant dashboard → submission deadline field.
+- **Owner-verified closing timestamp (WAT): _PENDING — awaiting owner
+  dashboard read._**
+- Access blocker (2026-11-07): this lane has no lablab.ai participant
+  access, so the dashboard value cannot be obtained from here. The
+  only inputs available are the supplied brief and gate #33, both
+  stating 2026-11-09 00:00 WAT unconfirmed. Owner: paste the exact
+  dashboard timestamp (with timezone) into the line above.
