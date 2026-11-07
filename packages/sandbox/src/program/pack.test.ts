@@ -46,8 +46,12 @@ function labHandler(v: LabVariant) {
     fixtures: GOOD_META.fixtures,
   };
   return (req: http.IncomingMessage, res: http.ServerResponse) => {
-    const token = req.headers.authorization === "Bearer lab-token-alice" ? "alice"
-      : req.headers.authorization === "Bearer lab-token-bob" ? "bob" : null;
+    const token =
+      req.headers.authorization === "Bearer lab-token-alice"
+        ? "alice"
+        : req.headers.authorization === "Bearer lab-token-bob"
+          ? "bob"
+          : null;
     const url = new URL(req.url ?? "/", "http://x");
     const json = (status: number, body: unknown) => {
       res.writeHead(status, { "content-type": "application/json" });
@@ -55,7 +59,8 @@ function labHandler(v: LabVariant) {
     };
     if (url.pathname === "/api/meta") return json(200, meta);
     if (url.pathname === "/api/auth/whoami") {
-      if (token === "alice") return json(200, { actor: { userId: "user_A", tenantId: "tenant_A" } });
+      if (token === "alice")
+        return json(200, { actor: { userId: "user_A", tenantId: "tenant_A" } });
       if (token === "bob") return json(200, { actor: { userId: "user_B", tenantId: "tenant_B" } });
       return json(401, { error: { code: "UNAUTHENTICATED" } });
     }

@@ -6,9 +6,7 @@ export default defineConfig({
     alias: {
       // Resolve contracts from source so tests/typecheck don't depend on a
       // prior `pnpm build` of that package (CI runs tests before build).
-      "@highcastle/contracts": fileURLToPath(
-        new URL("../contracts/src/index.ts", import.meta.url),
-      ),
+      "@highcastle/contracts": fileURLToPath(new URL("../contracts/src/index.ts", import.meta.url)),
     },
   },
   test: {

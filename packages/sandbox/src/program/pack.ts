@@ -228,7 +228,8 @@ export async function runBolaInvoiceV1(
   // --- ID: credential MUST resolve to Alice (user_A / tenant_A) ---
   const whoami = await step("/api/auth/whoami");
   const whoamiActor = whoami !== null && whoami.status === 200 ? parseActor(whoami.body) : null;
-  const whoamiTenant = whoami !== null && whoami.status === 200 ? parseActorTenant(whoami.body) : null;
+  const whoamiTenant =
+    whoami !== null && whoami.status === 200 ? parseActorTenant(whoami.body) : null;
   const identityOk =
     whoamiActor === EXPECTED.actorUserId && whoamiTenant === EXPECTED.actorTenantId;
   emitAssertion(
