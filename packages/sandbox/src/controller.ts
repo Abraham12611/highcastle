@@ -42,7 +42,7 @@ import {
 } from "./constants.ts";
 import { buildDockerCreateArgs, runnerContainerName } from "./dockerArgs.ts";
 import { buildRunnerEnvelope, serializeEnvelope } from "./envelope.ts";
-import { parseRunnerOutput, type ParsedProbe } from "./output.ts";
+import { parseRunnerOutput, type ParsedObservation, type ParsedProbe } from "./output.ts";
 import type {
   Clock,
   ContainerRuntime,
@@ -109,6 +109,12 @@ export interface ExecutedRun {
   containmentEvents: ContainmentEvent[];
   /** All well-formed probe telemetry (denied/observed/breach/error). */
   probes: ParsedProbe[];
+  /**
+   * Raw observed step responses (health/ready/meta/whoami/own/cross) —
+   * the L15 oracle handoff: map into `BolaAttemptInput` and call
+   * `adjudicateAttempt` (@highcastle/test-packs) for the verdict.
+   */
+  observations: ParsedObservation[];
   exitCode: number | null;
 }
 
@@ -328,9 +334,7 @@ export class SandboxController {
     }
     const expected = normalizeDigest(req.targetImageDigest);
     const actual = new Set(
-      [svc.imageId, ...svc.repoDigests]
-        .filter((d): d is string => d !== null)
-        .map(normalizeDigest),
+      [svc.imageId, ...svc.repoDigests].filter((d): d is string => d !== null).map(normalizeDigest),
     );
     if (!actual.has(expected)) {
       return (
@@ -371,7 +375,17 @@ export class SandboxController {
         reason: `create failed: ${err instanceof Error ? err.message : String(err)}`,
       });
       const runner = await this.mustGet(runnerId);
-      return this.finishSync(req, runner, "failed", null, "container create failed", [], [], null);
+      return this.finishSync(
+        req,
+        runner,
+        "failed",
+        null,
+        "container create failed",
+        [],
+        [],
+        [],
+        null,
+      );
     }
     await update({ sandboxId: containerId, status: "created" });
 
@@ -397,7 +411,17 @@ export class SandboxController {
       });
       await this.destroyAndVerify(runnerId, containerId);
       const runner = await this.mustGet(runnerId);
-      return this.finishSync(req, runner, "failed", null, "container start failed", [], [], null);
+      return this.finishSync(
+        req,
+        runner,
+        "failed",
+        null,
+        "container start failed",
+        [],
+        [],
+        [],
+        null,
+      );
     }
 
     // --- wait with deadline watchdog + cancellation ---
@@ -470,6 +494,7 @@ export class SandboxController {
       parsed.resultError,
       events,
       parsed.probes,
+      parsed.observations,
       exitCode,
     );
   }
@@ -512,6 +537,7 @@ export class SandboxController {
     resultError: string | null,
     events: ContainmentEvent[],
     probes: ParsedProbe[],
+    observations: ParsedObservation[],
     exitCode: number | null,
   ): ExecutedRun {
     return {
@@ -523,6 +549,7 @@ export class SandboxController {
       resultError,
       containmentEvents: events,
       probes,
+      observations,
       exitCode,
     };
   }

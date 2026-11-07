@@ -57,6 +57,9 @@ function labHandler(v: LabVariant) {
       res.writeHead(status, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
     };
+    res.setHeader("x-target-lab-revision", meta.revision);
+    if (url.pathname === "/health") return json(200, { ok: true, revision: meta.revision });
+    if (url.pathname === "/ready") return json(200, { ready: true, revision: meta.revision });
     if (url.pathname === "/api/meta") return json(200, meta);
     if (url.pathname === "/api/auth/whoami") {
       if (token === "alice")
@@ -105,6 +108,10 @@ function labGetForTest(origin: string, path: string, bearerToken: string) {
             bodyHash: sha256Hex(body),
             bodyExcerptRedacted: redactSecrets(truncate(body, 1500)),
             durationMs: Date.now() - started,
+            revisionEcho:
+              typeof res.headers["x-target-lab-revision"] === "string"
+                ? (res.headers["x-target-lab-revision"] as string)
+                : null,
           });
         });
       },
@@ -164,7 +171,7 @@ describe("runBolaInvoiceV1 — preconditioned observations", () => {
       expect(out.baselineAssertion.passed).toBe(true);
       expect(out.negativeAssertion.passed).toBe(false);
       expect(out.observedFixtureOwner).toBe("bob");
-      expect(out.exchanges).toHaveLength(4);
+      expect(out.exchanges).toHaveLength(6);
     });
   });
 
@@ -199,7 +206,7 @@ describe("runBolaInvoiceV1 — preconditioned observations", () => {
       const out = await runBolaInvoiceV1(origin, "lab-token-alice", 8, labGetForTest);
       expect(out.preconditionsMet).toBe(false);
       expect(out.inconclusiveReason).toContain("revision");
-      expect(out.exchanges).toHaveLength(1); // only the meta probe ran
+      expect(out.exchanges).toHaveLength(3); // health+ready+meta only
     });
   });
 

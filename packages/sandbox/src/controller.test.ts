@@ -222,7 +222,8 @@ describe("execute — denial and preconditions", () => {
     const { controller } = harness({ runtime });
     const exec = await controller.execute(makeRequest(), { workspaceId: WS });
     expect(exec.kind).toBe("precondition_failed");
-    if (exec.kind === "precondition_failed") expect(exec.reason).toContain("no container serves alias");
+    if (exec.kind === "precondition_failed")
+      expect(exec.reason).toContain("no container serves alias");
   });
 
   it("refuses to launch on ambiguous alias mapping", async () => {

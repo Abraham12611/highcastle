@@ -26,9 +26,21 @@ export interface ParsedProbe {
   at: string;
 }
 
+/** One observed step response — the L15 oracle handoff unit. */
+export interface ParsedObservation {
+  step: string;
+  status: number;
+  /** Parsed lab body (synthetic fixture data; bounded by the line cap). */
+  body: unknown;
+  revisionEcho: string | null;
+  at: string;
+}
+
 export interface ParsedRunnerOutput {
   /** Well-formed probe lines only. */
   probes: ParsedProbe[];
+  /** Well-formed observation lines for the independent oracle. */
+  observations: ParsedObservation[];
   /** Validated SandboxResult, or null when absent/invalid/mismatched. */
   result: SandboxResult | null;
   /** Why the result is absent, when it is. */
@@ -48,6 +60,26 @@ const VALID_RULE_IDS = new Set<string>([
   "secret.access_denied",
 ]);
 const VALID_OUTCOMES = new Set<string>(["denied", "observed", "breach", "error", "skipped"]);
+
+const VALID_OBSERVATION_STEPS = new Set([
+  "health",
+  "ready",
+  "meta",
+  "whoami",
+  "own_invoice",
+  "cross_invoice",
+]);
+
+function isObservationLine(v: Record<string, unknown>): boolean {
+  return (
+    v["type"] === "observation" &&
+    typeof v["step"] === "string" &&
+    VALID_OBSERVATION_STEPS.has(v["step"]) &&
+    typeof v["status"] === "number" &&
+    (v["revisionEcho"] === null || typeof v["revisionEcho"] === "string") &&
+    typeof v["at"] === "string"
+  );
+}
 
 function isProbeLine(value: unknown): value is ProbeLine {
   if (typeof value !== "object" || value === null) return false;
@@ -73,6 +105,7 @@ export function parseRunnerOutput(
   expectedRunnerId: string,
 ): ParsedRunnerOutput {
   const probes: ParsedProbe[] = [];
+  const observations: ParsedObservation[] = [];
   let result: SandboxResult | null = null;
   let resultError: string | null = null;
   let malformedLines = 0;
@@ -100,6 +133,21 @@ export function parseRunnerOutput(
         outcome: parsed.outcome,
         detail: parsed.detail.slice(0, 500),
         at: parsed.at,
+      });
+      continue;
+    }
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      isObservationLine(parsed as Record<string, unknown>)
+    ) {
+      const v = parsed as Record<string, unknown>;
+      observations.push({
+        step: v["step"] as string,
+        status: v["status"] as number,
+        body: v["body"],
+        revisionEcho: v["revisionEcho"] as string | null,
+        at: v["at"] as string,
       });
       continue;
     }
@@ -140,6 +188,7 @@ export function parseRunnerOutput(
 
   return {
     probes,
+    observations,
     result,
     resultError,
     malformedLines,

@@ -198,7 +198,10 @@ export class DockerCliRuntime implements ContainerRuntime {
     let matchCount = 0;
     let imageId: string | null = null;
     let repoDigests: string[] = [];
-    for (const id of ids.stdout.split("\n").map((l) => l.trim()).filter((l) => l !== "")) {
+    for (const id of ids.stdout
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l !== "")) {
       const nets = await runDocker([
         "inspect",
         "--format",

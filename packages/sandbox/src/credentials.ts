@@ -13,8 +13,15 @@
 import type { CredentialResolver } from "./ports.ts";
 import { CredentialResolutionError } from "./errors.ts";
 
-/** Published, H-scoped credential refs and their synthetic values. */
+/**
+ * Published, H-scoped credential refs and their synthetic values.
+ * Canonical refs follow L15's `credentialRefFor(role)` =
+ * `ref:synthetic:alice|bob` (`packages/test-packs/src/fixtures.ts`).
+ * `_session` aliases are kept for earlier integrations.
+ */
 export const SYNTHETIC_CREDENTIALS = {
+  "ref:synthetic:alice": "lab-token-alice",
+  "ref:synthetic:bob": "lab-token-bob",
   "ref:synthetic:alice_session": "lab-token-alice",
   "ref:synthetic:bob_session": "lab-token-bob",
 } as const;
@@ -22,8 +29,8 @@ export const SYNTHETIC_CREDENTIALS = {
 export type SyntheticCredentialRef = keyof typeof SYNTHETIC_CREDENTIALS;
 
 export const CREDENTIAL_REFS = {
-  alice: "ref:synthetic:alice_session",
-  bob: "ref:synthetic:bob_session",
+  alice: "ref:synthetic:alice",
+  bob: "ref:synthetic:bob",
 } as const;
 
 export class StaticSyntheticCredentialResolver implements CredentialResolver {

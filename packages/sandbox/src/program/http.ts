@@ -49,6 +49,8 @@ export interface LabResponse {
   bodyHash: string;
   bodyExcerptRedacted: string;
   durationMs: number;
+  /** `x-target-lab-revision` header echo, when present. */
+  revisionEcho: string | null;
 }
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -107,12 +109,14 @@ export function labGet(origin: string, path: string, bearerToken: string): Promi
         });
         res.on("end", () => {
           const body = Buffer.concat(chunks).toString("utf8");
+          const rev = res.headers["x-target-lab-revision"];
           resolve({
             status: res.statusCode ?? 0,
             body,
             bodyHash: sha256Hex(body),
             bodyExcerptRedacted: redactSecrets(truncate(body, EXCERPT_MAX)),
             durationMs: Date.now() - started,
+            revisionEcho: typeof rev === "string" ? rev : null,
           });
         });
         res.on("error", reject);

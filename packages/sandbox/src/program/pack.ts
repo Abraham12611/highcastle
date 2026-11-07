@@ -150,7 +150,10 @@ export async function runBolaInvoiceV1(
 
   const budget = Math.min(maxRequests, PACK_MAX_REQUESTS);
 
-  async function step(path: string): Promise<LabResponse | null> {
+  async function step(
+    path: string,
+    stepName?: "health" | "ready" | "meta" | "whoami" | "own_invoice" | "cross_invoice",
+  ): Promise<LabResponse | null> {
     if (requestsMade >= budget) {
       fatalError = `request budget exhausted (${budget})`;
       return null;
@@ -168,6 +171,25 @@ export async function runBolaInvoiceV1(
         exchange.bodyExcerptRedacted = res.bodyExcerptRedacted;
       }
       exchanges.push(exchange);
+      if (stepName !== undefined) {
+        // L15 oracle handoff: emit the parsed body so adjudicateAttempt can
+        // verify actual facts instead of trusting these legs' booleans.
+        let parsedBody: unknown = null;
+        try {
+          parsedBody = JSON.parse(res.body);
+        } catch {
+          parsedBody = null;
+        }
+        emit({
+          v: 1,
+          type: "observation",
+          at: nowIso(),
+          step: stepName,
+          status: res.status,
+          body: parsedBody,
+          revisionEcho: res.revisionEcho,
+        });
+      }
       emit({
         v: 1,
         type: "exchange",
@@ -206,8 +228,12 @@ export async function runBolaInvoiceV1(
     };
   }
 
+  // --- P0 liveness/readiness (L15 oracle consumes these) ---
+  await step("/health", "health");
+  await step("/ready", "ready");
+
   // --- P0: lab meta must exactly match the frozen fixture contract ---
-  const meta = await step("/api/meta");
+  const meta = await step("/api/meta", "meta");
   if (meta === null || meta.status !== 200) {
     inconclusiveReason = `lab meta unreachable (HTTP ${meta?.status ?? "request failed"})`;
     emitAssertion("precondition_meta", inconclusive(inconclusiveReason));
@@ -220,10 +246,7 @@ export async function runBolaInvoiceV1(
   emitAssertion(
     "precondition_meta",
     metaError === null
-      ? assertion(
-          true,
-          `lab meta verified: revision=${observedMeta} fixture/owners canonical`,
-        )
+      ? assertion(true, `lab meta verified: revision=${observedMeta} fixture/owners canonical`)
       : inconclusive(metaError),
   );
   if (metaError !== null) {
@@ -232,7 +255,7 @@ export async function runBolaInvoiceV1(
   }
 
   // --- ID: credential MUST resolve to Alice (user_A / tenant_A) ---
-  const whoami = await step("/api/auth/whoami");
+  const whoami = await step("/api/auth/whoami", "whoami");
   const whoamiActor = whoami !== null && whoami.status === 200 ? parseActor(whoami.body) : null;
   const whoamiTenant =
     whoami !== null && whoami.status === 200 ? parseActorTenant(whoami.body) : null;
@@ -255,7 +278,7 @@ export async function runBolaInvoiceV1(
   }
 
   // --- P1: baseline own-invoice read (prerequisite for ANY interpretation) ---
-  const own = await step("/api/invoices/invoice_A");
+  const own = await step("/api/invoices/invoice_A", "own_invoice");
   const ownInvoice = own !== null && own.status === 200 ? parseInvoice(own.body) : null;
   const baselinePass =
     ownInvoice?.ownerId === EXPECTED.ownInvoice.ownerId &&
@@ -275,7 +298,7 @@ export async function runBolaInvoiceV1(
   }
 
   // --- S1: cross-account read of Bob's known invoice ---
-  const cross = await step("/api/invoices/invoice_B");
+  const cross = await step("/api/invoices/invoice_B", "cross_invoice");
   let negative: AssertionEvidence;
   if (cross === null) {
     negative = inconclusive(`cross-account request failed: ${fatalError}`);

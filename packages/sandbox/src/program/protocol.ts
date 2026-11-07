@@ -84,6 +84,20 @@ export interface AssertionLine extends RunnerLineBase {
   detail: string;
 }
 
+/**
+ * `observation` — raw observed step response, the L15 oracle handoff.
+ * Carries the parsed lab body (synthetic fixture data — never credentials)
+ * so `adjudicateAttempt(BolaAttemptInput)` can adjudicate REAL facts rather
+ * than trusting runner-computed assertion booleans.
+ */
+export interface ObservationLine extends RunnerLineBase {
+  type: "observation";
+  step: "health" | "ready" | "meta" | "whoami" | "own_invoice" | "cross_invoice";
+  status: number;
+  body: unknown;
+  revisionEcho: string | null;
+}
+
 export interface LogLine extends RunnerLineBase {
   type: "log";
   level: "info" | "warn" | "error";
@@ -96,4 +110,4 @@ export interface ResultLine extends RunnerLineBase {
 }
 
 export type RunnerLine =
-  StartedLine | ProbeLine | ExchangeLine | AssertionLine | LogLine | ResultLine;
+  StartedLine | ProbeLine | ExchangeLine | AssertionLine | ObservationLine | LogLine | ResultLine;
