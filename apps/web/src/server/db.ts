@@ -37,7 +37,13 @@ export async function getRequestDb(): Promise<Database> {
   if (!cached || cached.url !== url) {
     await cached?.close().catch(() => undefined);
     const created = createDb({ connectionString: url });
-    await migrateNodeDb(created.db);
+    // Production migrations run in the dedicated `migrate` compose service —
+    // the bundled `migrationsFolder` path does not resolve inside a deployed
+    // image (issue #58). Dev/test keep migrate-on-first-request (works via the
+    // symlinked pnpm layout), and tests migrate explicitly via createTestDb.
+    if (process.env.NODE_ENV !== "production") {
+      await migrateNodeDb(created.db);
+    }
     cached = { db: created.db, close: created.close, url };
   }
   return cached.db;
