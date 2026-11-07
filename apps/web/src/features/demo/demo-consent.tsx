@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   Button,
   Callout,
@@ -12,53 +11,119 @@ import {
   ScopePanel,
   StatusPill,
 } from "@highcastle/ui";
-import { DEMO_SCANS_ENDPOINT, DEMO_WORKSPACE_SLUG, demoScanRequest } from "./constants";
+import {
+  DEMO_SESSION_ENDPOINT,
+  DEMO_WORKSPACE_SLUG,
+  assessmentContextEndpoint,
+  createScanEndpoint,
+  demoScanBody,
+  type AssessmentContext,
+  selectApprovedTarget,
+  type CreatedScan,
+  type DemoSession,
+} from "./constants";
 
 /**
- * Demo consent + start. Records explicit acknowledgement, then attempts
- * the genuine scan creation POST. If the workspace API isn't reachable
- * yet (L18 pending) the UI says so plainly and offers the recorded
- * preview below — no fake progress, no fabricated scan id.
+ * Complete demo handoff (L07):
+ *   sign demo session → read authorized context → typed create-scan
+ *   POST with Idempotency-Key header → navigate /app/scans/:scanId.
+ * Every failure surfaces the API's real error — never invented success.
  */
 
-type Handoff =
+type Step = "session" | "context" | "scan";
+type Phase =
   | { state: "idle" }
-  | { state: "submitting" }
-  | { state: "started"; scanId: string; eventsUrl: string }
-  | { state: "pending"; reason: string };
+  | { state: "working"; step: Step }
+  | { state: "started"; scan: CreatedScan }
+  | { state: "failed"; step: Step; code: string; message: string };
+
+interface ApiEnvelope<T> {
+  data?: T;
+  error?: { code?: string; message?: string };
+  requestId?: string;
+}
+
+async function apiJson<T>(input: string, init: RequestInit): Promise<T> {
+  const res = await fetch(input, { ...init, credentials: "same-origin" });
+  const body = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
+  if (!res.ok) {
+    const err = body?.error;
+    throw new ApiError(
+      err?.code ?? `http_${res.status}`,
+      err?.message ?? `Request failed (${res.status})`,
+      body?.requestId,
+    );
+  }
+  return (body?.data ?? body) as T;
+}
+
+class ApiError extends Error {
+  code: string;
+  requestId?: string | undefined;
+  constructor(code: string, message: string, requestId?: string) {
+    super(message);
+    this.code = code;
+    this.requestId = requestId;
+  }
+}
 
 export function DemoConsent() {
   const [acknowledged, setAcknowledged] = useState(false);
-  const [handoff, setHandoff] = useState<Handoff>({ state: "idle" });
+  const [phase, setPhase] = useState<Phase>({ state: "idle" });
 
   async function start() {
-    setHandoff({ state: "submitting" });
+    let step: Step = "session";
     try {
-      const res = await fetch(DEMO_SCANS_ENDPOINT, {
+      // 1 — server-verified signed demo session (cookie set by response)
+      setPhase({ state: "working", step: "session" });
+      const minted = await apiJson<{ session: DemoSession }>(DEMO_SESSION_ENDPOINT, {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(demoScanRequest(`demo-${crypto.randomUUID()}`)),
+        headers: { "x-highcastle-request": "1" },
       });
-      if (!res.ok) {
-        setHandoff({
-          state: "pending",
-          reason: `API answered ${res.status} — the demo workspace handoff is still integrating.`,
-        });
-        return;
+      // L05's auth endpoint returns { session: {...}, notice }, not {data: ...}.
+      const session = minted.session;
+      if (!session?.projectId) throw new ApiError("session_contract", "Demo session response missing projectId");
+
+      // 2 — server-authorized environment/target/scope for that project
+      step = "context";
+      setPhase({ state: "working", step: "context" });
+      const ctx = await apiJson<AssessmentContext>(
+        assessmentContextEndpoint(session.projectId),
+        { method: "GET" },
+      );
+
+      const approvedTarget = selectApprovedTarget(ctx);
+      if (!approvedTarget) {
+        throw new ApiError("scope_unavailable", "No authorized invoice-lab assessment scope is available");
       }
-      const body = (await res.json()) as { scanId?: string; eventsUrl?: string };
-      if (body.scanId && body.eventsUrl) {
-        setHandoff({ state: "started", scanId: body.scanId, eventsUrl: body.eventsUrl });
-        return;
-      }
-      setHandoff({ state: "pending", reason: "Unexpected response shape from the scans API." });
-    } catch {
-      setHandoff({
-        state: "pending",
-        reason: "No response — the public demo API is not deployed on this host yet.",
+
+      // 3 — exact typed scan request, Idempotency-Key in header
+      step = "scan";
+      setPhase({ state: "working", step: "scan" });
+      const created = await apiJson<CreatedScan>(
+        createScanEndpoint(session.projectId),
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-highcastle-request": "1",
+            "Idempotency-Key": crypto.randomUUID(),
+          },
+          body: JSON.stringify(demoScanBody(approvedTarget)),
+        },
+      );
+      setPhase({ state: "started", scan: created });
+    } catch (e) {
+      setPhase({
+        state: "failed",
+        step,
+        code: e instanceof ApiError ? e.code : "network",
+        message: e instanceof Error ? e.message : "Request failed",
       });
     }
   }
+
+  const working = phase.state === "working";
 
   return (
     <Panel>
@@ -86,26 +151,27 @@ export function DemoConsent() {
 
         <Checkbox
           checked={acknowledged}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAcknowledged(e.target.checked)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setAcknowledged(e.target.checked)
+          }
           label="I understand this runs an authorized, bounded test on HighCastle's own lab."
         />
 
-        {handoff.state === "started" ? (
+        {phase.state === "started" ? (
           <div className="hc-callout hc-callout--success">
             <Icon name="check-circle" size={16} />
             <div>
-              <p className="hc-callout-title">Scan accepted — handoff to the live workspace</p>
+              <p className="hc-callout-title">Scan accepted</p>
               <p className="hc-callout-body">
-                scan <span className="hc-mono">{handoff.scanId}</span> — live events at{" "}
-                <span className="hc-mono">{handoff.eventsUrl}</span>
+                scan <span className="hc-mono">{phase.scan.scanId}</span>
               </p>
               <div className="mt-3">
-                <Link
-                  href={`/app/scans/${handoff.scanId}`}
+                <a
+                  href={`/app/scans/${phase.scan.scanId}`}
                   className="hc-btn hc-btn--primary hc-btn--sm"
                 >
                   Open live investigation
-                </Link>
+                </a>
               </div>
             </div>
           </div>
@@ -114,22 +180,26 @@ export function DemoConsent() {
             <Button
               onClick={start}
               disabled={!acknowledged}
-              loading={handoff.state === "submitting"}
+              loading={working}
               icon="beacon"
             >
-              Start controlled demo scan
+              {working
+                ? phase.step === "session"
+                  ? "Signing demo session"
+                  : phase.step === "context"
+                    ? "Reading authorized scope"
+                    : "Submitting scan request"
+                : "Start controlled demo scan"}
             </Button>
-            {handoff.state === "pending" ? (
-              <StatusPill tone="amber" icon="clock" label="Handoff pending" />
+            {phase.state === "failed" ? (
+              <StatusPill tone="coral" icon="x-circle" label={`${phase.step} failed`} />
             ) : null}
           </div>
         )}
 
-        {handoff.state === "pending" ? (
-          <Callout tone="warning" title="Workspace handoff still integrating">
-            {handoff.reason} The consent flow above issues the real create-scan request — when the
-            app shell/API lanes land, this button opens the live investigation directly. Until then,
-            the recorded preview below shows exactly what it produces.
+        {phase.state === "failed" ? (
+          <Callout tone="danger" title={`${phase.code}`}>
+            {phase.message}
           </Callout>
         ) : null}
       </PanelBody>
