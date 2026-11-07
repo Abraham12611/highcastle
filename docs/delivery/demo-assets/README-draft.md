@@ -58,6 +58,27 @@ verdict. Every number shown comes from stored observations.
 See `docs/delivery/demo-assets/architecture.md` for the diagram and
 enforcement rules.
 
+## What is implemented (in this repo, unit-tested)
+
+- **Web UI** (`apps/web`): landing, controlled demo entry, workspace
+  dashboard, scan wizard + live SSE timeline, findings with fix guidance,
+  replay views; API routes under `/api/v1` (scans, attempts, findings,
+  replays, projects) with workspace guards.
+- **Worker** (`apps/worker`): pg-boss orchestration, durable scan-event
+  store with SSE resume, policy-gated execution flow.
+- **Inference** (`packages/inference`): Vultr Serverless Inference
+  adapter — the only agent-LLM path. Verified live (see below).
+- **Policy + redaction** (`packages/security`), **sandbox controller**
+  (`packages/sandbox`), **BOLA pack + oracle** (`packages/test-packs`),
+  **synthetic lab** (`apps/target-lab`, vulnerable + patched revisions),
+  **PostgreSQL + Drizzle** (`packages/db`), **design tokens + pixel
+  mark** (`packages/ui`).
+- Root gates green: `pnpm build`, `lint`, `typecheck`, `test`. Root
+  `test:e2e`, `test:security`, and `db:migrate` remain explicit
+  placeholders until their lane owners land the real commands
+  (see `docs/delivery/demo-assets/release-commands.md`) — they fail
+  closed rather than pretend to pass.
+
 ## Run the controlled demo (synthetic lab only)
 
 Never point HighCastle at third-party hosts. The demo uses the owned
@@ -66,8 +87,15 @@ invoice lab with synthetic Alice/Bob fixtures.
 ```bash
 corepack enable
 pnpm install
-pnpm db:migrate
-pnpm dev
+pnpm build
+pnpm dev                 # web :3000, worker :3010/healthz
+```
+
+Database migration uses the owning package until the root command is
+wired (coordinator + L02 approval pending):
+
+```bash
+DATABASE_URL="<server-only url>" pnpm --filter @highcastle/db db:migrate
 ```
 
 Server-only environment (names only — never commit values):
@@ -93,15 +121,26 @@ pnpm --filter @highcastle/inference smoke
 Deployment: `infra/docker/deploy/` (Compose + Caddy) and
 `infra/vultr/ENVIRONMENT.md`. Public URL: **PENDING** (gate #33).
 
-## What the demo proves (all observed, linked in docs)
+## What is proven live vs still pending
 
-- Real Vultr inference hypothesis with provider/model/request ID/latency.
+**Proven live (2026-11-07, recorded in
+`docs/delivery/demo-assets/evidence-checklist.md`):**
+
+- Real Vultr Serverless Inference hypothesis: `glm-5.3-flash`,
+  `ModelProposalSchema`-valid, pack `bola-invoice-v1`, with
+  provider/model/request ID/latency/tokens on file and no model
+  substitution. Timeout safe-failure also proven live.
+
+**Pending the deployed end-to-end run (gate #33 / issue #45) — not
+claimed until observed:**
+
 - Cross-account invoice read reproduced on the vulnerable revision,
   baseline passing, oracle-confirmed.
 - Runtime containment denial with policy event and verified cleanup.
 - Patched replay: attack denied, legitimate access works,
   `verified_fixed`.
 - Full evidence chain: scan → attempt → finding → replay IDs.
+- Public URL, demo video, and lablab.ai submission.
 
 ## Limitations (explicit)
 

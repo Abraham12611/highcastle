@@ -20,6 +20,17 @@ on screen.
 | 7 | 2:35–3:00 | Replay vs patched revision: Alice→Bob denied, Alice→own OK; verdict `verified_fixed` side by side | “Same test, patched app: attack blocked, legitimate access works.” | Replay ID, before/after evidence, verdict |
 | 8 | 3:00–3:10 | Architecture diagram + Vultr services + repo link | “Vultr VM, Vultr inference, isolated execution — prove the risk, prove the fix.” | `architecture.md` diagram, public links |
 
+## Evidence tie-in (fill from `evidence-checklist.md` on shoot day)
+
+| Shot | Evidence field to show on screen |
+|---|---|
+| 3 | provider, `responseModel` == requested model, request ID, latency, tokens |
+| 4 | scan ID, attempt IDs, sanitized request/response, oracle assertions |
+| 5 | containment event ID, deny rule, runner ID + cleanup proof |
+| 6 | finding ID linked to attempt + redacted evidence |
+| 7 | replay ID, `verified_fixed`, side-by-side evidence digests |
+| 8 | deployed `develop` SHA, public URL |
+
 ## Recording checklist
 
 - Signed-out browser; 1080p; system audio + voiceover each verified.

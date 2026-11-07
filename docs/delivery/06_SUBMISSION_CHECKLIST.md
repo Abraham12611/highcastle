@@ -53,3 +53,40 @@ explicit approval.
 - [ ] Repo URL resolves publicly with README rendering (diagram included).
 - [ ] Video plays without permission prompts.
 - [ ] lablab.ai entry lists all three links correctly.
+
+## 5. Submission content pack
+
+- [ ] Project description: problem (AI-speed shipping outpaces
+      verification), ICP (builders/developers), Proof-Engine loop,
+      safety scope — final wording with coordinator, no unimplemented
+      features claimed.
+- [ ] Screenshots: existing L07 captures in `demo-assets/l07/` reviewed
+      for secrets/PII; retake on the deployed SHA if UI drifted.
+- [ ] Cover art: original HighCastle art only (pixel-fortress mark,
+      Nocturne Signal tokens); no copied or AGPL sources.
+- [ ] Links: public demo URL, public repo URL, video URL, architecture
+      doc path — all verified live before submitting.
+- [ ] Licensing: MIT-compatible code + original assets; `LICENSE` and
+      `SECURITY.md` current.
+- [ ] Tags: AI security, Vultr, proof-based testing (final list with
+      coordinator).
+
+## 6. Closing time (owner-verified only)
+
+- Supplied brief and gate #33 state **2026-11-09 00:00 WAT** — this is
+  the working target, NOT a confirmed dashboard timestamp.
+- [ ] Owner confirms the exact closing timestamp from the lablab.ai
+      participant dashboard and records it below. Do not assume the
+      public event date is the exact cutoff.
+
+### Owner handoff (fill in, then check the box above)
+
+- Dashboard path checked: lablab.ai → event “Vultr Agent Rush” →
+  participant dashboard → submission deadline field.
+- **Owner-verified closing timestamp (WAT): _PENDING — awaiting owner
+  dashboard read._**
+- Access blocker (2026-11-07): this lane has no lablab.ai participant
+  access, so the dashboard value cannot be obtained from here. The
+  only inputs available are the supplied brief and gate #33, both
+  stating 2026-11-09 00:00 WAT unconfirmed. Owner: paste the exact
+  dashboard timestamp (with timezone) into the line above.
