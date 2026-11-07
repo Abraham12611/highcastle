@@ -25,7 +25,7 @@ name: highcastle-lab
 services:
   target-lab:
     build:
-      context: ../..
+      context: ../../..
       dockerfile: apps/target-lab/Dockerfile
       args:
         LAB_REVISION: ${LAB_REVISION:-lab-v1-vulnerable}

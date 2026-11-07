@@ -109,7 +109,7 @@ services:
   # pulling a release that adds migrations.
   migrate:
     build:
-      context: ../..
+      context: ../../..
       dockerfile: infra/docker/deploy/db-migrate.Dockerfile
     image: highcastle/db-migrate:${HIGHCASTLE_RELEASE:-dev}
     env_file:
@@ -137,7 +137,7 @@ services:
   web:
     <<: *hardening
     build:
-      context: ../..
+      context: ../../..
       dockerfile: infra/docker/deploy/web.Dockerfile
     image: highcastle/web:${HIGHCASTLE_RELEASE:-dev}
     env_file:
@@ -177,7 +177,7 @@ services:
   worker:
     <<: *hardening
     build:
-      context: ../..
+      context: ../../..
       dockerfile: infra/docker/deploy/worker.Dockerfile
     image: highcastle/worker:${HIGHCASTLE_RELEASE:-dev}
     env_file:
