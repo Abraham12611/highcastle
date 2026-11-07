@@ -10,12 +10,17 @@ import {
   LoadingState,
   VerdictBadge,
 } from "@highcastle/ui";
-import type { Replay } from "@highcastle/contracts";
-import { getReplay, requestReplay, type ReplayRequestResult } from "../api-client";
-import type { AttemptRecord, FindingDetail, ReplayRecord } from "../types";
+import { getE2ReplayView, requestE2Replay } from "../e2-client";
+import type {
+  AttemptRecord,
+  ReplayDefaults,
+  ReplayRecord,
+  StoredAttempt,
+} from "../types";
 import {
   buildComparison,
   buildLiveComparison,
+  buildStoredComparison,
   canDisplayVerifiedFixed,
   replayForDisplay,
   verdictExplainer,
@@ -37,21 +42,32 @@ type Phase =
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 30;
 
-function toReplayRecord(row: Replay): ReplayRecord {
+function toReplayRecord(
+  view: {
+    id: string;
+    verdict: ReplayRecord["verdict"];
+    patchedRevision: string;
+    packVersion: string;
+    positiveAssertionPassed: boolean | null;
+    negativeAssertionPassed: boolean | null;
+    originalAttemptId: string | null;
+  },
+  completedAt: string | null,
+): ReplayRecord {
   return {
-    replayId: row.id,
-    originalAttemptId: row.originalAttemptId,
+    replayId: view.id,
+    originalAttemptId: view.originalAttemptId,
     replayAttemptId: null,
-    packVersion: row.packVersion,
-    originalRevision: row.patchedRevision,
-    patchedRevision: row.patchedRevision,
+    packVersion: view.packVersion,
+    originalRevision: "unknown",
+    patchedRevision: view.patchedRevision,
     originalVerdict: "inconclusive",
     replayAttemptVerdict: "inconclusive",
-    verdict: row.verdict ?? "inconclusive",
-    completedAt: row.completedAt,
+    verdict: view.verdict,
+    completedAt,
     assertions: {
-      positivePassed: row.positiveAssertionPassed,
-      negativeDenied: row.negativeAssertionPassed,
+      positivePassed: view.positiveAssertionPassed,
+      negativeDenied: view.negativeAssertionPassed,
     },
   };
 }
@@ -59,26 +75,30 @@ function toReplayRecord(row: Replay): ReplayRecord {
 /**
  * Verify-fix flow (M42 confirm → real replay API → poll → verdict).
  *
- * The verdict displayed here always comes from the server replay row.
- * `originalVerdict`/`replayAttemptVerdict` are unknown for a live row
- * (the row carries assertion booleans, not full attempts), so they render
- * as inconclusive placeholders — they never feed
- * `canDisplayVerifiedFixed`, which sees only `replay.verdict`.
+ * The verdict displayed here always comes from the server replay view.
+ * The before side prefers recorded full legs (demo), else the stored
+ * attempt's server-stated controls; the after side always renders server
+ * assertions. `canDisplayVerifiedFixed` sees only the server verdict.
  */
 export function ReplayPanel({
   findingId,
   attempt,
+  stored,
   patchedAttempt,
   initialReplay,
   replayDefaults,
   demoNote,
 }: {
   findingId: string;
-  attempt: AttemptRecord;
+  /** Full recorded legs — present for the demo record only. */
+  attempt: AttemptRecord | null;
+  /** Stored server attempt — the live before side. */
+  stored: StoredAttempt | null;
   /** Full recorded patched attempt — present for the demo record only. */
   patchedAttempt: AttemptRecord | null;
   initialReplay: ReplayRecord | null;
-  replayDefaults: FindingDetail["replayDefaults"];
+  /** Null until the scope endpoint resolves a real environment + scope. */
+  replayDefaults: ReplayDefaults | null;
   demoNote: string | null;
 }) {
   const [phase, setPhase] = useState<Phase>(
@@ -92,39 +112,60 @@ export function ReplayPanel({
     [],
   );
 
-  const pollReplay = useCallback(async (replayId: string) => {
-    for (let poll = 0; poll < MAX_POLLS; poll += 1) {
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-      if (!alive.current) return;
-      const state = await getReplay(window.location.origin, replayId);
-      if (state.status !== "ok") continue;
-      if (state.data.verdict !== null) {
-        if (alive.current) setPhase({ name: "done", replay: toReplayRecord(state.data) });
-        return;
+  const knownOriginalAttemptId = attempt?.attemptId ?? stored?.attemptId ?? null;
+
+  const pollReplay = useCallback(
+    async (replayId: string, originalAttemptId: string | null) => {
+      for (let poll = 0; poll < MAX_POLLS; poll += 1) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        if (!alive.current) return;
+        const state = await getE2ReplayView(window.location.origin, replayId);
+        if (state.status !== "ok") continue;
+        const view = state.data;
+        if (view.verdict !== null) {
+          if (alive.current) {
+            setPhase({
+              name: "done",
+              replay: toReplayRecord(
+                {
+                  id: view.id,
+                  verdict: view.verdict,
+                  patchedRevision: view.patchedRevision,
+                  packVersion: view.packVersion,
+                  positiveAssertionPassed: view.positiveAssertionPassed,
+                  negativeAssertionPassed: view.negativeAssertionPassed,
+                  originalAttemptId: view.originalAttempt?.id ?? originalAttemptId,
+                },
+                view.replayAttempts.length > 0 ? new Date().toISOString() : null,
+              ),
+            });
+          }
+          return;
+        }
       }
-    }
-    if (alive.current) {
-      setPhase({
-        name: "failed",
-        title: "Verification timed out",
-        message:
-          "The replay did not finish in time. Its server record is preserved; try again later.",
-      });
-    }
-  }, []);
+      if (alive.current) {
+        setPhase({
+          name: "failed",
+          title: "Verification timed out",
+          message: "The replay did not finish in time. Its server record is preserved; try again later.",
+        });
+      }
+    },
+    [],
+  );
 
   const startReplay = useCallback(async () => {
     setPhase({ name: "confirming" });
   }, []);
 
   const confirmReplay = useCallback(async () => {
-    const baseUrl = window.location.origin;
+    if (replayDefaults === null || knownOriginalAttemptId === null) return;
     setPhase({ name: "running", replayId: "" });
-    const result: ReplayRequestResult = await requestReplay(
-      baseUrl,
+    const result = await requestE2Replay(
+      window.location.origin,
       findingId,
       {
-        originalAttemptId: attempt.attemptId,
+        originalAttemptId: knownOriginalAttemptId,
         patchedEnvironmentId: replayDefaults.patchedEnvironmentId,
         patchedRevision: replayDefaults.patchedRevision,
         authorizationScopeId: replayDefaults.authorizationScopeId,
@@ -134,7 +175,7 @@ export function ReplayPanel({
     if (!alive.current) return;
     if (result.status === "accepted") {
       setPhase({ name: "running", replayId: result.replayId });
-      await pollReplay(result.replayId);
+      await pollReplay(result.replayId, knownOriginalAttemptId);
       return;
     }
     if (result.status === "not-found") {
@@ -142,7 +183,7 @@ export function ReplayPanel({
         name: "failed",
         title: "Replay API not available",
         message:
-          "The replay endpoint is not served yet (L18). No verification was started and no badge was changed.",
+          "The replay endpoint is not served yet. No verification was started and no badge was changed.",
       });
       return;
     }
@@ -150,8 +191,7 @@ export function ReplayPanel({
       setPhase({
         name: "failed",
         title: "Not permitted to run verification",
-        message:
-          "Your session may not start replays in this workspace. Sign in with an authorized account.",
+        message: "Your session may not start replays in this workspace. Sign in with an authorized account.",
       });
       return;
     }
@@ -160,41 +200,74 @@ export function ReplayPanel({
       title: "Could not reach the replay service",
       message: result.detail,
     });
-  }, [attempt.attemptId, findingId, pollReplay, replayDefaults]);
+  }, [findingId, knownOriginalAttemptId, pollReplay, replayDefaults]);
 
   const display = replayForDisplay(
     phase.name === "done" ? phase.replay : phase.name === "running" ? null : initialReplay,
   );
 
+  const beforeLabel =
+    attempt !== null
+      ? `Before · ${attempt.targetRevision} (vulnerable)`
+      : stored !== null
+        ? `Before · ${stored.targetRevision} (stored)`
+        : "Before";
+
   const comparison =
     phase.name === "done" &&
+    attempt !== null &&
     patchedAttempt !== null &&
     phase.replay.replayId === initialReplay?.replayId
       ? buildComparison(attempt, patchedAttempt)
-      : phase.name === "done" && phase.replay.assertions !== null
+      : phase.name === "done" && phase.replay.assertions !== null && attempt !== null
         ? buildLiveComparison(attempt, {
             label: `After · ${phase.replay.patchedRevision} (patched)`,
             environment: "server replay assertions",
-            summary: `Replay ${phase.replay.replayId} · original attempt ${phase.replay.originalAttemptId}.`,
+            summary: `Replay ${phase.replay.replayId} · original attempt ${phase.replay.originalAttemptId ?? "unknown"}.`,
             positivePassed: phase.replay.assertions.positivePassed,
             negativeDenied: phase.replay.assertions.negativeDenied,
           })
-        : initialReplay !== null && patchedAttempt !== null
-          ? buildComparison(attempt, patchedAttempt)
-          : null;
+        : phase.name === "done" && phase.replay.assertions !== null && stored !== null
+          ? buildStoredComparison(
+              {
+                label: beforeLabel,
+                environment: `pack ${stored.packId} v${stored.packVersion}`,
+                summary: `Stored attempt ${stored.attemptId}.`,
+                positive: stored.positiveControlPassed,
+                negativeDenied: stored.negativeSecurityConditionMet,
+              },
+              {
+                label: `After · ${phase.replay.patchedRevision} (patched)`,
+                environment: "server replay assertions",
+                summary: `Replay ${phase.replay.replayId} · original attempt ${phase.replay.originalAttemptId ?? "unknown"}.`,
+                positive: phase.replay.assertions.positivePassed,
+                negativeDenied: phase.replay.assertions.negativeDenied,
+              },
+            )
+          : initialReplay !== null && attempt !== null && patchedAttempt !== null
+            ? buildComparison(attempt, patchedAttempt)
+            : null;
 
   const replayForBanner = phase.name === "done" ? phase.replay : (initialReplay ?? null);
+  const canVerify = replayDefaults !== null && knownOriginalAttemptId !== null;
 
   return (
-    <section aria-label="Patch replay" className="hc-replay">
+    <section aria-label="Patch replay">
       <div className={styles.replayHead}>
         <p>{display.headline}</p>
-        {phase.name === "idle" || phase.name === "failed" ? (
+        {canVerify && (phase.name === "idle" || phase.name === "failed") ? (
           <Button variant="primary" onClick={() => void startReplay()}>
             Verify against updated test app
           </Button>
         ) : null}
       </div>
+
+      {!canVerify && replayForBanner === null ? (
+        <p role="note">
+          Verification needs a resolved patched environment and authorization scope. The scope
+          endpoint has not served them yet, so the button stays hidden rather than guessing.
+        </p>
+      ) : null}
 
       {demoNote !== null ? (
         <p className={styles.demoNote} role="note">
@@ -203,7 +276,7 @@ export function ReplayPanel({
         </p>
       ) : null}
 
-      {phase.name === "confirming" ? (
+      {phase.name === "confirming" && replayDefaults !== null ? (
         <ConfirmModal
           open
           onClose={() =>
@@ -211,7 +284,7 @@ export function ReplayPanel({
           }
           onConfirm={() => void confirmReplay()}
           title="Verify fix against the updated test app?"
-          description={`Runs pack ${attempt.packId} v${attempt.packVersion} on ${replayDefaults.patchedRevision}. The original attempt is preserved; the new run gets its own attempt and scan IDs.`}
+          description={`Runs the pack on ${replayDefaults.patchedRevision} in ${replayDefaults.environmentLabel ?? "the permitted environment"}. The original attempt is preserved; the new run gets its own attempt and scan IDs.`}
           confirmLabel="Run verification"
         />
       ) : null}
@@ -243,7 +316,7 @@ export function ReplayPanel({
             comparison={comparison}
             verdict={replayForBanner.verdict}
             provenance={[
-              `Original attempt ${replayForBanner.originalAttemptId} · ${attempt.targetRevision}.`,
+              `Original attempt ${replayForBanner.originalAttemptId ?? "unknown"} · ${attempt?.targetRevision ?? stored?.targetRevision ?? "unknown"}.`,
               `Replay ${replayForBanner.replayId} · ${replayForBanner.patchedRevision}.`,
               canDisplayVerifiedFixed(replayForBanner.verdict)
                 ? "Verified fixed: server-stated cross-account denial plus working legitimate read."

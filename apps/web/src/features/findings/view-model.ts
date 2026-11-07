@@ -65,11 +65,19 @@ export interface FixInstructionText {
   body: string;
 }
 
+export interface FixAttemptRef {
+  attemptId: string;
+  packId: string;
+  packVersion: string;
+  targetRevision: string;
+  fixtureVersion: string | null;
+}
+
 /** Copyable fix instructions assembled deterministically from evidence. */
 export function buildFixInstructions(input: {
   title: string;
   fingerprint: string;
-  attempt: AttemptRecord;
+  attempt: FixAttemptRef;
   guidance: FixGuidance;
 }): FixInstructionText {
   const lines = [
@@ -84,7 +92,9 @@ export function buildFixInstructions(input: {
     `Retest: ${input.guidance.testGuidance}`,
     "",
     `Evidence: attempt ${input.attempt.attemptId}, pack ${input.attempt.packId} v${input.attempt.packVersion},`,
-    `target ${input.attempt.targetRevision}, fixture ${input.attempt.fixtureVersion}.`,
+    input.attempt.fixtureVersion === null
+      ? `target ${input.attempt.targetRevision}.`
+      : `target ${input.attempt.targetRevision}, fixture ${input.attempt.fixtureVersion}.`,
   ];
   return { title: "Copy fix instructions", body: lines.join("\n") };
 }
@@ -156,6 +166,94 @@ export interface LiveAfterInput {
   positivePassed: boolean | null;
   /** Cross-account read denied (server-stated). */
   negativeDenied: boolean | null;
+}
+
+export interface StoredSideInput {
+  label: string;
+  environment: string;
+  summary: string;
+  /** Legitimate own-invoice read still works (server-stated). */
+  positive: boolean | null;
+  /** Cross-account read denied (server-stated). */
+  negativeDenied: boolean | null;
+}
+
+function controlRows(
+  ownKey: string,
+  crossKey: string,
+  positive: boolean | null,
+  negativeDenied: boolean | null,
+): [ComparisonRow, ComparisonRow] {
+  const ownRow: ComparisonRow =
+    positive === true ?
+      {
+        key: ownKey,
+        label: "Alice → own invoice",
+        result: "allowed",
+        observed: "Legitimate read passed (server assertion).",
+      }
+    : positive === false ?
+      {
+        key: ownKey,
+        label: "Alice → own invoice",
+        result: "fail",
+        observed: "Legitimate read failed (server assertion).",
+      }
+    : {
+        key: ownKey,
+        label: "Alice → own invoice",
+        result: "unknown",
+        observed: "Legitimate read outcome unavailable.",
+      };
+  const crossRow: ComparisonRow =
+    negativeDenied === true ?
+      {
+        key: crossKey,
+        label: "Alice → Bob invoice",
+        result: "denied",
+        observed: "Cross-account read denied (server assertion).",
+      }
+    : negativeDenied === false ?
+      {
+        key: crossKey,
+        label: "Alice → Bob invoice",
+        result: "fail",
+        observed: "Cross-account read returned data (server assertion).",
+      }
+    : {
+        key: crossKey,
+        label: "Alice → Bob invoice",
+        result: "unknown",
+        observed: "Cross-account outcome unavailable.",
+      };
+  return [ownRow, crossRow];
+}
+
+/**
+ * Comparison between two STORED sides (no recorded bodies on either
+ * side). Every cell renders a server-stated control outcome — unknown
+ * booleans render as unknown, never as passing.
+ */
+export function buildStoredComparison(
+  before: StoredSideInput,
+  after: StoredSideInput,
+): BeforeAfterComparison {
+  const [beforeOwn, beforeCross] = controlRows("before-P1", "before-S1", before.positive, before.negativeDenied);
+  const [afterOwn, afterCross] = controlRows("after-P1", "after-S1", after.positive, after.negativeDenied);
+  return {
+    before: {
+      label: before.label,
+      environment: before.environment,
+      rows: [beforeOwn, beforeCross],
+      summary: before.summary,
+    },
+    after: {
+      label: after.label,
+      environment: after.environment,
+      rows: [afterOwn, afterCross],
+      summary: after.summary,
+    },
+  };
 }
 
 /**

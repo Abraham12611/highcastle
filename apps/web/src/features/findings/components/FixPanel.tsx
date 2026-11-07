@@ -7,7 +7,7 @@ import {
   PanelBody,
   PanelHeader,
 } from "@highcastle/ui";
-import type { AttemptRecord, ExperienceMode, FixGuidance } from "../types";
+import type { AttemptRecord, ExperienceMode, FixGuidance, StoredAttempt } from "../types";
 import styles from "./findings.module.css";
 import { buildFixInstructions, invariantCopy } from "../view-model";
 
@@ -21,17 +21,37 @@ export function FixPanel({
   title,
   fingerprint,
   attempt,
+  stored,
   guidance,
   mode,
 }: {
   title: string;
   fingerprint: string;
   attempt: AttemptRecord | null;
+  stored: StoredAttempt | null;
   guidance: FixGuidance | null;
   mode: ExperienceMode;
 }) {
   const invariant = invariantCopy(mode);
-  if (attempt === null || guidance === null) {
+  const evidenceRef =
+    attempt !== null
+      ? {
+          attemptId: attempt.attemptId,
+          packId: attempt.packId,
+          packVersion: attempt.packVersion,
+          targetRevision: attempt.targetRevision,
+          fixtureVersion: attempt.fixtureVersion,
+        }
+      : stored !== null
+        ? {
+            attemptId: stored.attemptId,
+            packId: stored.packId,
+            packVersion: stored.packVersion,
+            targetRevision: stored.targetRevision,
+            fixtureVersion: null,
+          }
+        : null;
+  if (evidenceRef === null || guidance === null) {
     return (
       <InconclusiveState title="Fix guidance unavailable">
         The findings API has not served redacted fix guidance for this finding yet. No instructions
@@ -39,7 +59,7 @@ export function FixPanel({
       </InconclusiveState>
     );
   }
-  const instructions = buildFixInstructions({ title, fingerprint, attempt, guidance });
+  const instructions = buildFixInstructions({ title, fingerprint, attempt: evidenceRef, guidance });
   return (
     <section aria-label="Fix guidance" className="hc-fix">
       <Callout tone="info" title={invariant.title}>

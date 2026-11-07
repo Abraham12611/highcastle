@@ -125,6 +125,7 @@ describe("fix instructions", () => {
         stableFingerprint: "bola:invoice_lookup:owner_check",
       },
       attempt: attempt("lab-v1-vulnerable", 200),
+      storedAttempts: [],
       fixGuidance: {
         rootCause: "Missing ownership check.",
         smallestFix: "Scope the lookup.",
@@ -138,6 +139,7 @@ describe("fix instructions", () => {
         patchedEnvironmentId: "env",
         patchedRevision: "lab-v2-patched",
         authorizationScopeId: "scope",
+        environmentLabel: null,
       },
       source: { kind: "demo", note: "demo" },
     };

@@ -223,6 +223,7 @@ export function demoFindingDetail(): FindingDetail {
       stableFingerprint: "bola:invoice_lookup:owner_check",
     },
     attempt: VULNERABLE_ATTEMPT,
+    storedAttempts: [],
     patchedAttempt: PATCHED_ATTEMPT,
     fixGuidance: {
       rootCause:
@@ -255,6 +256,7 @@ export function demoFindingDetail(): FindingDetail {
       patchedEnvironmentId: "demo-patched-env",
       patchedRevision: "lab-v2-patched",
       authorizationScopeId: "demo-scope",
+      environmentLabel: "demo patched environment",
     },
     source: DEMO_SOURCE,
   };

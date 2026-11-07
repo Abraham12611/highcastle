@@ -35,7 +35,7 @@ interface DataSchema<T> {
 }
 
 /** Contract envelopes are `{ data }`; validate the inner value only. */
-function envelopeData(json: unknown): { present: true; data: unknown } | { present: false } {
+export function envelopeData(json: unknown): { present: true; data: unknown } | { present: false } {
   if (typeof json !== "object" || json === null) return { present: false };
   const data = (json as { data?: unknown }).data;
   return data === undefined ? { present: false } : { present: true, data };
@@ -48,7 +48,7 @@ function parseEnvelope<T>(json: unknown, schema: DataSchema<T>): T | null {
   return parsed.success ? parsed.data : null;
 }
 
-async function readJson(response: Response): Promise<unknown> {
+export async function readJson(response: Response): Promise<unknown> {
   try {
     return (await response.json()) as unknown;
   } catch {
@@ -62,7 +62,7 @@ async function readJson(response: Response): Promise<unknown> {
  * error envelope — a bare 404/500 page means the endpoint itself is not
  * implemented yet, which is `unavailable`, never a resource verdict.
  */
-async function httpStatus(
+export async function httpStatus(
   response: Response,
 ): Promise<
   | { status: "unauthorized" }

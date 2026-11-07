@@ -62,7 +62,8 @@ export interface AttemptRecord {
 
 export interface ReplayRecord {
   replayId: string;
-  originalAttemptId: string;
+  /** Null when the server view does not carry it (replay created for a deleted attempt). */
+  originalAttemptId: string | null;
   /** Null for live rows: the contract replay row carries scan IDs, not the replay attempt ID. */
   replayAttemptId: string | null;
   packVersion: string;
@@ -94,24 +95,56 @@ export interface FixGuidance {
   provenance: "api" | "local";
 }
 
+export interface StoredEvidenceArtifact {
+  id: string;
+  artifactKind: string;
+  sha256: string;
+  byteSize: number;
+  contentType: string;
+}
+
+/**
+ * Stored execution record served by the BFF (occurrences + attempt
+ * detail). Carries control outcomes, oracle verdict and evidence
+ * metadata — never invented bodies. Rendered as-is; comparison rows
+ * derive from its booleans via `buildStoredComparison`.
+ */
+export interface StoredAttempt {
+  attemptId: string;
+  scanId: string;
+  packId: string;
+  packVersion: string;
+  targetRevision: string;
+  verifierVerdict: OracleVerdict | null;
+  positiveControlPassed: boolean | null;
+  negativeSecurityConditionMet: boolean | null;
+  observedAt: string | null;
+  evidence: StoredEvidenceArtifact[];
+}
+
+export interface ReplayDefaults {
+  patchedEnvironmentId: string;
+  patchedRevision: string;
+  authorizationScopeId: string;
+  environmentLabel: string | null;
+}
+
 export interface FindingDetail {
   finding: FindingSummary & { summary: string; stableFingerprint: string };
   /**
-   * Full recorded attempt. Null when the API does not (yet) serve
-   * redacted legs — proof/replay/fix tabs render missing-evidence states
-   * instead of inventing content.
+   * Full recorded attempt with redacted legs. Present for the demo
+   * record only — the live API serves rows, not bodies.
    */
   attempt: AttemptRecord | null;
+  /** Stored attempts from the occurrences chain (actual server evidence). */
+  storedAttempts: StoredAttempt[];
   fixGuidance: FixGuidance | null;
   /** Latest replay known for this finding, if any. */
   replay: ReplayRecord | null;
   /** Full recorded patched attempt — present for the demo record only. */
   patchedAttempt: AttemptRecord | null;
-  replayDefaults: {
-    patchedEnvironmentId: string;
-    patchedRevision: string;
-    authorizationScopeId: string;
-  };
+  /** Null until the scope endpoint resolves a real environment + scope. */
+  replayDefaults: ReplayDefaults | null;
   source: DataSource;
 }
 

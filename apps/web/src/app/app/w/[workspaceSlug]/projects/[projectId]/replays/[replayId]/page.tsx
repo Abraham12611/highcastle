@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmptyState, VerdictBadge } from "@highcastle/ui";
+import { EmptyState, LoadingState, VerdictBadge } from "@highcastle/ui";
 import { loadReplayView } from "@/features/replays/loader";
 import { ReplayComparison } from "@/features/replays/components/ReplayComparison";
 import { verdictExplainer } from "@/features/findings/view-model";
@@ -30,7 +30,20 @@ export default async function ReplayDetailPage({
   return (
     <div className={styles.page}>
       <h2>Patch replay</h2>
-      {state.data.comparison !== null ? (
+      {state.data.pending ? (
+        <>
+          <LoadingState label="Replay running" />
+          <ul>
+            {state.data.provenance.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p>
+            The server has not persisted a verdict yet — no badge is shown
+            until it does.
+          </p>
+        </>
+      ) : state.data.comparison !== null ? (
         <ReplayComparison
           comparison={state.data.comparison}
           verdict={state.data.verdict}

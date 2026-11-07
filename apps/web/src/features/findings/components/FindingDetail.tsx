@@ -83,9 +83,11 @@ export function FindingDetail({
                   <p>{invariant.body}</p>
                 </Callout>
                 <p>
-                  {detail.attempt === null
-                    ? "Execution evidence is still loading from the API."
-                    : attemptVerdictExplainer(detail.attempt.verdict, mode)}
+                  {detail.attempt !== null
+                    ? attemptVerdictExplainer(detail.attempt.verdict, mode)
+                    : detail.storedAttempts[0] !== undefined
+                      ? `Stored oracle verdict: ${detail.storedAttempts[0].verifierVerdict ?? "pending"}. Recorded control outcomes and evidence digests appear under Proof; response bodies are not served by the API.`
+                      : "Execution evidence is still loading from the API."}
                 </p>
               </section>
             ),
@@ -104,18 +106,19 @@ export function FindingDetail({
             key: "proof",
             label: "Proof",
             panel:
-              detail.attempt === null ? (
+              detail.attempt === null && detail.storedAttempts.length === 0 ? (
                 <MissingEvidence what="Execution proof" />
               ) : (
                 <ProofPanel
-                  baseline={detail.attempt.baseline}
-                  crossAccount={detail.attempt.crossAccount}
-                  packId={detail.attempt.packId}
-                  packVersion={detail.attempt.packVersion}
-                  oracleVersion={detail.attempt.oracleVersion}
-                  targetRevision={detail.attempt.targetRevision}
-                  fixtureVersion={detail.attempt.fixtureVersion}
-                  verdictReasons={detail.attempt.verdictReasons}
+                  baseline={detail.attempt?.baseline ?? null}
+                  crossAccount={detail.attempt?.crossAccount ?? null}
+                  packId={detail.attempt?.packId ?? detail.storedAttempts[0]?.packId ?? "bola-invoice-v1"}
+                  packVersion={detail.attempt?.packVersion ?? detail.storedAttempts[0]?.packVersion ?? "1.0.0"}
+                  oracleVersion={detail.attempt?.oracleVersion ?? "bola-oracle-v1"}
+                  targetRevision={detail.attempt?.targetRevision ?? detail.storedAttempts[0]?.targetRevision ?? "unknown"}
+                  fixtureVersion={detail.attempt?.fixtureVersion ?? "unknown"}
+                  verdictReasons={detail.attempt?.verdictReasons ?? []}
+                  stored={detail.storedAttempts}
                 />
               ),
           },
@@ -123,12 +126,13 @@ export function FindingDetail({
             key: "replay",
             label: "Replay",
             panel:
-              detail.attempt === null ? (
+              detail.attempt === null && detail.storedAttempts.length === 0 ? (
                 <MissingEvidence what="Replay" />
               ) : (
                 <ReplayPanel
                   findingId={detail.finding.id}
                   attempt={detail.attempt}
+                  stored={detail.storedAttempts[0] ?? null}
                   patchedAttempt={detail.patchedAttempt}
                   initialReplay={detail.replay}
                   replayDefaults={detail.replayDefaults}
@@ -144,6 +148,7 @@ export function FindingDetail({
                 title={detail.finding.title}
                 fingerprint={detail.finding.stableFingerprint}
                 attempt={detail.attempt}
+                stored={detail.storedAttempts[0] ?? null}
                 guidance={detail.fixGuidance}
                 mode={mode}
               />
