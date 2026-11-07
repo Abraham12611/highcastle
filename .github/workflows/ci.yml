@@ -25,6 +25,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Build first: packages expose built types (dist), so typecheck and
+      # unit tests cannot resolve workspace deps until artifacts exist.
+      - name: Build
+        run: pnpm build
+
       - name: Lint
         run: pnpm lint
 
@@ -33,6 +38,3 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
