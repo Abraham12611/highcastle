@@ -2,6 +2,13 @@
 import { evaluatePlanAuthorization } from "@highcastle/security";
 import { VultrInferenceClient } from "@highcastle/inference";
 import { adjudicateAttempt, adjudicateReplay } from "@highcastle/test-packs";
+import {
+  AuthorizationScopeSchema,
+  EnvironmentSchema,
+  ProjectSchema,
+  TargetSchema,
+} from "@highcastle/contracts";
+import type { z } from "zod";
 import type {
   AttemptObservations,
   AttemptVerifier,
@@ -11,14 +18,50 @@ import type {
   PolicyGate,
 } from "./ports.js";
 
+/**
+ * Deep-convert Date instances to ISO strings. L02 returns Date-typed
+ * timestamps; L04's contracts re-parse every input through Zod schemas
+ * that require ISO 8601 strings — this is the honest boundary mapping,
+ * not a field fabrication.
+ */
+function deepSerialize(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(deepSerialize);
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+        k,
+        deepSerialize(v),
+      ]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Map a persisted L02 row to its frozen contract shape: serialize Dates,
+ * then keep ONLY the keys the contract schema declares (DB rows carry
+ * extra columns — createdAt/updatedAt/signature — that `.strict()`
+ * schemas correctly reject). Non-record input passes through so the
+ * policy gate itself emits the malformed deny.
+ */
+function toContractRow(schema: z.ZodObject<z.ZodRawShape>, row: unknown): unknown {
+  const serialized = deepSerialize(row);
+  if (typeof serialized !== "object" || serialized === null) return serialized;
+  const rec = serialized as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.keys(schema.shape).map((k) => [k, rec[k]]),
+  );
+}
+
 export function createSecurityPolicyGate(): PolicyGate {
   return {
     async authorizePlan(input: PlanAuthorizationRequest): Promise<PlanDecision> {
       const decision = evaluatePlanAuthorization({
-        scope: input.scope,
-        project: input.project,
-        target: input.target,
-        environment: input.environment,
+        scope: toContractRow(AuthorizationScopeSchema, input.scope),
+        project: toContractRow(ProjectSchema, input.project),
+        target: toContractRow(TargetSchema, input.target),
+        environment: toContractRow(EnvironmentSchema, input.environment),
         proposal: input.proposal,
         operatorCaps: input.operatorCaps,
         ...(input.now ? { now: input.now } : {}),
