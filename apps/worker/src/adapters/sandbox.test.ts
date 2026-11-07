@@ -19,7 +19,9 @@ const FULL: ParsedObservation[] = [
   leg("ready"),
   leg("meta", 200, { revision: REV, fixtureVersion: "1.0.0", fixtureSet: "alice-bob-invoices" }),
   leg("whoami", 200, { actor: { userId: "user_A", tenantId: "tenant_A", label: "alice" } }),
-  leg("own_invoice", 200, { invoice: { id: "invoice_A" } }),
+  leg("own_invoice", 200, {
+    invoice: { id: "invoice_A", ownerId: "user_A", tenantId: "tenant_A" },
+  }),
   leg("cross_invoice", 403, { error: { code: "forbidden" } }),
 ];
 
@@ -46,6 +48,22 @@ describe("observationsFromRun", () => {
     expect(observationsFromRun("a", REV, [])).toBeNull();
     expect(observationsFromRun("a", REV, null)).toBeNull();
     expect(observationsFromRun("a", REV, undefined)).toBeNull();
+  });
+  it("returns null when whoami actor does not match own-invoice owner", () => {
+    const bad = FULL.map((o) =>
+      o.step === "whoami"
+        ? leg("whoami", 200, { actor: { userId: "user_B", tenantId: "tenant_B" } })
+        : o,
+    );
+    expect(observationsFromRun("a", REV, bad)).toBeNull();
+  });
+  it("returns null when whoami actor is missing/unresolved", () => {
+    const bad = FULL.map((o) => (o.step === "whoami" ? leg("whoami", 200, {}) : o));
+    expect(observationsFromRun("a", REV, bad)).toBeNull();
+  });
+  it("returns null when whoami leg itself is non-200", () => {
+    const bad = FULL.map((o) => (o.step === "whoami" ? leg("whoami", 401, {}) : o));
+    expect(observationsFromRun("a", REV, bad)).toBeNull();
   });
   it("returns null on a malformed leg (non-number status)", () => {
     const bad = FULL.map((o) => (o.step === "meta" ? { ...o, status: "200" as never } : o));

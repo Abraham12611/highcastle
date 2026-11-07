@@ -81,6 +81,24 @@ export function observationsFromRun(
   const ownInvoice = leg("own_invoice");
   const crossInvoice = leg("cross_invoice");
   if (!health || !ready || !meta || !ownInvoice || !crossInvoice) return null;
+
+  // --- Identity gate (defense in depth, mirrored in-container): the
+  // whoami leg must be a 200 whose body resolves a non-empty actor, and
+  // that actor must BE the owner of the own-invoice leg's invoice. An
+  // invalid, empty or owner-inconsistent identity means the evidence is
+  // untrusted -> inconclusive, never confirmed.
+  const whoami = byStep.get("whoami");
+  if (!whoami || whoami.status !== 200) return null;
+  const actor = (whoami.body as { actor?: { userId?: unknown; tenantId?: unknown } })?.actor;
+  const actorId =
+    typeof actor?.userId === "string" && actor.userId.length > 0 ? actor.userId : null;
+  const actorTenant =
+    typeof actor?.tenantId === "string" && actor.tenantId.length > 0 ? actor.tenantId : null;
+  if (!actorId || !actorTenant) return null;
+  const ownInv = (ownInvoice.body as { invoice?: { ownerId?: unknown; tenantId?: unknown } })
+    ?.invoice;
+  if (!ownInv || ownInv.ownerId !== actorId || ownInv.tenantId !== actorTenant) return null;
+
   return { attemptId, expectedRevision, health, ready, meta, ownInvoice, crossInvoice };
 }
 
