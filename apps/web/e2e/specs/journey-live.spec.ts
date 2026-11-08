@@ -228,6 +228,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     const rows = ((dataOf(list.json) as { findings?: unknown }).findings ??
       dataOf(list.json)) as Array<{
       id: string;
+      title: string;
       confidence: string;
       latestConfirmedAttemptId: string | null;
     }>;
@@ -292,7 +293,11 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     // UI renders the same persisted values on every tab.
     const base = `/app/w/highcastle-demo/projects/${projectId}/findings/${findingId}`;
     await page.goto(`${base}/overview`);
-    await expect(page.getByText(row!.id.slice(0, 8)).first()).toBeVisible({ timeout: 60_000 });
+    // The header renders the API title (raw UUIDs are never shown in the
+    // UI); the fingerprint paragraph above it is the stable identifier.
+    await expect(page.getByRole("heading", { name: row!.title }).first()).toBeVisible({
+      timeout: 60_000,
+    });
     await page.goto(`${base}/proof`);
     await expect(page.getByText(/reproduced/i).first()).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText(attempt.evidence[0]!.sha256.slice(0, 12)).first()).toBeVisible();
