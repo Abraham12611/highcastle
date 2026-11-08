@@ -1,19 +1,18 @@
-import { DbError, getAttempt, listEvidenceForAttempt } from "@highcastle/db";
-import { requestWorkspace, authorizeProject } from "@/server/authz";
+import { DbError, getAttempt, listEvidenceForAttempt, findAttemptTenant } from "@highcastle/db";
+import { authorizeResourceTenant, authorizeProject } from "@/server/authz";
 import { parseUuid } from "@/server/http";
 import { handle } from "@/server/route";
 import { getScan } from "@highcastle/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ aid: string }> },
-) {
+export async function GET(request: Request, context: { params: Promise<{ aid: string }> }) {
   const { aid } = await context.params;
   return handle(request, "GET /api/v1/attempts/:aid", { aid }, async ({ deps }) => {
     if (!parseUuid(aid)) throw new DbError("validation_error", "invalid attempt id");
-    const workspaceId = await requestWorkspace(deps.db, deps.session);
+    const { workspaceId } = await authorizeResourceTenant(deps.db, deps.session, () =>
+      findAttemptTenant(deps.db, aid),
+    );
     const attempt = await getAttempt(deps.db, workspaceId, aid);
     if (!attempt) throw DbError.notFound("test_attempt", aid);
     const scan = await getScan(deps.db, workspaceId, attempt.scanId);

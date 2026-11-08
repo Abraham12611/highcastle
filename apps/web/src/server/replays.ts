@@ -17,7 +17,12 @@ import {
 import { and, eq } from "drizzle-orm";
 import { DbError } from "@highcastle/db";
 import type { BffDeps } from "./deps";
-import { assertExecutionBinding, authorizeProject } from "./authz";
+import {
+  assertExecutionBinding,
+  authorizeProject,
+  authorizeWorkspaceMutation,
+  loadExecutionScope,
+} from "./authz";
 import { mapEnvironment } from "./mappers";
 import { JOB_ENQUEUE_DEDUPE_SECONDS, QueueUnavailable } from "./queue";
 import type { RouteResult } from "./scans";
@@ -42,6 +47,8 @@ export async function createReplayFlow(
     throw new DbError("validation_error", "invalid replay request");
   }
   await authorizeProject(deps.db, deps.session, input.workspaceId, input.projectId);
+  await authorizeWorkspaceMutation(deps.db, deps.session, input.workspaceId, "create-replay");
+
   const finding = await getFinding(deps.db, input.workspaceId, input.findingId);
   if (!finding) throw DbError.notFound("finding", input.findingId);
   if (finding.projectId !== input.projectId) {

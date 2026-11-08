@@ -1,6 +1,5 @@
-import { getScan, listScanEvents } from "@highcastle/db";
+import { findScanTenant, getScan, listScanEvents } from "@highcastle/db";
 import { ScanEventSchema } from "@highcastle/contracts";
-import { DEMO_WORKSPACE_ID } from "@/lib/auth/session-core";
 import { getHighCastleSession } from "@/server/auth/session";
 import { authorizeScanRead } from "@/server/auth/authorize";
 import { dbMembership } from "@/server/authz";
@@ -49,11 +48,10 @@ export async function GET(
     );
   }
 
-  // Demo is the only supported unscoped scan namespace. Account sessions
-  // may access demo scans ONLY through actual demo workspace membership.
-  // Non-demo account workspaces require a tenant-scoped route in a later release.
-  const lookupWorkspaceId =
-    session.kind === "demo" ? session.workspaceId : DEMO_WORKSPACE_ID;
+  // Demo sessions stay pinned to the fixed lab workspace. Account sessions
+  // resolve the scan's owning tenant, then `authorizeScanRead` enforces the
+  // real membership check — a guessed foreign scan id resolves like a
+  // missing one, never leaked. (issue #72 / E12)
 
   const deps: StreamDeps = {
     store: {
@@ -71,12 +69,14 @@ export async function GET(
           session,
           id,
           async (candidate) => {
-            const scan = await getScan(db, lookupWorkspaceId, candidate);
-            if (!scan) return null;
-            if (session.kind === "demo" && scan.projectId !== session.projectId) {
-              return null;
+            if (session.kind === "demo") {
+              const scan = await getScan(db, session.workspaceId, candidate);
+              if (!scan || scan.projectId !== session.projectId) return null;
+              return { workspaceId: scan.workspaceId, projectId: scan.projectId };
             }
-            return { workspaceId: scan.workspaceId, projectId: scan.projectId };
+            const tenant = await findScanTenant(db, candidate);
+            if (!tenant || !tenant.projectId) return null;
+            return { workspaceId: tenant.workspaceId, projectId: tenant.projectId };
           },
           dbMembership(db),
         );

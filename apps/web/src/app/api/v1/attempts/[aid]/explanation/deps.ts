@@ -1,10 +1,14 @@
 import type { DbExecutor } from "@highcastle/db";
 import {
+  findAttemptTenant,
   getAttempt,
   getLatestExplanationForAttempt,
   getScan,
 } from "@highcastle/db";
-import { authorizeProject, requestWorkspace } from "@/server/authz";
+import {
+  authorizeProject,
+  authorizeResourceTenant,
+} from "@/server/authz";
 import type { Session } from "@/server/session";
 
 /**
@@ -45,7 +49,8 @@ export interface ExplanationReader {
 }
 
 export interface ExplanationAuthorizer {
-  requestWorkspace(db: DbExecutor, session: Session): Promise<string>;
+  /** Resolve the attempt's owning tenant, session-authorized (E12 seam). */
+  requestWorkspace(db: DbExecutor, session: Session, attemptId: string): Promise<string>;
   authorizeProject(
     db: DbExecutor,
     session: Session,
@@ -63,6 +68,14 @@ export interface ExplanationDeps {
 export function liveDeps(): ExplanationDeps {
   return {
     reader: { getAttempt, getScan, getLatestExplanation: getLatestExplanationForAttempt },
-    authorizer: { requestWorkspace, authorizeProject },
+    authorizer: {
+      requestWorkspace: async (db, session, attemptId) =>
+        (
+          await authorizeResourceTenant(db, session, () =>
+            findAttemptTenant(db, attemptId),
+          )
+        ).workspaceId,
+      authorizeProject,
+    },
   };
 }

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import { environments, projects, targets, testIdentities } from "../schema/tables.js";
 import { DbError } from "../errors.js";
@@ -198,6 +198,15 @@ export async function getTarget(db: DbExecutor, workspaceId: string, targetId: s
     .where(and(eq(targets.id, targetId), eq(targets.workspaceId, workspaceId)))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/** All targets registered for a project (tenant-scoped, stable order). */
+export async function listTargets(db: DbExecutor, workspaceId: string, projectId: string) {
+  return db
+    .select()
+    .from(targets)
+    .where(and(eq(targets.workspaceId, workspaceId), eq(targets.projectId, projectId)))
+    .orderBy(asc(targets.label), asc(targets.id));
 }
 
 /** Record a successful out-of-band target verification (attestation). */

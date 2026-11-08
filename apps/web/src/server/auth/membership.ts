@@ -11,14 +11,13 @@
  * `workspace_members` — a mapping alone never grants access; without a real
  * membership row, account actions fail CLOSED.
  *
- * Provisioning (first-workspace bootstrap) is owned by Engineer 12's
- * transactional implementation — this module intentionally provides ONLY
- * identity mapping + membership reads; no competing bootstrap here.
+ * Workspace listing + first-login provisioning live in the E12 canonical
+ * implementation (`listUserWorkspaces` / `ensureAccountWorkspace` in
+ * `@highcastle/db`, wired by `server/me.ts`) — do not re-introduce a second
+ * provisioning path here (coordinator order, issue #72).
  */
 
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { workspaceMembers, workspaces, type DbExecutor } from "@highcastle/db";
 
 const HC_NS = "hc:clerk-user:";
 
@@ -31,34 +30,4 @@ export function internalUserIdForClerk(clerkUserId: string): string {
     (parseInt(h.slice(16, 18), 16) & 0x3f) |
     0x80
   ).toString(16)}${h.slice(18, 20)}-${h.slice(20, 32)}`;
-}
-
-export interface UserWorkspace {
-  id: string;
-  slug: string;
-  name: string;
-  role: string;
-}
-
-/**
- * User → workspace listing (tenant discovery). Returns every workspace the
- * internal user is a member of — the ONLY mechanism by which an account
- * learns its workspaces. No memberships ⇒ empty; never defaults to the
- * demo tenant.
- */
-export async function listUserWorkspaces(
-  db: DbExecutor,
-  internalUserId: string,
-): Promise<UserWorkspace[]> {
-  const rows = await db
-    .select({
-      id: workspaces.id,
-      slug: workspaces.slug,
-      name: workspaces.name,
-      role: workspaceMembers.role,
-    })
-    .from(workspaceMembers)
-    .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
-    .where(eq(workspaceMembers.userId, internalUserId));
-  return rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, role: r.role }));
 }

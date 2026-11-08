@@ -4,6 +4,7 @@ import {
   getEnvironment,
   type Database,
   type DbExecutor,
+  type TenantRef,
 } from "@highcastle/db";
 import { DEMO_IDS } from "@highcastle/db";
 import { DbError } from "@highcastle/db";
@@ -159,31 +160,104 @@ export async function loadExecutionScope(
     scope.targetId !== targetId ||
     scope.permittedEnvironmentId !== environmentId
   ) {
-    throw new DbError(
-      "scope_denied",
-      "scope does not authorize this project/target/environment",
-      { scopeId },
-    );
+    throw new DbError("scope_denied", "scope does not authorize this project/target/environment", {
+      scopeId,
+    });
   }
   return { scope, target, environment };
 }
 
 /**
- * Workspace implied by routes that carry no workspace path segment
- * (`GET /scans/:sid`, ...). Demo sessions resolve to their pinned workspace.
- * Account sessions fail closed here: without a user→workspaces listing in
- * L02, mapping an unscoped id to a tenant would be guessing. Callers needing
- * account access must use the workspace-scoped routes.
+ * Tenant resolution for routes that carry no workspace path segment
+ * (`GET /scans/:sid`, `GET /findings/:fid`, ... — issue #72 / E12).
+ *
+ * The resource id identifies its owning tenant; the session must then prove
+ * access to that tenant:
+ * - demo sessions stay pinned to the fixed lab workspace — the scoped fetch
+ *   downstream 404s any foreign id, so the lookup is skipped entirely;
+ * - account sessions resolve the resource's tenant via `lookup`, then must
+ *   hold a real `workspace_members` row for it. Missing resources and
+ *   missing memberships both read as not-found — cross-tenant existence is
+ *   never distinguishable.
  */
-export async function requestWorkspace(
+export async function authorizeResourceTenant(
   db: DbExecutor,
   session: Session,
-): Promise<string> {
-  if (session.kind === "demo") return session.workspaceId;
-  throw new DbError(
-    "unavailable",
-    "account sessions require workspace-scoped routes; unscoped lookup is not supported yet",
-  );
+  lookup: () => Promise<TenantRef | null>,
+): Promise<TenantRef> {
+  if (session.kind === "demo") return { workspaceId: session.workspaceId };
+  const ref = await lookup();
+  if (!ref) throw DbError.notFound("resource", "unscoped");
+  await authorizeWorkspace(db, session, ref.workspaceId);
+  return ref;
+}
+
+/**
+ * Role-based mutation gate (issue #72 release gate).
+ *
+ * Membership alone is not write authority. Roles:
+ * - `viewer`  — read-only; every mutation is denied.
+ * - `developer` — approved *operational* actions only (create/cancel scans,
+ *   create replays, run preflight, request fix guidance). Operational
+ *   actions still cannot exceed an explicitly approved assessment scope —
+ *   the scope gate (`loadExecutionScope` + L04 policy) runs downstream of
+ *   this check in every execution flow.
+ * - `owner`/`admin` — management actions additionally (create projects,
+ *   register target drafts, manage scopes/permissions).
+ *
+ * Demo sessions stay pinned to the fixed lab: they may perform the same
+ * operational actions a developer can (assessment, replay, preflight,
+ * cancel, fix guidance), and the actual binding is still verified by
+ * `assertExecutionBinding`/`assertDemoExecutionBinding` downstream —
+ * this check never grants anything on its own. Management actions
+ * (project/target/scope writes) are denied for guests.
+ *
+ * A non-member reads as not-found (existence stays hidden); a member with
+ * an insufficient role gets `forbidden` — they may know the tenant exists.
+ */
+export type WorkspaceMutation =
+  | "create-scan"
+  | "cancel-scan"
+  | "create-replay"
+  | "run-preflight"
+  | "fix-prompt"
+  | "create-project"
+  | "create-target"
+  | "manage-scope";
+
+const OPERATIONAL_MUTATIONS: ReadonlySet<WorkspaceMutation> = new Set([
+  "create-scan",
+  "cancel-scan",
+  "create-replay",
+  "run-preflight",
+  "fix-prompt",
+]);
+
+export async function authorizeWorkspaceMutation(
+  db: DbExecutor,
+  session: Session,
+  workspaceId: string,
+  mutation: WorkspaceMutation,
+): Promise<void> {
+  if (session.kind === "demo") {
+    // Demo guests run the same *operational* actions a developer does, but
+    // every one is additionally pinned to the fixed lab binding downstream
+    // (`assertExecutionBinding`, pinned workspace/project). Management
+    // actions (project/target/scope writes) are never available to guests.
+    if (OPERATIONAL_MUTATIONS.has(mutation)) return;
+    throw new DbError(
+      "forbidden",
+      "demo sessions may only run the pinned assessment and replay",
+    );
+  }
+  const member = await getWorkspaceMember(db, workspaceId, session.userId);
+  if (!member) throw DbError.notFound("workspace", workspaceId);
+  if (member.role === "owner" || member.role === "admin") return;
+  if (member.role === "developer" && OPERATIONAL_MUTATIONS.has(mutation)) return;
+  throw new DbError("forbidden", `role ${member.role} cannot ${mutation}`, {
+    mutation,
+    role: member.role,
+  });
 }
 
 export type { Database };
