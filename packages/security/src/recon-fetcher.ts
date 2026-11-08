@@ -5,7 +5,6 @@ import {
   normalizeHostname,
 } from "./url-policy.js";
 import { checkPathPermitted } from "./paths.js";
-import type { PolicyDenyReason } from "./decisions.js";
 
 /**
  * Strictly-passive outbound fetcher for builder (URL-only) reconnaissance.
@@ -234,7 +233,6 @@ export async function runPassiveRecon(opts: {
 }): Promise<ReconRunResult> {
   const limits: ReconLimits = { ...DEFAULT_RECON_LIMITS, ...(opts.limits ?? {}) };
   const deadline = Date.now() + limits.runDeadlineMs;
-  const host = normalizeHostname(new URL(opts.canonicalOrigin).hostname);
 
   // Resolve once → pinned IP; every request in this run uses it.
   const target = await resolveAndPinTarget(opts.canonicalOrigin, opts.resolver);

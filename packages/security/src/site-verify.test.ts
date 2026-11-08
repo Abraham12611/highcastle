@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   DNS_RECORD_PREFIX,
-  newVerificationChallenge,
   verifyDnsTxt,
   verifyWellKnown,
   type VerificationChallenge,
 } from "./site-verify.js";
-import type { DnsResolver, FetchRequest, HttpResponse, SocketFactory } from "./recon-fetcher.js";
+import type { DnsResolver, HttpResponse, SocketFactory } from "./recon-fetcher.js";
 
 const challenge: VerificationChallenge = {
   token: "hc-verify=abc123",
@@ -69,7 +68,7 @@ describe("verifyDnsTxt", () => {
 describe("verifyWellKnown", () => {
   const res = resolver({});
   const fetcher = (body: string, status = 200): SocketFactory => ({
-    httpsGet: async (_req: FetchRequest) => bodyResponse(body, status),
+    httpsGet: async () => bodyResponse(body, status),
   });
 
   it("accepts the exact expected body through the pinned fetcher", async () => {

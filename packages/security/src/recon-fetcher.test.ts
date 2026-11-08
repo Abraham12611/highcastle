@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_RECON_LIMITS,
   ReconError,
   resolveAndPinTarget,
   runPassiveRecon,
@@ -186,7 +185,7 @@ describe("runPassiveRecon — redirects, scope, quotas", () => {
     const { factory, calls } = recorder((_req, i) =>
       page(302, { location: [`https://site.test/r${i}`] }),
     );
-    const r = await runPassiveRecon({
+    await runPassiveRecon({
       canonicalOrigin: ORIGIN,
       allowedPaths: [],
       resolver,
@@ -236,11 +235,7 @@ describe("runPassiveRecon — redirects, scope, quotas", () => {
   });
 
   it("appends a limitation instead of crashing when the run deadline hits", async () => {
-    let n = 0;
-    const { factory } = recorder(() => {
-      n += 1;
-      return page(200);
-    });
+    const { factory } = recorder(() => page(200));
     const r = await runPassiveRecon({
       canonicalOrigin: ORIGIN,
       allowedPaths: ["/a", "/b"],
