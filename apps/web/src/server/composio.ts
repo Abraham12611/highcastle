@@ -64,7 +64,7 @@ export interface GithubConnectionState {
 
 export async function githubConnectionState(session: Session): Promise<GithubConnectionState> {
   const res = await session.toolkits();
-  const gh = res.items.find((t) => t.slug === GITHUB_TOOLKIT);
+  const gh = res.items.find((t: { slug: string }) => t.slug === GITHUB_TOOLKIT);
   return {
     isActive: gh?.connection?.isActive === true,
     ...(gh?.connection?.connectedAccount?.id

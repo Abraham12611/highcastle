@@ -24,6 +24,7 @@ export * from "./repos/scopes.js";
 export * from "./repos/scans.js";
 export * from "./repos/inference.js";
 export * from "./repos/attempts.js";
+export * from "./repos/explanations.js";
 export * from "./repos/findings.js";
 export * from "./repos/audit.js";
 export * from "./repos/sources.js";

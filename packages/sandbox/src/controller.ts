@@ -42,7 +42,13 @@ import {
 } from "./constants.ts";
 import { buildDockerCreateArgs, runnerContainerName } from "./dockerArgs.ts";
 import { buildRunnerEnvelope, serializeEnvelope } from "./envelope.ts";
-import { parseRunnerOutput, type ParsedObservation, type ParsedProbe } from "./output.ts";
+import {
+  parseRunnerOutput,
+  type ParsedObservation,
+  type ParsedProbe,
+  type ParsedProgramResult,
+} from "./output.ts";
+import { authorizeModelProgram, type AuthorizedModelProgram } from "./modelProgram.ts";
 import type {
   Clock,
   ContainerRuntime,
@@ -81,6 +87,13 @@ export interface ExecuteContext {
   workspaceId: WorkspaceId;
   /** Cooperative cancellation (scan cancel / emergency stop). */
   signal?: AbortSignal;
+  /**
+   * Pattern A (issue #54): model-authored source, already validated and
+   * sha-pinned via `authorizeModelProgram`. Present ⇒ the runner executes
+   * it inside the hardened container via the constrained `lab.get` API —
+   * never on the host. The authorized test remains `bola-invoice-v1`.
+   */
+  program?: AuthorizedModelProgram;
 }
 
 export type ExecutionOutcome = "completed" | "timeout" | "failed" | "killed" | "containment_breach";
@@ -115,6 +128,8 @@ export interface ExecutedRun {
    * `adjudicateAttempt` (@highcastle/test-packs) for the verdict.
    */
   observations: ParsedObservation[];
+  /** Pattern A guest execution outcome, when ctx.program was authorized. */
+  programResult: ParsedProgramResult | null;
   exitCode: number | null;
 }
 
@@ -215,6 +230,24 @@ export class SandboxController {
       };
     }
 
+    // 5. Pattern A: re-authorize model-authored source BEFORE allocating any
+    // runtime resource — an invalid program never creates a container.
+    let authorizedProgram: AuthorizedModelProgram | undefined;
+    if (ctx.program !== undefined) {
+      try {
+        authorizedProgram = authorizeModelProgram({
+          source: ctx.program.source,
+          generator: ctx.program.generator,
+        });
+      } catch (err) {
+        return {
+          kind: "precondition_failed",
+          request: req,
+          reason: `model program rejected: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    }
+
     const runnerId = randomUUID() as RunnerInstanceId;
     const now = this.clock.now();
     const deadlineMs = req.limits.maxDurationSeconds * 1000 + this.config.timeoutGraceMs;
@@ -246,7 +279,15 @@ export class SandboxController {
     }
 
     try {
-      return await this.runToCompletion(req, ctx, instance, token, deadlineMs, abort.signal);
+      return await this.runToCompletion(
+        req,
+        ctx,
+        instance,
+        token,
+        deadlineMs,
+        abort.signal,
+        authorizedProgram,
+      );
     } finally {
       this.inFlight.delete(runnerId);
     }
@@ -352,6 +393,7 @@ export class SandboxController {
     token: string,
     deadlineMs: number,
     abortSignal: AbortSignal,
+    authorizedProgram?: AuthorizedModelProgram,
   ): Promise<ExecutedRun> {
     const runnerId = instance.id;
     const update = (patch: Partial<RunnerInstance>) => this.deps.registry.update(runnerId, patch);
@@ -385,6 +427,7 @@ export class SandboxController {
         [],
         [],
         null,
+        null,
       );
     }
     await update({ sandboxId: containerId, status: "created" });
@@ -395,6 +438,9 @@ export class SandboxController {
         labOrigin: this.config.labOrigin,
         request: req,
         actorBearerToken: token,
+        ...(authorizedProgram !== undefined
+          ? { program: { language: "js-subset-v1" as const, source: authorizedProgram.source } }
+          : {}),
       }),
     );
 
@@ -420,6 +466,7 @@ export class SandboxController {
         [],
         [],
         [],
+        null,
         null,
       );
     }
@@ -495,6 +542,7 @@ export class SandboxController {
       events,
       parsed.probes,
       parsed.observations,
+      parsed.programResult,
       exitCode,
     );
   }
@@ -538,6 +586,7 @@ export class SandboxController {
     events: ContainmentEvent[],
     probes: ParsedProbe[],
     observations: ParsedObservation[],
+    programResult: ParsedProgramResult | null,
     exitCode: number | null,
   ): ExecutedRun {
     return {
@@ -550,6 +599,7 @@ export class SandboxController {
       containmentEvents: events,
       probes,
       observations,
+      programResult,
       exitCode,
     };
   }

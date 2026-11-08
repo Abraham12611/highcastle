@@ -4,6 +4,7 @@ import { containmentEvents, evidenceArtifacts, runnerInstances, testAttempts } f
 import { findingHistory, findingOccurrences, findings, remediations, replays } from "./findings.js";
 import { environments, projects, targets, testIdentities } from "./projects.js";
 import { agentProposals, modelCalls, scanEvents, scans } from "./scans.js";
+import { modelExplanations } from "./explanations.js";
 import { authorizationScopes } from "./scopes.js";
 import { userPreferences, workspaceMembers, workspaces } from "./tenancy.js";
 
@@ -79,6 +80,7 @@ export const scansRelations = relations(scans, ({ one, many }) => ({
   attempts: many(testAttempts),
   proposals: many(agentProposals),
   modelCalls: many(modelCalls),
+  explanations: many(modelExplanations),
   evidence: many(evidenceArtifacts),
   runners: many(runnerInstances),
 }));
@@ -100,6 +102,13 @@ export const modelCallsRelations = relations(modelCalls, ({ one }) => ({
 export const agentProposalsRelations = relations(agentProposals, ({ one }) => ({
   scan: one(scans, {
     fields: [agentProposals.scanId],
+    references: [scans.id],
+  }),
+}));
+
+export const modelExplanationsRelations = relations(modelExplanations, ({ one }) => ({
+  scan: one(scans, {
+    fields: [modelExplanations.scanId],
     references: [scans.id],
   }),
 }));

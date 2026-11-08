@@ -14,6 +14,8 @@ import {
   githubConnectionState,
   resumeSession,
 } from "./composio";
+import { getWorkspaceBySlug } from "@highcastle/db";
+import { authorizeWorkspace } from "./authz";
 import type { BffDeps } from "./deps";
 import { analyzePackageJson, buildRecon, classifyPaths } from "./source-recon";
 import type { RouteResult } from "./scans";
@@ -38,6 +40,17 @@ function requireAccount(deps: BffDeps): string {
   return deps.session.userId;
 }
 
+/**
+ * Resolve + verify the caller's workspace via real membership
+ * (E12 tenant authorization: session.userId must hold a member row).
+ * Slugs are server-side lookups — the client can never pick an ID.
+ */
+async function requireWorkspace(deps: BffDeps, workspaceSlug: string) {
+  const ws = await getWorkspaceBySlug(deps.db, workspaceSlug);
+  if (!ws) return null;
+  return authorizeWorkspace(deps.db, deps.session, ws.id);
+}
+
 const ok = (data: unknown, status = 200): RouteResult => ({ status, body: { data } });
 const err = (code: string, message: string, status: number): RouteResult => ({
   status,
@@ -47,9 +60,10 @@ const err = (code: string, message: string, status: number): RouteResult => ({
 /** POST /connect — mint session + Composio auth link for the user. */
 export async function connectFlow(
   deps: BffDeps,
-  { callbackUrl, appOrigin }: { callbackUrl: string; appOrigin: string },
+  { callbackUrl, appOrigin, workspaceSlug }: { callbackUrl: string; appOrigin: string; workspaceSlug?: string | undefined },
 ): Promise<RouteResult> {
   const ownerId = requireAccount(deps);
+  const ws = workspaceSlug ? await requireWorkspace(deps, workspaceSlug) : null;
   if (!/^https?:\/\//.test(callbackUrl) || new URL(callbackUrl).origin !== appOrigin) {
     return err("invalid_callback", "callbackUrl must be a same-origin app URL", 400);
   }
@@ -77,6 +91,9 @@ export async function connectFlow(
 async function refreshStatus(deps: BffDeps, ownerId: string) {
   const conn = await getActiveSourceConnection(deps.db, ownerId);
   if (!conn) return null;
+  if (conn.workspaceId) {
+    await authorizeWorkspace(deps.db, deps.session, conn.workspaceId);
+  }
   if (conn.status === "pending" || conn.status === "active") {
     const session = await resumeSession(conn.composioSessionId);
     const state = await githubConnectionState(session);
@@ -202,6 +219,7 @@ export async function selectRepoFlow(
   const source = await upsertRepoSource(deps.db, {
     connectionId: conn.id,
     ownerUserId: ownerId,
+    workspaceId: conn.workspaceId ?? null,
     repoId: input.repoId,
     fullName: input.fullName,
     defaultBranch,

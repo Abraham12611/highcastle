@@ -17,6 +17,12 @@ import { readFileSync } from "node:fs";
 import { RUNNER_PROTOCOL_VERSION, type RunnerEnvelope } from "./protocol.ts";
 import { runContainmentProbes } from "./probes.ts";
 import { runBolaInvoiceV1 } from "./pack.ts";
+import {
+  programDigest,
+  runGuestProgram,
+  validateProgramSource,
+  PROGRAM_LANGUAGE,
+} from "./guest.ts";
 import { emit, nowIso, readStdin, truncate } from "./util.ts";
 import { assertAllowedLabOrigin } from "./http.ts";
 import type { SandboxResult } from "@highcastle/contracts";
@@ -105,6 +111,18 @@ async function main(): Promise<number> {
     return 2;
   }
 
+  // Pattern A: re-validate the guest source in-image (the controller's
+  // authorization does not exempt the envelope from structural checks).
+  if (envelope.program !== undefined) {
+    const bad =
+      envelope.program.language !== PROGRAM_LANGUAGE ||
+      !validateProgramSource(envelope.program.source).ok;
+    if (bad) {
+      process.stderr.write("runner: program failed in-image validation\n");
+      return 2;
+    }
+  }
+
   emit({
     v: 1,
     type: "started",
@@ -140,14 +158,68 @@ async function main(): Promise<number> {
     );
   }
 
-  // --- Execute the single approved pack ---
-  const pack = await runBolaInvoiceV1(
-    envelope.labOrigin,
-    envelope.secrets.actorBearerToken,
-    envelope.request.limits.maxRequests,
-  );
-  if (pack.inconclusiveReason !== null) {
-    log("warn", `run not interpretable: ${pack.inconclusiveReason}`);
+  let pack: {
+    exchanges: {
+      method: "GET";
+      path: string;
+      status: number;
+      bodyHash: string;
+      bodyExcerptRedacted?: string;
+    }[];
+    baselineAssertion: import("@highcastle/contracts").AssertionEvidence;
+    negativeAssertion: import("@highcastle/contracts").AssertionEvidence;
+    observedFixtureOwner: "alice" | "bob" | "none";
+    requestsMade: number;
+    fatalError: string | null;
+    inconclusiveReason: string | null;
+  };
+  let programSha: string | null = null;
+  if (envelope.program !== undefined) {
+    // --- Pattern A: execute the model-authored program ---
+    programSha = programDigest(envelope.program.source);
+    log("info", `pattern-a: executing model-authored program sha256=${programSha.slice(0, 16)}…`);
+    const guest = await runGuestProgram(envelope.program.source, {
+      labOrigin: envelope.labOrigin,
+      bearerToken: envelope.secrets.actorBearerToken,
+      maxRequests: envelope.request.limits.maxRequests,
+    });
+    emit({
+      v: 1,
+      type: "program_result",
+      at: nowIso(),
+      status: guest.status,
+      output: guest.output,
+      requestsMade: guest.requestsMade,
+      durationMs: guest.durationMs,
+      programSha256: programSha,
+    });
+    // Guest output is evidence, not a verdict — the observations the guest
+    // produced are what L15's independent oracle adjudicates.
+    pack = {
+      exchanges: guest.exchanges,
+      baselineAssertion: {
+        passed: guest.status === "ok",
+        detail: `pattern-a program ${guest.status} (sha256 ${programSha.slice(0, 12)}…)`,
+      },
+      negativeAssertion: {
+        passed: false,
+        detail: "not_applicable: model-authored program — L15 oracle adjudicates observations",
+      },
+      observedFixtureOwner: "none",
+      requestsMade: guest.requestsMade,
+      fatalError: guest.status === "ok" ? null : guest.output,
+      inconclusiveReason: null,
+    };
+  } else {
+    // --- Execute the single approved pack ---
+    pack = await runBolaInvoiceV1(
+      envelope.labOrigin,
+      envelope.secrets.actorBearerToken,
+      envelope.request.limits.maxRequests,
+    );
+    if (pack.inconclusiveReason !== null) {
+      log("warn", `run not interpretable: ${pack.inconclusiveReason}`);
+    }
   }
 
   const result: SandboxResult = {
@@ -167,7 +239,7 @@ async function main(): Promise<number> {
       requestsMade: pack.requestsMade,
     },
     containmentEventIds: [],
-    artifactDigests: [],
+    artifactDigests: programSha !== null ? [programSha] : [],
     completedAt: nowIso(),
   };
   if (pack.fatalError !== null) {

@@ -104,13 +104,36 @@ export async function executeReplayJob(
     ? await deps.store.listAttempts(workspaceId, replayScanId)
     : [];
   const replayAttempt = replayAttempts.sort((a, b) => b.attemptNumber - a.attemptNumber)[0];
+
+  // Fail visibly — never fabricate. L02's completeReplay requires oracle
+  // evidence attached to a REAL replay attempt: a failed replay scan
+  // (policy deny, expired/revoked scope, preflight) produces none, and an
+  // unconfirmed original attempt cannot produce a verdict either. Emit the
+  // honest reason and let the job fail visibly instead of calling
+  // completeReplay with a dangling artifact.
+  if (!replayAttempt) {
+    const reason = !preconditionOk
+      ? "original attempt was not confirmed by execution"
+      : `replay scan ${replayScanId} produced no execution attempt`;
+    await emit(deps, {
+      workspaceId,
+      scanId: eventScanIdOf(replayScanId, replay),
+      eventType: "scan.stage.updated",
+      phase: "finalizing",
+      actorType: "worker",
+      safeSummary: `replay cannot complete: ${reason}`,
+      payloadRedacted: { replayId, reason },
+    });
+    throw new Error(`replay cannot complete: ${reason}`);
+  }
+
   const artifact = await deps.store.createEvidenceArtifact({
     workspaceId,
     scanId: eventScanIdOf(replayScanId, replay),
-    attemptId: replayAttempt?.id ?? null,
+    attemptId: replayAttempt.id,
     artifactKind: "oracle",
     storageKind: "db",
-    storageKey: `oracle/replay/${replayId}/${replayAttempt?.id ?? "none"}`,
+    storageKey: `oracle/replay/${replayId}/${replayAttempt.id}`,
     sha256: sha256Hex(JSON.stringify(effective)),
     byteSize: JSON.stringify(effective).length,
     contentType: "application/json",

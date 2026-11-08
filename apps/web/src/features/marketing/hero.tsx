@@ -31,12 +31,12 @@ export function Hero() {
           in a disposable sandbox, and shows you the evidence — then replays the patch.
         </p>
         <div className="mkt-reveal mkt-reveal-3 mt-8 flex flex-wrap gap-4">
-          <Link href="/demo" className="hc-btn hc-btn--primary hc-btn--lg">
-            Try live controlled demo
+          <Link href="/get-started" className="hc-btn hc-btn--primary hc-btn--lg">
+            Get started
           </Link>
-          <a href="#how-it-works" className="hc-btn hc-btn--secondary hc-btn--lg">
-            How it works
-          </a>
+          <Link href="/demo" className="hc-btn hc-btn--secondary hc-btn--lg">
+            Try controlled demo
+          </Link>
         </div>
         <p className="mkt-reveal mkt-reveal-4 mt-5 max-w-xl text-sm text-hc-subtle">
           Currently scoped to HighCastle&apos;s own invoice lab with synthetic users Alice and Bob —

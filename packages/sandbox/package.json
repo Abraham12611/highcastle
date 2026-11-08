@@ -22,7 +22,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@highcastle/contracts": "workspace:*"
+    "@highcastle/contracts": "workspace:*",
+    "zod": "3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

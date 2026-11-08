@@ -7,11 +7,12 @@ import styles from "./findings.module.css";
 import { attemptVerdictExplainer, invariantCopy } from "../view-model";
 import { AttackPathPanel } from "./AttackPathPanel";
 import { FindingHeader } from "./FindingHeader";
+import { ExplanationPanel } from "./ExplanationPanel";
 import { FixPanel } from "./FixPanel";
 import { ProofPanel } from "./ProofPanel";
 import { ReplayPanel } from "./ReplayPanel";
 
-export type FindingTabKey = "overview" | "attack-path" | "proof" | "replay" | "fix";
+export type FindingTabKey = "overview" | "attack-path" | "proof" | "replay" | "explanation" | "fix";
 
 function MissingEvidence({ what }: { what: string }) {
   return (
@@ -112,10 +113,18 @@ export function FindingDetail({
                 <ProofPanel
                   baseline={detail.attempt?.baseline ?? null}
                   crossAccount={detail.attempt?.crossAccount ?? null}
-                  packId={detail.attempt?.packId ?? detail.storedAttempts[0]?.packId ?? "bola-invoice-v1"}
-                  packVersion={detail.attempt?.packVersion ?? detail.storedAttempts[0]?.packVersion ?? "1.0.0"}
+                  packId={
+                    detail.attempt?.packId ?? detail.storedAttempts[0]?.packId ?? "bola-invoice-v1"
+                  }
+                  packVersion={
+                    detail.attempt?.packVersion ?? detail.storedAttempts[0]?.packVersion ?? "1.0.0"
+                  }
                   oracleVersion={detail.attempt?.oracleVersion ?? "bola-oracle-v1"}
-                  targetRevision={detail.attempt?.targetRevision ?? detail.storedAttempts[0]?.targetRevision ?? "unknown"}
+                  targetRevision={
+                    detail.attempt?.targetRevision ??
+                    detail.storedAttempts[0]?.targetRevision ??
+                    "unknown"
+                  }
                   fixtureVersion={detail.attempt?.fixtureVersion ?? "unknown"}
                   verdictReasons={detail.attempt?.verdictReasons ?? []}
                   stored={detail.storedAttempts}
@@ -139,6 +148,11 @@ export function FindingDetail({
                   demoNote={detail.source.kind === "demo" ? detail.source.note : null}
                 />
               ),
+          },
+          {
+            key: "explanation",
+            label: "Explanation",
+            panel: <ExplanationPanel explanation={detail.explanation ?? null} />,
           },
           {
             key: "fix",

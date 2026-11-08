@@ -540,6 +540,88 @@ export function getE2ReplayView(
   );
 }
 
+export interface StoredExplanationRow {
+  attemptId: AttemptId;
+  oracleVerdict: OracleVerdict;
+  replayVerdict: ReplayVerdict | null;
+  summary: string | null;
+  whatHappened: string | null;
+  whyVerdict: string | null;
+  replayMeaning: string | null;
+  followUp: string | null;
+  evidenceIds: string[];
+  requestedModel: string;
+  responseModel: string | null;
+  requestId: string | null;
+  latencyMs: number | null;
+  rejectionCode: string | null;
+}
+
+const strArray = (raw: unknown): string[] | null =>
+  Array.isArray(raw) && raw.every((item): item is string => typeof item === "string")
+    ? [...raw]
+    : null;
+
+function parseStoredExplanation(data: unknown): StoredExplanationRow | null {
+  if (!isRecord(data)) return null;
+  const attemptId = req(data, "attemptId", vAttemptId);
+  const oracleVerdict = req(data, "oracleVerdict", vOracleVerdict);
+  const replayVerdict = opt(data, "replayVerdict", vReplayVerdict);
+  const summary = opt(data, "summary", str);
+  const whatHappened = opt(data, "whatHappened", str);
+  const whyVerdict = opt(data, "whyVerdict", str);
+  const replayMeaning = opt(data, "replayMeaning", str);
+  const followUp = opt(data, "followUp", str);
+  const evidenceIds = req(data, "evidenceIds", strArray);
+  const requestedModel = req(data, "requestedModel", str);
+  const responseModel = opt(data, "responseModel", str);
+  const requestId = opt(data, "requestId", str);
+  const latencyMs = opt(data, "latencyMs", num);
+  const rejectionCode = opt(data, "rejectionCode", str);
+  if (
+    !attemptId.ok || !oracleVerdict.ok || !replayVerdict.ok || !summary.ok ||
+    !whatHappened.ok || !whyVerdict.ok || !replayMeaning.ok || !followUp.ok ||
+    !evidenceIds.ok || !requestedModel.ok || !responseModel.ok ||
+    !requestId.ok || !latencyMs.ok || !rejectionCode.ok
+  ) {
+    return null;
+  }
+  return {
+    attemptId: attemptId.value,
+    oracleVerdict: oracleVerdict.value,
+    replayVerdict: replayVerdict.value,
+    summary: summary.value,
+    whatHappened: whatHappened.value,
+    whyVerdict: whyVerdict.value,
+    replayMeaning: replayMeaning.value,
+    followUp: followUp.value,
+    evidenceIds: evidenceIds.value,
+    requestedModel: requestedModel.value,
+    responseModel: responseModel.value,
+    requestId: requestId.value,
+    latencyMs: latencyMs.value,
+    rejectionCode: rejectionCode.value,
+  };
+}
+
+/**
+ * Latest stored explanation for one attempt. Any non-ok status (404 when
+ * the worker has not stored one, 401/403, transport failure) or a
+ * malformed body maps to null upstream — the panel renders its
+ * unavailable state and the oracle verdict stands unchanged.
+ */
+export function getE2Explanation(
+  baseUrl: string,
+  attemptId: string,
+  fetchImpl: FetchImpl = fetch,
+): Promise<LoadState<StoredExplanationRow>> {
+  return getOne(
+    fetchImpl,
+    `${baseUrl}/api/v1/attempts/${encodeURIComponent(attemptId)}/explanation`,
+    parseStoredExplanation,
+  );
+}
+
 export interface ReplayAccept {
   replayId: ReplayId;
   findingId: FindingId;
