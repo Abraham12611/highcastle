@@ -21,7 +21,10 @@ export function assertSameOrigin(request: Request): Response | null {
       }
       return null;
     } catch {
-      return Response.json({ error: { code: "CSRF_REJECTED", message: "Bad Origin." } }, { status: 403 });
+      return Response.json(
+        { error: { code: "CSRF_REJECTED", message: "Bad Origin." } },
+        { status: 403 },
+      );
     }
   }
   if (request.headers.get("x-highcastle-request") === "1") return null;
@@ -34,7 +37,12 @@ export function assertSameOrigin(request: Request): Response | null {
     }
   }
   return Response.json(
-    { error: { code: "CSRF_REJECTED", message: "Mutation requires same-origin or x-highcastle-request." } },
+    {
+      error: {
+        code: "CSRF_REJECTED",
+        message: "Mutation requires same-origin or x-highcastle-request.",
+      },
+    },
     { status: 403 },
   );
 }

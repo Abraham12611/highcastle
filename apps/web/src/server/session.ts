@@ -15,9 +15,7 @@ import type { HighCastleSession } from "@/lib/auth/session-core";
 
 export type Session = HighCastleSession;
 
-export async function resolveSession(
-  request: Request,
-): Promise<Session | null> {
+export async function resolveSession(request: Request): Promise<Session | null> {
   return getHighCastleSession(request.headers);
 }
 
