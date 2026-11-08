@@ -10,7 +10,9 @@ const UNKNOWN_FINDING = "00000000-0000-4000-8000-000000000000";
  * unavailable states — never to fabricated evidence.
  */
 test.describe("findings and replay (no backend data)", () => {
-  test("unknown finding overview resolves to an honest terminal state", async ({ page }) => {
+  test("unknown finding overview resolves to an honest terminal state", async ({
+    page,
+  }, testInfo) => {
     const res = await page.goto(
       `/app/w/${KNOWN_WORKSPACE}/projects/${KNOWN_PROJECT}/findings/${UNKNOWN_FINDING}/overview`,
     );
@@ -24,7 +26,7 @@ test.describe("findings and replay (no backend data)", () => {
     await expect(honest.first()).toBeVisible({ timeout: 30_000 });
     // No fabricated evidence may render for an unknown id.
     await expect(page.getByText(/reproduce/i)).toHaveCount(0);
-    await page.screenshot({ path: "e2e/screenshots/finding-unknown.png" });
+    await page.screenshot({ path: `e2e/screenshots/finding-unknown-${testInfo.project.name}.png` });
   });
 
   test("finding proof tab for an unknown id shows no invented proof", async ({ page }) => {
