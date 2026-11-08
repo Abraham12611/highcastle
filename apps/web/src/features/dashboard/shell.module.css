@@ -251,3 +251,22 @@
     transition: none;
   }
 }
+
+/* Single, properly aligned account action in the workspace's one top bar. */
+.profile {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding-left: 12px;
+  border-left: 1px solid var(--hc-line);
+}
+.signInLink {
+  display: inline-flex;
+  align-items: center;
+  color: var(--hc-primary);
+  text-decoration: none;
+  font-size: .8rem;
+  font-weight: 600;
+}
+.signInLink:hover { text-decoration: underline; }
+.signInLink:focus-visible { outline: 2px solid var(--hc-focus); outline-offset: 3px; }

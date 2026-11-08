@@ -4,45 +4,70 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * Builder vs Developer onboarding choice. Saved in two places:
- * - the unsigned `hc_mode` cookie (presentation default, works today), and
- * - `PATCH /api/v1/me/preferences` (server-persisted per-user preference,
- *   E12 contract) — best-effort: 404 means E12's endpoint has not merged
- *   yet, 403 means a demo session with nothing persisted. Either way the
- *   cookie path keeps the choice working; nothing here invents an account.
+ * Presentation mode is not a permission or execution scope.
+ * Persist the cookie first; signed-in accounts additionally keep a server
+ * preference. A mode selection must NOT silently enter the synthetic demo.
  */
 export function ModeChoice() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [selected, setSelected] = useState<"builder" | "developer" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function choose(mode: "builder" | "developer") {
     setPending(true);
-    await fetch("/onboarding/mode", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-highcastle-request": "1" },
-      body: JSON.stringify({ mode }),
-    });
+    setError(null);
     try {
+      const result = await fetch("/onboarding/mode", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-highcastle-request": "1" },
+        body: JSON.stringify({ mode }),
+      });
+      if (!result.ok) {
+        throw new Error("Could not save your display preference. Please retry.");
+      }
+      // Server preference is best-effort; guests and unprovisioned accounts
+      // keep the cookie preference without gaining account authority.
       await fetch("/api/v1/me/preferences", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-highcastle-request": "1" },
         body: JSON.stringify({ experienceMode: mode }),
-      });
+      }).catch(() => null);
+      setSelected(mode);
+      router.refresh();
     } catch {
-      // Unmerged endpoint or unreachable API: the cookie preference stands.
+      setError("Could not save your display preference. Please retry.");
+    } finally {
+      setPending(false);
     }
-    router.push("/demo");
   }
 
   return (
     <div>
-      <h2>How do you want to see HighCastle?</h2>
-      <button type="button" disabled={pending} onClick={() => void choose("builder")}>
-        Builder — plain-language proof for security-minded builders
+      <h2>Which experience suits you?</h2>
+      <button
+        type="button"
+        disabled={pending}
+        aria-pressed={selected === "builder"}
+        onClick={() => void choose("builder")}
+      >
+        <strong>Builder</strong> — clear, plain-language security findings
       </button>
-      <button type="button" disabled={pending} onClick={() => void choose("developer")}>
-        Developer — raw events, assertions and evidence detail
+      <button
+        type="button"
+        disabled={pending}
+        aria-pressed={selected === "developer"}
+        onClick={() => void choose("developer")}
+      >
+        <strong>Developer</strong> — technical evidence, events and assertions
       </button>
+      {selected ? (
+        <p role="status">
+          {selected === "builder" ? "Builder" : "Developer"} mode saved. Continue to add a
+          source or open your dashboard.
+        </p>
+      ) : null}
+      {error ? <p role="alert">{error}</p> : null}
     </div>
   );
 }

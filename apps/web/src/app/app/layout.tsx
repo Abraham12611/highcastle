@@ -1,21 +1,10 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { clerkConfigured } from "../../server/auth/clerk";
-import { ProfileMenu } from "../../features/auth/profile-menu";
 
 /**
- * Minimal authenticated-app layout. `proxy.ts` enforces the Clerk session
- * upstream; this adds the profile menu chrome. L08 owns the dashboard shell
- * styling — keep this thin so their nav can replace it.
+ * Workspace routes render their own complete DashboardShell with a styled
+ * top bar and navigation. Avoid wrapping it in a second, unstyled app-header.
+ * The account profile action lives in DashboardShell's top bar.
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
-  return (
-    <div>
-      <header className="app-header">
-        <span>HighCastle</span>
-        {clerkConfigured() ? <ProfileMenu /> : <Link href="/sign-in">Sign in</Link>}
-      </header>
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }
