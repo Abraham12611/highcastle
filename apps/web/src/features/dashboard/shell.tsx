@@ -5,6 +5,8 @@ import { MobileNav, ModeSwitch, WorkspaceRail, WorkspaceSwitcher } from "./shell
 import type { ExperienceMode } from "./mode";
 import { MODE_DESCRIPTION } from "./mode";
 import styles from "./shell.module.css";
+import { clerkConfigured } from "../../server/auth/clerk";
+import { ProfileMenu } from "../auth/profile-menu";
 
 /**
  * Protected `/app` shell (L08 owns this frame; L09/L10 pages nest inside).
@@ -78,6 +80,9 @@ export function DashboardShell({
           <span className={styles.actions}>
             <WorkspaceSwitcher workspaces={workspaces} currentSlug={workspaceSlug} />
             <ModeSwitch mode={mode} />
+            <span className={styles.profile}>
+              {clerkConfigured() ? <ProfileMenu /> : <Link href="/sign-in" className={styles.signInLink}>Sign in</Link>}
+            </span>
           </span>
         }
       />
