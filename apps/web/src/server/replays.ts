@@ -1,20 +1,23 @@
 import { ReplayRequestSchema, type ScanId } from "@highcastle/contracts";
 import {
+  createAuthorizationScope,
   createReplay,
+  createTarget,
   getAttempt,
+  getEnvironment,
   getFinding,
   getReplay,
   getScan,
+  getScope,
   listAttempts,
   listReplaysForFinding,
+  targets,
+  verifyTarget,
 } from "@highcastle/db";
+import { and, eq } from "drizzle-orm";
 import { DbError } from "@highcastle/db";
 import type { BffDeps } from "./deps";
-import {
-  assertExecutionBinding,
-  authorizeProject,
-  loadExecutionScope,
-} from "./authz";
+import { assertExecutionBinding, authorizeProject } from "./authz";
 import { mapEnvironment } from "./mappers";
 import { JOB_ENQUEUE_DEDUPE_SECONDS, QueueUnavailable } from "./queue";
 import type { RouteResult } from "./scans";
@@ -44,11 +47,7 @@ export async function createReplayFlow(
   if (finding.projectId !== input.projectId) {
     throw DbError.notFound("finding", input.findingId);
   }
-  const original = await getAttempt(
-    deps.db,
-    input.workspaceId,
-    parsed.data.originalAttemptId,
-  );
+  const original = await getAttempt(deps.db, input.workspaceId, parsed.data.originalAttemptId);
   if (!original) {
     throw DbError.notFound("test_attempt", parsed.data.originalAttemptId);
   }
@@ -73,20 +72,108 @@ export async function createReplayFlow(
     targetId: originalScan.targetId,
     environmentId: parsed.data.patchedEnvironmentId,
   });
-  const loaded = await loadExecutionScope(
+  // --- Resolve the patched-environment authorization triple ------------
+  // L04's relation gate requires scope.targetId === scan.targetId AND
+  // target.environmentId === scan.environmentId — a replay scope must bind
+  // a target that lives in the PATCHED environment, never the original
+  // vulnerable-env target. Find-or-create that patched target, then bind a
+  // NEW immutable scope with the same user-approved grant bounds (never a
+  // mutation of the original approval, never a silently wider grant).
+  const [patchedTargetRow] = await deps.db
+    .select()
+    .from(targets)
+    .where(
+      and(
+        eq(targets.workspaceId, input.workspaceId),
+        eq(targets.projectId, input.projectId),
+        eq(targets.environmentId, parsed.data.patchedEnvironmentId),
+      ),
+    )
+    .limit(1);
+  let patchedTarget = patchedTargetRow;
+  // Only the preauthorized synthetic demo can auto-attest a patched lab target.
+  // Account users must first verify the patched target through a separate
+  // ownership/authorization workflow; this endpoint cannot grant that trust.
+  if (!patchedTarget && deps.session.kind !== "demo") {
+    throw new DbError(
+      "policy_denied",
+      "patched target must be independently verified before account replay",
+    );
+  }
+  if (!patchedTarget) {
+    const created = await createTarget(deps.db, {
+      workspaceId: input.workspaceId,
+      projectId: input.projectId,
+      environmentId: parsed.data.patchedEnvironmentId,
+      label: `${originalScan.targetId}-patched`,
+      canonicalOrigin: "https://target-lab.internal",
+      targetKind: "demo",
+    });
+    patchedTarget = await verifyTarget(deps.db, input.workspaceId, created.id, {
+      method: "synthetic_lab_attestation",
+      verifiedBy: input.projectId,
+    });
+  }
+  // Demo sessions stay pinned to the fixed triple — a replay provisions a
+  // patched-env binding but cannot widen what the operator approved.
+  const environment = await getEnvironment(
     deps.db,
     input.workspaceId,
-    input.projectId,
-    originalScan.targetId,
     parsed.data.patchedEnvironmentId,
-    parsed.data.authorizationScopeId,
   );
-  const patchedEnv = mapEnvironment(loaded.environment);
+  if (!environment) throw DbError.notFound("environment", parsed.data.patchedEnvironmentId);
+  const patchedEnv = mapEnvironment(environment);
   if (parsed.data.patchedRevision !== patchedEnv.currentRevision) {
     throw new DbError("stale_revision", "patched revision does not match the environment", {
       expected: patchedEnv.currentRevision,
     });
   }
+
+  // Prefer a client-presented scope that already authorizes the patched
+  // triple exactly; otherwise mint a fresh, correctly-hashed one carrying
+  // the ORIGINAL approval's grant bounds (packs/methods/paths/caps/host).
+  const originalScope = await getScope(deps.db, input.workspaceId, originalScan.scopeId);
+  if (!originalScope) throw DbError.notFound("authorization_scope", originalScan.scopeId);
+  let approvalScopeId = parsed.data.authorizationScopeId;
+  const presented = approvalScopeId
+    ? await getScope(deps.db, input.workspaceId, approvalScopeId)
+    : null;
+  const presentedValid =
+    presented !== null &&
+    presented.projectId === input.projectId &&
+    presented.targetId === patchedTarget.id &&
+    presented.permittedEnvironmentId === parsed.data.patchedEnvironmentId;
+  // Never clone an account's approval onto another target automatically.
+  // A real account replay must supply a separately approved patched scope.
+  if (!presentedValid && deps.session.kind !== "demo") {
+    throw new DbError(
+      "scope_denied",
+      "account replay requires an approved patched-target authorization scope",
+    );
+  }
+  if (!presentedValid) {
+    const provisioned = await createAuthorizationScope(deps.db, {
+      workspaceId: input.workspaceId,
+      projectId: input.projectId,
+      targetId: patchedTarget.id,
+      actorUserId: originalScope.actorUserId,
+      allowedHosts: originalScope.allowedHosts,
+      allowedPaths: originalScope.allowedPaths,
+      deniedPaths: originalScope.deniedPaths ?? [],
+      allowedTestPackIds: originalScope.allowedTestPackIds,
+      allowedMethods: originalScope.allowedMethods,
+      maxDurationSeconds: originalScope.maxDurationSeconds,
+      maxRequests: originalScope.maxRequests,
+      maxConcurrency: originalScope.maxConcurrency,
+      maxMemoryMb: originalScope.maxMemoryMb,
+      maxCpuMillicores: originalScope.maxCpuMillicores,
+      networkProfileId: originalScope.networkProfileId,
+      permittedEnvironmentId: parsed.data.patchedEnvironmentId,
+      expiresAt: originalScope.expiresAt,
+    });
+    approvalScopeId = provisioned.id as typeof approvalScopeId;
+  }
+
   const replay = await createReplay(deps.db, {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
@@ -97,7 +184,7 @@ export async function createReplayFlow(
     patchedRevision: parsed.data.patchedRevision,
     packId: "bola-invoice-v1",
     packVersion: original.packVersion,
-    approvalScopeId: parsed.data.authorizationScopeId,
+    approvalScopeId,
   });
   try {
     await deps.queue.sendReplayJob(
@@ -180,5 +267,3 @@ export async function getReplayFlow(
     },
   };
 }
-
-
