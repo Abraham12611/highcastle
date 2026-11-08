@@ -79,6 +79,9 @@ export const SCAN_FAILURE = {
   controllerDenied: "controller_denied",
   sandboxPrecondition: "sandbox_precondition",
   attemptFailed: "attempt_failed",
+  executionFailed: "execution_failed",
+  executionTimeout: "execution_timeout",
+  containmentBreach: "containment_breach",
 } as const;
 
 async function getScan(deps: OrchestratorDeps, p: ScanJobPayload): Promise<Scan> {
@@ -399,6 +402,20 @@ export async function executeScanJob(
       deps.cancelRegistry.release(scanId);
       return { status: scan.status as ScanJobResult["status"] };
     }
+    if (
+      IN_FLIGHT.includes(scan.status) &&
+      scan.startedAt !== null &&
+      scan.startedAt !== undefined &&
+      deps.clock.now().getTime() - new Date(scan.startedAt).getTime() > deps.config.maxScanAgeMs
+    ) {
+      // Bounded execution age: a crashed/lost worker must never leave a
+      // scan non-terminal for hours. Fail it honestly — no invented evidence.
+      await failScan(deps, scan, SCAN_FAILURE.executionTimeout, "system", {
+        safeSummary: `scan exceeded bounded execution age in ${scan.status}; failing without verdict`,
+      });
+      deps.cancelRegistry.release(scanId);
+      return { status: "failed", reason: "execution_timeout" };
+    }
     if (signal.aborted || (await isCancelRequested(deps, payload))) {
       return cancelScan(deps, scan);
     }
@@ -477,16 +494,30 @@ export async function executeScanJob(
           return { status: "failed", reason: invalid ?? "scope missing" };
         }
 
-        const run: AttemptRunResult = await runAttempt(deps, {
-          workspaceId,
-          scanId,
-          approval: planned.approval,
-          proposalId: planned.proposalId,
-          scopeHash: scope.scopeHash,
-          targetRevision: scan.targetRevision,
-          attemptNumber: 1,
-          signal,
-        });
+        let run: AttemptRunResult;
+        try {
+          run = await runAttempt(deps, {
+            workspaceId,
+            scanId,
+            approval: planned.approval,
+            proposalId: planned.proposalId,
+            scopeHash: scope.scopeHash,
+            targetRevision: scan.targetRevision,
+            attemptNumber: 1,
+            signal,
+          });
+        } catch (err) {
+          // Lost job / infrastructure failure mid-execution: bound it to a
+          // terminal failed scan instead of stranding it in `executing`.
+          // pg-boss retries redeliver bounded times; terminal rows skip.
+          const reason = err instanceof Error ? err.message : String(err);
+          await failScan(deps, scan, SCAN_FAILURE.executionFailed, "system", {
+            safeSummary: `execution infrastructure failed: ${reason}`.slice(0, 280),
+            payload: { error: reason.slice(0, 512) },
+          });
+          deps.cancelRegistry.release(scanId);
+          return { status: "failed", reason: "execution_failed" };
+        }
 
         if (run.outcome === "blocked") {
           await failScan(deps, scan, SCAN_FAILURE.controllerDenied, "policy", {
@@ -495,10 +526,27 @@ export async function executeScanJob(
           return { status: "failed", reason: "controller_denied" };
         }
         if (run.outcome === "precondition_failed") {
+          const cause = (run.reason ?? "").slice(0, 200);
           await failScan(deps, scan, SCAN_FAILURE.sandboxPrecondition, "runner", {
-            safeSummary: "sandbox could not start within policy preconditions",
+            safeSummary: `sandbox precondition failed${cause ? `: ${cause}` : ""}`.slice(0, 280),
+            payload: { reason: run.reason ?? null },
           });
           return { status: "failed", reason: "sandbox_precondition" };
+        }
+        if (run.outcome === "duplicate_in_flight") {
+          // Another live delivery owns the running attempt — do not
+          // double-execute. The owner (or the age watchdog) settles the scan.
+          deps.cancelRegistry.release(scanId);
+          return { status: "skipped", reason: "attempt already running" };
+        }
+        if (run.outcome === "canceled") {
+          return cancelScan(deps, scan);
+        }
+        if (run.outcome === "containment_breach") {
+          await failScan(deps, scan, SCAN_FAILURE.containmentBreach, "runner", {
+            safeSummary: "containment breach reported by runner — failing closed with no verdict",
+          });
+          return { status: "failed", reason: "containment_breach" };
         }
         if (run.adjudication) lastAdjudication = run.adjudication;
         if (run.outcome === "timeout" || run.outcome === "failed") {

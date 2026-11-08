@@ -38,7 +38,14 @@ export interface AttemptRunInput {
 }
 
 export type AttemptRunOutcome =
-  "completed" | "timeout" | "failed" | "canceled" | "blocked" | "precondition_failed";
+  | "completed"
+  | "timeout"
+  | "failed"
+  | "canceled"
+  | "blocked"
+  | "precondition_failed"
+  | "containment_breach"
+  | "duplicate_in_flight";
 
 export interface AttemptRunResult {
   attempt: AttemptRecord;
@@ -46,6 +53,8 @@ export interface AttemptRunResult {
   adjudication: AttemptAdjudication | null;
   /** True only when the trusted verifier returned `reproduced`. */
   reproduced: boolean;
+  /** Sandbox-reported detail for non-executed outcomes (precondition, etc.). */
+  reason?: string;
 }
 
 /**
@@ -177,6 +186,21 @@ export async function runAttempt(
     };
   }
 
+  if (attempt.status === "running") {
+    // Another live delivery owns this attempt — a duplicate worker must not
+    // re-execute under the same plan hash. A stale owner (crashed worker)
+    // is detected below via the execution lease, never by re-running blind.
+    const leaseMs = approval.limits.maxDurationSeconds * 1000 + 60_000;
+    const startedAt = attempt.startedAt ? new Date(attempt.startedAt).getTime() : NaN;
+    const ageMs = Number.isNaN(startedAt) ? 0 : deps.clock.now().getTime() - startedAt;
+    if (ageMs <= leaseMs) {
+      return { attempt, outcome: "duplicate_in_flight", adjudication: null, reproduced: false };
+    }
+    // Stale lease: the owner died mid-execution. Reset to queued so this
+    // delivery performs exactly one bounded re-run — never invent evidence.
+    await store.updateAttemptStatus(workspaceId, attempt.id, "queued");
+  }
+
   const request: SandboxRequest = SandboxRequestSchema.parse({
     schemaVersion: CONTRACT_SCHEMA_VERSION,
     scanId,
@@ -236,6 +260,7 @@ export async function runAttempt(
       outcome: "precondition_failed",
       adjudication: null,
       reproduced: false,
+      reason: run.reason,
     };
   }
 
@@ -252,6 +277,42 @@ export async function runAttempt(
       payloadRedacted: { ruleId: containment.ruleId, runnerId: containment.runnerId },
       attemptId: attempt.id,
     });
+  }
+
+  if (run.outcome === "killed") {
+    // Cooperative cancel won the race mid-execution — record it honestly.
+    const updated = await store.updateAttemptStatus(workspaceId, attempt.id, "canceled");
+    await emit(deps, {
+      workspaceId,
+      scanId,
+      eventType: "scan.stage.updated",
+      phase: "executing",
+      actorType: "runner",
+      safeSummary: "runner killed by cancellation before producing observations",
+      attemptId: attempt.id,
+    });
+    return { attempt: updated, outcome: "canceled", adjudication: null, reproduced: false };
+  }
+
+  if (run.outcome === "containment_breach") {
+    // Failing closed: the sandbox boundary reported a breach. No verdict, no
+    // finding — the scan flow turns this into a terminal failed scan.
+    const updated = await store.updateAttemptStatus(workspaceId, attempt.id, "failed");
+    await emit(deps, {
+      workspaceId,
+      scanId,
+      eventType: "sandbox.action_blocked",
+      phase: "executing",
+      actorType: "runner",
+      safeSummary: "containment probe reported breach — failing closed with no verdict",
+      attemptId: attempt.id,
+    });
+    return {
+      attempt: updated,
+      outcome: "containment_breach",
+      adjudication: null,
+      reproduced: false,
+    };
   }
 
   const terminalStatus =
