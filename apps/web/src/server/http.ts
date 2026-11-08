@@ -1,9 +1,6 @@
-import {
-  API_ERROR_HTTP_STATUS,
-  fail,
-  type ApiErrorCode,
-} from "@highcastle/contracts";
+import { API_ERROR_HTTP_STATUS, fail, type ApiErrorCode } from "@highcastle/contracts";
 import { DbError } from "@highcastle/db";
+import { z } from "zod";
 
 /**
  * HTTP plumbing for the BFF: request IDs, contract envelopes, error mapping,
@@ -16,8 +13,7 @@ export function newRequestId(): string {
 }
 
 export function okResponse(data: unknown, status = 200, requestId?: string) {
-  const body =
-    requestId === undefined ? { data } : { data, meta: { requestId } };
+  const body = requestId === undefined ? { data } : { data, meta: { requestId } };
   return Response.json(body, { status });
 }
 
@@ -48,6 +44,21 @@ export function dbErrorResponse(error: unknown, requestId: string): Response {
   return errorResponse("internal", "internal error", requestId);
 }
 
+/** Parse a request JSON body through a Zod schema; validation failures map
+ *  to the contract `validation_error` envelope instead of a 500. */
+export async function parseBody<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
+  const raw = await request.json().catch(() => ({}));
+  const res = schema.safeParse(raw);
+  if (!res.success) {
+    const first = res.error.issues[0];
+    throw new DbError(
+      "validation_error",
+      first ? `${first.path.join(".") || "body"}: ${first.message}` : "invalid request body",
+    );
+  }
+  return res.data;
+}
+
 /** CSRF rule lives in L05 (`server/auth/csrf.ts :: assertSameOrigin`):
  * cookie-session mutations require Origin/Referer or x-highcastle-request.
  * This module no longer defines its own check. */
@@ -57,13 +68,9 @@ export interface Pagination {
   cursor?: string;
 }
 
-export function parsePagination(
-  searchParams: URLSearchParams,
-  maxLimit = 100,
-): Pagination {
+export function parsePagination(searchParams: URLSearchParams, maxLimit = 100): Pagination {
   const rawLimit = searchParams.get("limit");
-  const limit =
-    rawLimit === null ? 20 : Number.parseInt(rawLimit, 10);
+  const limit = rawLimit === null ? 20 : Number.parseInt(rawLimit, 10);
   if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
     throw new Error("invalid limit");
   }
@@ -77,18 +84,13 @@ export function clientIp(request: Request): string {
   // when TRUST_PROXY=1; otherwise a client-supplied header must never
   // shard rate-limit buckets or spoof audit identity.
   if (process.env.TRUST_PROXY === "1") {
-    return (
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      "unknown"
-    );
+    return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   }
   return "unknown";
 }
 
 export function parseUuid(value: string): string | null {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    value,
-  )
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
     ? value
     : null;
 }

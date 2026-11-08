@@ -26,5 +26,6 @@ export * from "./repos/inference.js";
 export * from "./repos/attempts.js";
 export * from "./repos/findings.js";
 export * from "./repos/audit.js";
+export * from "./repos/builder.js";
 export * from "./seed.js";
 export { migrateNodeDb, migratePgliteDb, migrationsFolder } from "./migrate.js";

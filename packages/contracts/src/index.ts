@@ -30,3 +30,4 @@ export * from "./sandbox.js";
 export * from "./findings.js";
 export * from "./replay.js";
 export * from "./api.js";
+export * from "./builder.js";
