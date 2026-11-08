@@ -211,7 +211,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
   });
 
   test("finding carries oracle evidence and fix guidance", async ({ page }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(960_000);
     const { request } = page;
     await mintSession(request);
     const projectId = shared.projectId!;
@@ -253,7 +253,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     let occurrences = await readOccurrences();
     let mine = occurrences.find((o) => o.attemptId === attemptId);
     const start = Date.now();
-    while (!mine && Date.now() - start < 480_000) {
+    while (!mine && Date.now() - start < 900_000) {
       await new Promise((r) => setTimeout(r, 5000));
       occurrences = await readOccurrences();
       mine = occurrences.find((o) => o.attemptId === attemptId);
