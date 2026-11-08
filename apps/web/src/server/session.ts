@@ -11,14 +11,28 @@
  */
 
 import { getHighCastleSession } from "./auth/session";
+import { provisionAccountWorkspace } from "./auth/membership";
+import { getRequestDb, DatabaseUnavailable } from "./db";
 import type { HighCastleSession } from "@/lib/auth/session-core";
 
 export type Session = HighCastleSession;
 
-export async function resolveSession(
-  request: Request,
-): Promise<Session | null> {
-  return getHighCastleSession(request.headers);
+export async function resolveSession(request: Request): Promise<Session | null> {
+  const session = await getHighCastleSession(request.headers);
+  // First-login account provisioning: a valid Clerk identity with no
+  // memberships gets a personal workspace (idempotent, transactional).
+  // Demo sessions are never provisioned — they stay pinned to the synthetic
+  // tenant. A missing DB degrades gracefully; membership checks still fail
+  // closed downstream.
+  if (session?.kind === "account") {
+    try {
+      const db = await getRequestDb();
+      await provisionAccountWorkspace(db, session.userId);
+    } catch (err) {
+      if (!(err instanceof DatabaseUnavailable)) throw err;
+    }
+  }
+  return session;
 }
 
 export function sessionUserId(session: Session): string | null {

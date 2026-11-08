@@ -60,8 +60,12 @@ export async function getHighCastleSession(
     };
   }
 
-  // 2. Legacy HMAC account cookie (deferred path, kept for continuity).
-  const secret = sessionSecret();
+  // 2. Legacy HMAC account cookie — ONLY honoured when Clerk is NOT
+  //    configured (documented migration path). With Clerk present, an old
+  //    hc_session cookie is deliberately ignored: a fresh public account
+  //    must come from a verified Clerk token, not a mintable shared-secret
+  //    cookie.
+  const secret = clerkEnv() === null ? sessionSecret() : null;
   if (!secret) return null;
 
   const account = readCookie(headers as Headers, ACCOUNT_COOKIE);

@@ -26,6 +26,15 @@ export interface ClerkEnv {
   publishableKey: string;
 }
 
+/**
+ * True when the publishable key is configured — drives the root
+ * `ClerkProvider` mount. Without it the app renders keyless (the bounded
+ * `hc_demo` guest path keeps working and no Clerk code loads).
+ */
+export function clerkConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+}
+
 /** Clerk env resolution — missing config disables the account path (fail closed). */
 export function clerkEnv(env: NodeJS.ProcessEnv = process.env): ClerkEnv | null {
   const secretKey = env.CLERK_SECRET_KEY;
@@ -64,10 +73,12 @@ export async function verifyClerkSession(
 
   const opts: VerifyTokenOptions = {
     secretKey: env.secretKey,
-    // Authorized parties: only our own origin may present tokens. When unset
-    // (local dev) the SDK skips the check — production must set it.
-    ...(process.env.NEXT_PUBLIC_CLERK_FRONTEND_API
-      ? { authorizedParties: [process.env.NEXT_PUBLIC_CLERK_FRONTEND_API] }
+    // Authorized parties: the canonical APP origin (e.g.
+    // https://high-castle.online), NOT the Clerk frontend-API hostname —
+    // coordinator review: a dev-instance frontend host is not our audience.
+    // When unset (local dev) the SDK skips the check.
+    ...(process.env.HIGHCASTLE_APP_URL
+      ? { authorizedParties: [process.env.HIGHCASTLE_APP_URL] }
       : {}),
   };
   try {

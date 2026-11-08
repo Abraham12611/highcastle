@@ -25,13 +25,15 @@ export const metadata: Metadata = {
 };
 
 import { ClerkProvider } from "@clerk/nextjs";
+import { clerkConfigured } from "../server/auth/clerk";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // Keyless-controlled-demo guarantee: no publishable key configured ⇒ the
+  // app renders without Clerk entirely (demo cookie path still works).
+  const body = clerkConfigured() ? <ClerkProvider>{children}</ClerkProvider> : children;
   return (
     <html lang="en">
-      <body className="hc-root">
-        <ClerkProvider>{children}</ClerkProvider>
-      </body>
+      <body className="hc-root">{body}</body>
     </html>
   );
 }
