@@ -91,6 +91,15 @@ export async function createReplayFlow(
     )
     .limit(1);
   let patchedTarget = patchedTargetRow;
+  // Only the preauthorized synthetic demo can auto-attest a patched lab target.
+  // Account users must first verify the patched target through a separate
+  // ownership/authorization workflow; this endpoint cannot grant that trust.
+  if (!patchedTarget && deps.session.kind !== "demo") {
+    throw new DbError(
+      "policy_denied",
+      "patched target must be independently verified before account replay",
+    );
+  }
   if (!patchedTarget) {
     const created = await createTarget(deps.db, {
       workspaceId: input.workspaceId,
@@ -134,6 +143,14 @@ export async function createReplayFlow(
     presented.projectId === input.projectId &&
     presented.targetId === patchedTarget.id &&
     presented.permittedEnvironmentId === parsed.data.patchedEnvironmentId;
+  // Never clone an account's approval onto another target automatically.
+  // A real account replay must supply a separately approved patched scope.
+  if (!presentedValid && deps.session.kind !== "demo") {
+    throw new DbError(
+      "scope_denied",
+      "account replay requires an approved patched-target authorization scope",
+    );
+  }
   if (!presentedValid) {
     const provisioned = await createAuthorizationScope(deps.db, {
       workspaceId: input.workspaceId,
