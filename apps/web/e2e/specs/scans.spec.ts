@@ -50,13 +50,14 @@ test.describe("scan creation and live progress", () => {
     const wizard = page.locator(".scan-wizard");
     await expect(wizard.getByRole("heading", { name: /authorized target/i })).toBeVisible();
     const alert = wizard.locator(".hc-callout--danger");
-    if ((await alert.count()) > 0) {
-      await expect(alert).not.toContainText(/invalid project id/i);
-    }
+    const cards = page.locator(".target-card");
+    // Wait for the terminal UI state first: loaded targets OR the honest
+    // error — sampling immediately after navigation races the fetch.
+    await expect(cards.first().or(alert.first())).toBeVisible({ timeout: 30_000 });
     // Either targets loaded (healthy backend) or an honest availability
     // error — never the slug validation error, never fabricated targets.
-    if ((await page.locator(".target-card").count()) === 0) {
-      await expect(alert.first()).toBeVisible({ timeout: 30_000 });
+    if ((await cards.count()) === 0) {
+      await expect(alert.first()).not.toContainText(/invalid project id/i);
       await expect(
         page.getByRole("button", { name: /start authorized scan/i }).first(),
       ).toBeDisabled();
