@@ -343,6 +343,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
       (dataOf(created.json) as { id?: string; replayId?: string }).id ??
       (dataOf(created.json) as { replayId?: string }).replayId;
     expect(replayId, "server-issued replay id").toMatch(/^[0-9a-f-]{36}$/);
+    console.log(`live proof replayId=${replayId} findingId=${findingId} attemptId=${attemptId}`);
 
     const replay = await pollFor(
       "completed replay",
