@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { clerkConfigured } from "../../server/auth/clerk";
 import { ProfileMenu } from "../../features/auth/profile-menu";
 
 /**
@@ -11,7 +13,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div>
       <header className="app-header">
         <span>HighCastle</span>
-        <ProfileMenu />
+        {clerkConfigured() ? <ProfileMenu /> : <Link href="/sign-in">Sign in</Link>}
       </header>
       {children}
     </div>

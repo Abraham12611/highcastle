@@ -10,17 +10,15 @@
  * Tenant isolation itself is enforced downstream by `authorize.ts` +
  * `workspace_members` — a mapping alone never grants access; without a real
  * membership row, account actions fail CLOSED.
+ *
+ * Provisioning (first-workspace bootstrap) is owned by Engineer 12's
+ * transactional implementation — this module intentionally provides ONLY
+ * identity mapping + membership reads; no competing bootstrap here.
  */
 
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
-import {
-  createWorkspace,
-  workspaceMembers,
-  workspaces,
-  type Database,
-  type DbExecutor,
-} from "@highcastle/db";
+import { workspaceMembers, workspaces, type DbExecutor } from "@highcastle/db";
 
 const HC_NS = "hc:clerk-user:";
 
@@ -63,33 +61,4 @@ export async function listUserWorkspaces(
     .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
     .where(eq(workspaceMembers.userId, internalUserId));
   return rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, role: r.role }));
-}
-
-/**
- * Idempotent first-login provisioning: when a newly-authenticated account
- * has NO memberships, create a personal workspace with the user as owner.
- * `createWorkspace` runs the workspace + owner-member insert in one
- * transaction, so provisioning is atomic and safe to retry. Deterministic
- * slug `w-<internalId[:12]>` — a concurrent provision attempt hits a unique
- * slug violation, treated as already-provisioned (re-list below).
- *
- * Deliberately does NOT touch the seeded demo workspace: a real account
- * must never inherit the synthetic demo tenant implicitly.
- */
-export async function provisionAccountWorkspace(
-  db: Database,
-  internalUserId: string,
-): Promise<UserWorkspace[]> {
-  const existing = await listUserWorkspaces(db, internalUserId);
-  if (existing.length > 0) return existing;
-  try {
-    await createWorkspace(db, {
-      slug: `w-${internalUserId.replaceAll("-", "").slice(0, 12)}`,
-      name: "Personal workspace",
-      ownerUserId: internalUserId,
-    });
-  } catch {
-    // Unique slug violation ⇒ another provision won concurrently.
-  }
-  return listUserWorkspaces(db, internalUserId);
 }

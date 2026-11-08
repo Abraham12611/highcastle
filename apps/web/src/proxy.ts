@@ -7,16 +7,18 @@
  * enforces server-side verification independently (defense in depth; the
  * demo cookie stays untouched by Clerk).
  *
- * When CLERK env is absent (unconfigured dev), the guard is a no-op so the
- * demo path keeps working.
+ * Keyless mode: when no Clerk publishable key is configured (e.g. a VM
+ * serving only the bounded `hc_demo` guest path), this middleware is a
+ * pass-through — no Clerk code runs and no keys are required.
  */
 
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { clerkConfigured } from "./server/auth/clerk";
 
 const isProtected = createRouteMatcher(["/app(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
+const clerkGuard = clerkMiddleware(async (auth, req) => {
   if (!isProtected(req)) return;
   const { userId } = await auth();
   if (userId === null) {
@@ -25,6 +27,10 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(signIn);
   }
 });
+
+const keylessPassThrough = async (_req: NextRequest): Promise<Response> => NextResponse.next();
+
+export default clerkConfigured() ? clerkGuard : keylessPassThrough;
 
 export const config = {
   matcher: [
