@@ -25,6 +25,7 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "4.3.5",
     "@types/node": "catalog:",
     "@types/react": "19.3.0",
