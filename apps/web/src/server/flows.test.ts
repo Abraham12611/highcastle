@@ -5,7 +5,9 @@ import {
   createAttempt,
   createAuthorizationScope,
   createEvidenceArtifact,
+  getReplay,
   getScope,
+  getTarget,
   listFindings,
   recordAttemptVerdict,
   recordContainmentEvent,
@@ -71,18 +73,20 @@ function deps(calls = { scans: [] as string[], replays: [] as string[] }): {
 }
 
 async function seedFindingFixture(d: BffDeps) {
-  const created = (await createScanFlow(d, {
-    workspaceId: DEMO_IDS.workspaceId,
-    projectId: DEMO_IDS.projectId,
-    body: {
-      type: "targeted_red_team",
-      environmentId: DEMO_IDS.vulnerableEnvId,
-      targetId: DEMO_IDS.targetId,
-      authorizationScopeId: DEMO_IDS.scopeId,
-      testPackIds: ["bola-invoice-v1"],
-    },
-    idempotencyKey: "fixture-scan",
-  })).body as { data: { scanId: string } };
+  const created = (
+    await createScanFlow(d, {
+      workspaceId: DEMO_IDS.workspaceId,
+      projectId: DEMO_IDS.projectId,
+      body: {
+        type: "targeted_red_team",
+        environmentId: DEMO_IDS.vulnerableEnvId,
+        targetId: DEMO_IDS.targetId,
+        authorizationScopeId: DEMO_IDS.scopeId,
+        testPackIds: ["bola-invoice-v1"],
+      },
+      idempotencyKey: "fixture-scan",
+    })
+  ).body as { data: { scanId: string } };
   const scanId = created.data.scanId;
   const attempt = await createAttempt(db, {
     workspaceId: DEMO_IDS.workspaceId,
@@ -199,23 +203,29 @@ describe("findings and fix prompts", () => {
     const { deps: d } = deps();
     const fixture = await seedFindingFixture(d);
 
-    const listed = (await listFindingsFlow(d, {
-      workspaceId: DEMO_IDS.workspaceId,
-      projectId: DEMO_IDS.projectId,
-    })).body as { data: { id: string }[] };
+    const listed = (
+      await listFindingsFlow(d, {
+        workspaceId: DEMO_IDS.workspaceId,
+        projectId: DEMO_IDS.projectId,
+      })
+    ).body as { data: { id: string }[] };
     expect(listed.data.map((row) => row.id)).toContain(fixture.findingId);
 
-    const filtered = (await listFindingsFlow(d, {
-      workspaceId: DEMO_IDS.workspaceId,
-      projectId: DEMO_IDS.projectId,
-      severity: "low",
-    })).body as { data: unknown[] };
+    const filtered = (
+      await listFindingsFlow(d, {
+        workspaceId: DEMO_IDS.workspaceId,
+        projectId: DEMO_IDS.projectId,
+        severity: "low",
+      })
+    ).body as { data: unknown[] };
     expect(filtered.data).toEqual([]);
 
-    const single = (await getFindingFlow(d, {
-      findingId: fixture.findingId,
-      workspaceId: DEMO_IDS.workspaceId,
-    })).body as { data: unknown };
+    const single = (
+      await getFindingFlow(d, {
+        findingId: fixture.findingId,
+        workspaceId: DEMO_IDS.workspaceId,
+      })
+    ).body as { data: unknown };
     // Strict contract: the dashboard and findings UI parse FindingSchema,
     // so every mandatory field must be present and valid.
     const parsedFinding = FindingSchema.safeParse(single.data);
@@ -226,10 +236,12 @@ describe("findings and fix prompts", () => {
       expect(parsedFinding.data.projectId).toBe(DEMO_IDS.projectId);
     }
 
-    const occurrences = (await listOccurrencesFlow(d, {
-      findingId: fixture.findingId,
-      workspaceId: DEMO_IDS.workspaceId,
-    })).body as { data: unknown[] };
+    const occurrences = (
+      await listOccurrencesFlow(d, {
+        findingId: fixture.findingId,
+        workspaceId: DEMO_IDS.workspaceId,
+      })
+    ).body as { data: unknown[] };
     expect(occurrences.data).toHaveLength(1);
     const parsedOccurrence = FindingOccurrenceSchema.safeParse(occurrences.data[0]);
     expect(parsedOccurrence.success).toBe(true);
@@ -237,10 +249,12 @@ describe("findings and fix prompts", () => {
       expect(parsedOccurrence.data.oracleVerdict).toBe("reproduced");
     }
 
-    const prompt = (await fixPromptFlow(d, {
-      findingId: fixture.findingId,
-      workspaceId: DEMO_IDS.workspaceId,
-    })).body as {
+    const prompt = (
+      await fixPromptFlow(d, {
+        findingId: fixture.findingId,
+        workspaceId: DEMO_IDS.workspaceId,
+      })
+    ).body as {
       data: {
         findingId: string;
         rootCause: string;
@@ -267,10 +281,12 @@ describe("containment and artifacts", () => {
   it("lists runtime containment evidence without leaking tenant data", async () => {
     const { deps: d } = deps();
     const fixture = await seedFindingFixture(d);
-    const result = (await listContainmentFlow(d, {
-      scanId: fixture.scanId,
-      workspaceId: DEMO_IDS.workspaceId,
-    })).body as {
+    const result = (
+      await listContainmentFlow(d, {
+        scanId: fixture.scanId,
+        workspaceId: DEMO_IDS.workspaceId,
+      })
+    ).body as {
       data: { ruleId: string; allowed: boolean; runtimeEnforced: boolean }[];
     };
     expect(result.data).toHaveLength(1);
@@ -290,10 +306,12 @@ describe("containment and artifacts", () => {
   it("returns redacted artifact metadata with an honest download state", async () => {
     const { deps: d } = deps();
     const fixture = await seedFindingFixture(d);
-    const result = (await getArtifactFlow(d, {
-      artifactId: fixture.artifactId,
-      workspaceId: DEMO_IDS.workspaceId,
-    })).body as {
+    const result = (
+      await getArtifactFlow(d, {
+        artifactId: fixture.artifactId,
+        workspaceId: DEMO_IDS.workspaceId,
+      })
+    ).body as {
       data: {
         sha256: string;
         redacted: boolean;
@@ -319,7 +337,7 @@ describe("replays", () => {
     const { deps: d, calls } = deps();
     await ensurePatchedScope();
     const fixture = await seedFindingFixture(d);
-    const created = (await createReplayFlow(d, {
+    const created = await createReplayFlow(d, {
       workspaceId: DEMO_IDS.workspaceId,
       projectId: DEMO_IDS.projectId,
       findingId: fixture.findingId,
@@ -329,19 +347,97 @@ describe("replays", () => {
         patchedRevision: "lab-v2-patched",
         authorizationScopeId: PATCHED_SCOPE_ID,
       },
-    }));
+    });
     expect(created.status).toBe(202);
     const replay = (created.body as { data: { replayId: string; verdict: null } }).data;
     expect(calls.replays).toEqual([replay.replayId]);
 
-    const fetched = (await getReplayFlow(d, {
-      replayId: replay.replayId,
-      workspaceId: DEMO_IDS.workspaceId,
-    })).body as {
+    const fetched = (
+      await getReplayFlow(d, {
+        replayId: replay.replayId,
+        workspaceId: DEMO_IDS.workspaceId,
+      })
+    ).body as {
       data: { verdict: null; originalAttempt: { verdict: string } };
     };
     expect(fetched.data.verdict).toBeNull();
     expect(fetched.data.originalAttempt.verdict).toBe("reproduced");
+  });
+
+  it("provisions a fresh patched-env scope when the presented scope binds the wrong target", async () => {
+    const { deps: d } = deps();
+    // The seed suite's PATCHED_SCOPE_ID binds the vulnerable-env target —
+    // the exact wrong-triple shape that caused issue #82.
+    await ensurePatchedScope();
+    const fixture = await seedFindingFixture(d);
+    const originalScope = await getScope(db, DEMO_IDS.workspaceId, DEMO_IDS.scopeId);
+    const originalHash = originalScope?.scopeHash;
+
+    const created = await createReplayFlow(d, {
+      workspaceId: DEMO_IDS.workspaceId,
+      projectId: DEMO_IDS.projectId,
+      findingId: fixture.findingId,
+      body: {
+        originalAttemptId: fixture.attemptId,
+        patchedEnvironmentId: DEMO_IDS.patchedEnvId,
+        patchedRevision: "lab-v2-patched",
+        authorizationScopeId: PATCHED_SCOPE_ID,
+      },
+    });
+    expect(created.status).toBe(202);
+    const replayId = (created.body as { data: { replayId: string } }).data.replayId;
+    const replay = await getReplay(db, DEMO_IDS.workspaceId, replayId);
+    // The replay does NOT reuse the wrong-triple presented scope.
+    expect(replay?.approvalScopeId).not.toBe(PATCHED_SCOPE_ID);
+    const provisioned = await getScope(db, DEMO_IDS.workspaceId, replay!.approvalScopeId!);
+    expect(provisioned?.permittedEnvironmentId).toBe(DEMO_IDS.patchedEnvId);
+    // L04 relation gate: the provisioned scope's target lives in the
+    // patched environment — never the vulnerable-env target.
+    const boundTarget = await getTarget(db, DEMO_IDS.workspaceId, provisioned!.targetId);
+    expect(boundTarget?.environmentId).toBe(DEMO_IDS.patchedEnvId);
+    // Grant bounds copied, not widened.
+    expect(provisioned?.allowedTestPackIds).toEqual(originalScope?.allowedTestPackIds);
+    expect(provisioned?.allowedMethods).toEqual(originalScope?.allowedMethods);
+    // The original approval is untouched — no mutation, same immutable hash.
+    const after = await getScope(db, DEMO_IDS.workspaceId, DEMO_IDS.scopeId);
+    expect(after?.scopeHash).toBe(originalHash);
+    expect(after?.permittedEnvironmentId).toBe(DEMO_IDS.vulnerableEnvId);
+  });
+
+  it("uses a client-presented scope that already binds the patched triple", async () => {
+    const { deps: d } = deps();
+    // First replay provisions the patched target + scope; a second replay
+    // should reuse the presented valid scope rather than minting again.
+    const fixture = await seedFindingFixture(d);
+    const first = await createReplayFlow(d, {
+      workspaceId: DEMO_IDS.workspaceId,
+      projectId: DEMO_IDS.projectId,
+      findingId: fixture.findingId,
+      body: {
+        originalAttemptId: fixture.attemptId,
+        patchedEnvironmentId: DEMO_IDS.patchedEnvId,
+        patchedRevision: "lab-v2-patched",
+        authorizationScopeId: DEMO_IDS.scopeId,
+      },
+    });
+    expect(first.status).toBe(202);
+    const firstReplayId = (first.body as { data: { replayId: string } }).data.replayId;
+    const firstReplay = await getReplay(db, DEMO_IDS.workspaceId, firstReplayId);
+    const second = await createReplayFlow(d, {
+      workspaceId: DEMO_IDS.workspaceId,
+      projectId: DEMO_IDS.projectId,
+      findingId: fixture.findingId,
+      body: {
+        originalAttemptId: fixture.attemptId,
+        patchedEnvironmentId: DEMO_IDS.patchedEnvId,
+        patchedRevision: "lab-v2-patched",
+        authorizationScopeId: firstReplay!.approvalScopeId!,
+      },
+    });
+    expect(second.status).toBe(202);
+    const secondReplayId = (second.body as { data: { replayId: string } }).data.replayId;
+    const secondReplay = await getReplay(db, DEMO_IDS.workspaceId, secondReplayId);
+    expect(secondReplay?.approvalScopeId).toBe(firstReplay?.approvalScopeId);
   });
 
   it("rejects client-supplied verdicts and non-reproduced originals", async () => {
