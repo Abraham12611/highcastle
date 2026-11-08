@@ -313,7 +313,11 @@ test.describe("full pipeline (deployed containerized backend)", () => {
       timeout: 60_000,
     });
     await page.goto(`${base}/fix`);
-    await expect(page.getByText(/remediation|fix/i).first()).toBeVisible({ timeout: 60_000 });
+    // Scope to main: the collapsed mobile nav also carries a "Fixes &
+    // re-checks" label that .first() would match while hidden.
+    await expect(page.locator("main").getByText(/remediation|fix/i).first()).toBeVisible({
+      timeout: 60_000,
+    });
   });
 
   test("patched replay reaches verified_fixed", async ({ page }) => {
