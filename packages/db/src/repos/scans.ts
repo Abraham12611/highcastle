@@ -1,11 +1,13 @@
-import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
-import type { Database, DbExecutor } from "../client.js";
+import { and, desc, eq, gt, lt, notInArray, sql } from "drizzle-orm";
+import type { Database, DbExecutor, DbTransaction } from "../client.js";
 import {
   authorizationScopes,
   environments,
+  scanAdmissions,
   scanEvents,
   scans,
   isTerminalScanStatus,
+  TERMINAL_SCAN_STATUSES,
 } from "../schema/tables.js";
 import { DbError } from "../errors.js";
 
@@ -31,6 +33,54 @@ export function isAllowedScanTransition(from: string, to: string): boolean {
   return SCAN_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+/**
+ * Scan admission control (issue #83).
+ *
+ * Ceilings are enforced INSIDE the scan-creation transaction under a
+ * per-workspace advisory lock, so concurrent requests on any number of
+ * connections serialize and cannot race past the limits. A rejected request
+ * rolls back — no scan row, no ledger row, no queued job.
+ */
+
+export interface ScanAdmissionWindow {
+  /** Maximum NEW scans the subject may start inside the window. */
+  maxPerWindow: number;
+  windowSeconds: number;
+}
+
+export interface ScanAdmissionSubject {
+  /**
+   * Server-derived actor identity (`demo:<sessionId>`,
+   * `account:<userId>`, `worker:<kind>`). Never a client-supplied header.
+   */
+  key: string;
+  windows: ScanAdmissionWindow[];
+}
+
+export interface ScanAdmissionLimits {
+  maxActivePerProject: number;
+  maxActivePerWorkspace: number;
+  maxActivePerTarget: number;
+}
+
+export interface ScanAdmission {
+  /** Partial overrides merge over {@link DEFAULT_SCAN_ADMISSION_LIMITS}. */
+  limits?: Partial<ScanAdmissionLimits>;
+  subject?: ScanAdmissionSubject;
+}
+
+/**
+ * Fail-closed ceilings for the 2 GB Vultr demo VM. Every `createScan` call
+ * is held to these even when the caller passes no explicit policy, so the
+ * worker replay-scan path is covered too; the BFF tightens per-session
+ * budgets on top via `subject`.
+ */
+export const DEFAULT_SCAN_ADMISSION_LIMITS: ScanAdmissionLimits = {
+  maxActivePerProject: 5,
+  maxActivePerWorkspace: 8,
+  maxActivePerTarget: 5,
+};
+
 export interface CreateScanInput {
   workspaceId: string;
   projectId: string;
@@ -46,6 +96,7 @@ export interface CreateScanInput {
   requestedByUserId: string;
   idempotencyKey?: string | null;
   publicDemo?: boolean;
+  admission?: ScanAdmission;
 }
 
 /**
@@ -53,20 +104,43 @@ export interface CreateScanInput {
  * exist in this workspace, be `active`, be unexpired, and reference the same
  * project/target. Idempotent when `idempotencyKey` is set — a replayed
  * request returns the original scan row instead of inserting a duplicate.
+ *
+ * Admission control (issue #83): inside this same transaction a
+ * per-workspace advisory lock serializes all scan creation, then
+ * {@link enforceScanAdmission} applies the active-scan ceilings and
+ * per-subject windows atomically — concurrent requests cannot race past a
+ * cap, and a rejected request leaves no scan row, no ledger row and no job.
  */
 export async function createScan(db: Database, input: CreateScanInput) {
   return db.transaction(async (tx) => {
-    if (input.idempotencyKey) {
-      const existing = await tx
+    const findExisting = () =>
+      tx
         .select()
         .from(scans)
         .where(
           and(
             eq(scans.workspaceId, input.workspaceId),
-            eq(scans.idempotencyKey, input.idempotencyKey),
+            eq(scans.idempotencyKey, input.idempotencyKey ?? ""),
           ),
         )
         .limit(1);
+
+    if (input.idempotencyKey) {
+      const existing = await findExisting();
+      if (existing[0]) return existing[0];
+    }
+
+    // Serialize admissions per workspace: the check-then-insert below is
+    // only race-free while holding this transaction-scoped lock, which
+    // releases automatically on commit or rollback (issue #83).
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${"scan_admission:" + input.workspaceId}, 0))`,
+    );
+
+    // A same-key request that lost the lock race sees the winner's scan now
+    // and returns it — never a second insert, never consumed budget.
+    if (input.idempotencyKey) {
+      const existing = await findExisting();
       if (existing[0]) return existing[0];
     }
 
@@ -144,6 +218,11 @@ export async function createScan(db: Database, input: CreateScanInput) {
       );
     }
 
+    const admission = input.admission ?? {
+      limits: DEFAULT_SCAN_ADMISSION_LIMITS,
+    };
+    await enforceScanAdmission(tx as DbTransaction, input, admission);
+
     const [row] = await tx
       .insert(scans)
       .values({
@@ -165,8 +244,149 @@ export async function createScan(db: Database, input: CreateScanInput) {
       })
       .returning();
     if (!row) throw new DbError("internal", "scan insert returned no row");
+    if (admission.subject) {
+      await tx.insert(scanAdmissions).values({
+        workspaceId: input.workspaceId,
+        subject: admission.subject.key,
+        idempotencyKey: input.idempotencyKey ?? null,
+        scanId: row.id,
+      });
+    }
     return row;
   });
+}
+
+async function countRows(tx: DbTransaction, conditions: ReturnType<typeof and>): Promise<number> {
+  const [row] = await tx
+    .select({ count: sql<number>`count(*)::int` })
+    .from(scans)
+    .where(conditions);
+  return row?.count ?? 0;
+}
+
+/**
+ * Admission gate evaluated under the workspace advisory lock. Ceilings use
+ * `quota_exceeded` (429); subject rate windows use `rate_limited` (429).
+ */
+async function enforceScanAdmission(
+  tx: DbTransaction,
+  input: CreateScanInput,
+  admission: ScanAdmission,
+): Promise<void> {
+  const limits: ScanAdmissionLimits = {
+    ...DEFAULT_SCAN_ADMISSION_LIMITS,
+    ...admission.limits,
+  };
+  const { subject } = admission;
+  const active = notInArray(scans.status, [...TERMINAL_SCAN_STATUSES]);
+
+  const projectActive = await countRows(
+    tx,
+    and(eq(scans.workspaceId, input.workspaceId), eq(scans.projectId, input.projectId), active),
+  );
+  if (projectActive >= limits.maxActivePerProject) {
+    throw new DbError(
+      "quota_exceeded",
+      `project active scan limit reached (${projectActive}/${limits.maxActivePerProject})`,
+      { scope: "project", active: projectActive, limit: limits.maxActivePerProject },
+    );
+  }
+  const workspaceActive = await countRows(
+    tx,
+    and(eq(scans.workspaceId, input.workspaceId), active),
+  );
+  if (workspaceActive >= limits.maxActivePerWorkspace) {
+    throw new DbError(
+      "quota_exceeded",
+      `workspace active scan limit reached (${workspaceActive}/${limits.maxActivePerWorkspace})`,
+      { scope: "workspace", active: workspaceActive, limit: limits.maxActivePerWorkspace },
+    );
+  }
+  const targetActive = await countRows(
+    tx,
+    and(eq(scans.workspaceId, input.workspaceId), eq(scans.targetId, input.targetId), active),
+  );
+  if (targetActive >= limits.maxActivePerTarget) {
+    throw new DbError(
+      "quota_exceeded",
+      `target active scan limit reached (${targetActive}/${limits.maxActivePerTarget})`,
+      { scope: "target", active: targetActive, limit: limits.maxActivePerTarget },
+    );
+  }
+
+  if (subject) {
+    for (const window of subject.windows) {
+      const [row] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(scanAdmissions)
+        .where(
+          and(
+            eq(scanAdmissions.workspaceId, input.workspaceId),
+            eq(scanAdmissions.subject, subject.key),
+            gt(
+              scanAdmissions.createdAt,
+              sql`now() - make_interval(secs => ${window.windowSeconds})`,
+            ),
+          ),
+        );
+      const admitted = row?.count ?? 0;
+      if (admitted >= window.maxPerWindow) {
+        throw new DbError(
+          "rate_limited",
+          `scan admission limit reached for this session (${admitted}/${window.maxPerWindow} per ${window.windowSeconds}s)`,
+          {
+            scope: "subject",
+            admitted,
+            limit: window.maxPerWindow,
+            windowSeconds: window.windowSeconds,
+          },
+        );
+      }
+    }
+  }
+}
+
+export interface ScanAdmissionSnapshot {
+  workspaceActive: number;
+  perProject: Record<string, number>;
+  perTarget: Record<string, number>;
+}
+
+/**
+ * Current admission pressure for health/monitoring surfaces (issue #83):
+ * non-terminal scans are the capacity consumers behind every ceiling.
+ */
+export async function scanAdmissionSnapshot(
+  db: DbExecutor,
+  workspaceId: string,
+): Promise<ScanAdmissionSnapshot> {
+  const rows = await db
+    .select({
+      projectId: scans.projectId,
+      targetId: scans.targetId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(scans)
+    .where(
+      and(
+        eq(scans.workspaceId, workspaceId),
+        notInArray(scans.status, [...TERMINAL_SCAN_STATUSES]),
+      ),
+    )
+    .groupBy(scans.projectId, scans.targetId);
+  const snapshot: ScanAdmissionSnapshot = {
+    workspaceActive: 0,
+    perProject: {},
+    perTarget: {},
+  };
+  for (const row of rows) {
+    snapshot.workspaceActive += row.count;
+    snapshot.perProject[row.projectId] =
+      (snapshot.perProject[row.projectId] ?? 0) + row.count;
+    snapshot.perTarget[row.targetId] =
+      (snapshot.perTarget[row.targetId] ?? 0) + row.count;
+  }
+  return snapshot;
 }
 
 /** Tenant-scoped read. */

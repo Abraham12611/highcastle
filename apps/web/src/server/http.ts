@@ -73,16 +73,20 @@ export function parsePagination(
 
 /** UUID path params: malformed IDs are 400, never a store lookup. */
 export function clientIp(request: Request): string {
-  // The ingress proxy (Caddy, L19) sets X-Forwarded-For. It is trusted only
-  // when TRUST_PROXY=1; otherwise a client-supplied header must never
-  // shard rate-limit buckets or spoof audit identity.
-  if (process.env.TRUST_PROXY === "1") {
-    return (
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      "unknown"
-    );
-  }
-  return "unknown";
+  // Trust boundary (issue #83): X-Forwarded-For is only honored when the
+  // deployment actually fronts the managed Caddy edge (TRUST_PROXY=1).
+  // Caddy APPENDS the observed remote address as the LAST hop, so the
+  // rightmost entry is the only server-verified identity — every earlier
+  // entry is client-controlled. The leftmost value must never shard
+  // rate-limit buckets or spoof audit identity.
+  if (process.env.TRUST_PROXY !== "1") return "unknown";
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (!forwarded) return "unknown";
+  const hops = forwarded
+    .split(",")
+    .map((hop) => hop.trim())
+    .filter((hop) => hop.length > 0);
+  return hops[hops.length - 1] ?? "unknown";
 }
 
 export function parseUuid(value: string): string | null {

@@ -26,6 +26,7 @@ import {
   checkScopeRelations,
   checkScopeStatus,
 } from "@highcastle/security";
+import { scanAdmissionFor } from "./admission";
 import type { BffDeps } from "./deps";
 import { requestTime } from "./deps";
 import {
@@ -254,6 +255,10 @@ export async function createScanFlow(
     requestedByUserId: requestedBy,
     idempotencyKey: input.idempotencyKey,
     publicDemo: deps.session.kind === "demo",
+    // Issue #83: atomic admission control — the cap is enforced inside the
+    // scan-creation transaction under a per-workspace lock, so a rejected
+    // request produces no scan row, no event and no queued job.
+    admission: scanAdmissionFor(deps.session),
   });
   // Idempotent retry: a prior `scan.requested` event means this key already
   // created (and possibly already enqueued) the scan. Skip the second history

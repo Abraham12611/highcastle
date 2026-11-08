@@ -20,13 +20,9 @@ import {
 import { rateLimit } from "../../../../lib/auth/rate-limit";
 import { sessionSecret } from "../../../../server/auth/session";
 import { assertSameOrigin } from "../../../../server/auth/csrf";
+import { clientIp } from "../../../../server/http";
 
 const MINT_LIMIT_PER_MINUTE = 10;
-
-function clientIp(request: Request): string {
-  const fwd = request.headers.get("x-forwarded-for");
-  return fwd ? fwd.split(",")[0]!.trim() : "local";
-}
 
 export async function POST(request: Request): Promise<Response> {
   const csrf = assertSameOrigin(request);
