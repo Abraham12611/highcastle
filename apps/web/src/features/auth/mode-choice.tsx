@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * Builder vs Developer onboarding choice. Both modes share the same backend
- * session — this only stores a presentation preference (unsigned `hc_mode`
- * cookie + `user_preferences.experience_mode` once account auth lands).
+ * Builder vs Developer onboarding choice. Saved in two places:
+ * - the unsigned `hc_mode` cookie (presentation default, works today), and
+ * - `PATCH /api/v1/me/preferences` (server-persisted per-user preference,
+ *   E12 contract) — best-effort: 404 means E12's endpoint has not merged
+ *   yet, 403 means a demo session with nothing persisted. Either way the
+ *   cookie path keeps the choice working; nothing here invents an account.
  */
 export function ModeChoice() {
   const router = useRouter();
@@ -19,6 +22,15 @@ export function ModeChoice() {
       headers: { "content-type": "application/json", "x-highcastle-request": "1" },
       body: JSON.stringify({ mode }),
     });
+    try {
+      await fetch("/api/v1/me/preferences", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ experienceMode: mode }),
+      });
+    } catch {
+      // Unmerged endpoint or unreachable API: the cookie preference stands.
+    }
     router.push("/demo");
   }
 
