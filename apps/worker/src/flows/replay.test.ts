@@ -122,7 +122,7 @@ describe("executeReplayJob", () => {
     expect(finding?.remediationStatus).not.toBe("verified_fixed");
   });
 
-  it("inconclusive when the original attempt was never confirmed", async () => {
+  it("fails visibly when the original attempt was never confirmed", async () => {
     const h = buildHarness({});
     const unconfirmed: AttemptRecord = {
       ...confirmedAttempt(h),
@@ -132,12 +132,35 @@ describe("executeReplayJob", () => {
     h.store.attempts.set(unconfirmed.id, unconfirmed);
     const replay = await makeReplay(h, unconfirmed);
 
-    const result = await executeReplayJob(h.deps, {
-      workspaceId: h.scan.workspaceId,
-      replayId: replay.id,
-    });
-    expect(result.replayVerdict).toBe("inconclusive");
+    await expect(
+      executeReplayJob(h.deps, {
+        workspaceId: h.scan.workspaceId,
+        replayId: replay.id,
+      }),
+    ).rejects.toThrow("replay cannot complete: original attempt was not confirmed");
+    // Honest: no dangling oracle artifact, no sandbox work, visible reason.
     expect(h.sandbox.calls).toHaveLength(0);
+    expect(h.store.evidence).toHaveLength(0);
+    const events = h.events.events.filter((e) => e.eventType === "scan.stage.updated");
+    expect(events.some((e) => e.safeSummary.includes("not confirmed"))).toBe(true);
+  });
+
+  it("fails visibly when the replay scan produces no attempt", async () => {
+    const h = buildHarness({});
+    const replay = await makeReplay(h, confirmedAttempt(h));
+    // Scan fails pre-execution (policy deny/expired scope): no attempt row.
+    h.deps.sandbox = {
+      execute: async () => ({ kind: "denied", reason: "x", policyVersion: "p" }),
+      cancel: async () => {},
+      reconcileOrphans: async () => ({ inspected: 0, reaped: [], markedLost: [], errors: [] }),
+    };
+    await expect(
+      executeReplayJob(h.deps, {
+        workspaceId: h.scan.workspaceId,
+        replayId: replay.id,
+      }),
+    ).rejects.toThrow("replay cannot complete");
+    expect(h.store.evidence).toHaveLength(0);
   });
 
   it("skips an already-completed replay (idempotent)", async () => {
