@@ -159,7 +159,7 @@ body {
   border: 0;
   border-top: 1px solid var(--hc-line);
 }
-.auth-shell button {
+.auth-shell > div:last-child > button {
   border: 1px solid var(--hc-line-strong);
   border-radius: 6px;
   padding: 10px 14px;
@@ -167,7 +167,7 @@ body {
   background: var(--hc-surface-2);
   cursor: pointer;
 }
-.auth-shell button:hover { border-color: var(--hc-primary); }
-.auth-shell button:focus-visible { outline: 2px solid var(--hc-focus); outline-offset: 3px; }
+.auth-shell > div:last-child > button:hover { border-color: var(--hc-primary); }
+.auth-shell > div:last-child > button:focus-visible { outline: 2px solid var(--hc-focus); outline-offset: 3px; }
 .auth-shell small { display: block; color: var(--hc-muted); font-size: .78rem; line-height: 1.6; margin-top: 8px; }
 .auth-shell [role="alert"] { color: var(--hc-coral); }
