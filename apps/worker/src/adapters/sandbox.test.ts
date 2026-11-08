@@ -69,4 +69,132 @@ describe("observationsFromRun", () => {
     const bad = FULL.map((o) => (o.step === "meta" ? { ...o, status: "200" as never } : o));
     expect(observationsFromRun("a", REV, bad)).toBeNull();
   });
+  it("accepts legs in any order — order is not evidence (issue #92)", () => {
+    const shuffled = [...FULL].reverse();
+    const obs = observationsFromRun("a", REV, shuffled);
+    expect(obs).not.toBeNull();
+    expect(obs?.crossInvoice.status).toBe(403);
+  });
+  it("returns null when whoami resolves an actor but own_invoice owner differs", () => {
+    const bad = FULL.map((o) =>
+      o.step === "own_invoice"
+        ? leg("own_invoice", 200, {
+            invoice: { id: "invoice_A", ownerId: "user_B", tenantId: "tenant_B" },
+          })
+        : o,
+    );
+    expect(observationsFromRun("a", REV, bad)).toBeNull();
+  });
+  it("returns null when the own_invoice leg body is not a record", () => {
+    const bad = FULL.map((o) =>
+      o.step === "own_invoice" ? leg("own_invoice", 200, "not-json-body") : o,
+    );
+    expect(observationsFromRun("a", REV, bad)).toBeNull();
+  });
+  it("tolerates a primitive cross_invoice body — the oracle grades it, not the mapper", () => {
+    const raw = FULL.map((o) =>
+      o.step === "cross_invoice" ? leg("cross_invoice", 403, "opaque-denial") : o,
+    );
+    const obs = observationsFromRun("a", REV, raw);
+    expect(obs).not.toBeNull();
+    expect(obs?.crossInvoice.body).toBe("opaque-denial");
+  });
+});
+
+describe("ContainerExecutor — Pattern A program passthrough", () => {
+  it("forwards ctx.program to the controller and reports provenance", async () => {
+    const seen: unknown[] = [];
+    const stubController = {
+      execute: (req: unknown, ctx: unknown) => {
+        seen.push(ctx);
+        return Promise.resolve({
+          kind: "executed",
+          request: req,
+          runner: { id: "r1", status: "cleanup_verified" },
+          outcome: "completed",
+          result: null,
+          resultError: null,
+          containmentEvents: [],
+          probes: [],
+          observations: [],
+          programResult: {
+            status: "ok",
+            output: '{"crossOwner":"user_B"}',
+            requestsMade: 4,
+            durationMs: 900,
+            programSha256: "a".repeat(64),
+          },
+          exitCode: 0,
+        });
+      },
+      cancel: () => Promise.resolve(),
+      reconcileOrphans: () =>
+        Promise.resolve({ inspected: 0, reaped: [], markedLost: [], errors: [] }),
+    };
+    const { ContainerExecutor } = await import("./sandbox.js");
+    const exec = new ContainerExecutor(stubController as never, {});
+    const program = {
+      language: "js-subset-v1" as const,
+      source: "return 1",
+      sha256: "b".repeat(64),
+      generator: { provider: "vultr-inference" as const, model: "m", generatedAt: "t" },
+    };
+    const out = await exec.execute(
+      { attemptId: "a1" } as never,
+      { workspaceId: "w1", program } as never,
+    );
+    expect(out.kind).toBe("executed");
+    const forwarded = seen[0] as { program?: unknown };
+    expect(forwarded.program).toBe(program);
+    if (out.kind === "executed") {
+      expect(out.program?.sha256).toBe("b".repeat(64));
+      expect(out.program?.model).toBe("m");
+      expect(out.program?.result?.status).toBe("ok");
+      expect(out.program?.result?.requestsMade).toBe(4);
+    }
+  });
+
+  it("env-gated generator: absent program → generator produces an authorized one", async () => {
+    const draft = {
+      source: "return { ok: true }",
+      generator: { provider: "vultr-inference" as const, model: "m", generatedAt: "t" },
+    };
+    const generator = {
+      generate: () => Promise.resolve(draft),
+    };
+    const seen: unknown[] = [];
+    const stubController = {
+      execute: (_req: unknown, ctx: unknown) => {
+        seen.push(ctx);
+        return Promise.resolve({
+          kind: "executed",
+          request: _req,
+          runner: { id: "r1", status: "cleanup_verified" },
+          outcome: "completed",
+          result: null,
+          resultError: null,
+          containmentEvents: [],
+          probes: [],
+          observations: [],
+          programResult: null,
+          exitCode: 0,
+        });
+      },
+      cancel: () => Promise.resolve(),
+      reconcileOrphans: () =>
+        Promise.resolve({ inspected: 0, reaped: [], markedLost: [], errors: [] }),
+    };
+    const { ContainerExecutor } = await import("./sandbox.js");
+    const exec = new ContainerExecutor(stubController as never, {
+      programGenerator: generator as never,
+    });
+    const out = await exec.execute(
+      { attemptId: "a1", limits: { maxRequests: 8 } } as never,
+      { workspaceId: "w1" } as never,
+    );
+    expect(out.kind).toBe("executed");
+    const forwarded = seen[0] as { program?: { sha256?: string } };
+    expect(forwarded.program?.sha256).toMatch(/^[0-9a-f]{64}$/);
+    if (out.kind === "executed") expect(out.program?.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
 });

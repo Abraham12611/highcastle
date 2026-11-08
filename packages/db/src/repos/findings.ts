@@ -533,11 +533,16 @@ export async function completeReplay(
       : "inconclusive";
 
     const now = new Date();
+    // Nullable tri-state: an `unknown` leg is "not observed", never a
+    // definitive negative. Persisting false would fabricate a failed
+    // assertion out of evidence that does not exist.
+    const legFlag = (outcome: "pass" | "fail" | "unknown"): boolean | null =>
+      outcome === "pass" ? true : outcome === "fail" ? false : null;
     const [completed] = await tx
       .update(replays)
       .set({
-        positiveAssertionPassed: evidence.baseline === "pass",
-        negativeAssertionPassed: evidence.securityCheck === "pass",
+        positiveAssertionPassed: legFlag(evidence.baseline),
+        negativeAssertionPassed: legFlag(evidence.securityCheck),
         oracleEvidenceId: artifact.id,
         oracleVersion: evidence.oracleVersion,
         verdict,

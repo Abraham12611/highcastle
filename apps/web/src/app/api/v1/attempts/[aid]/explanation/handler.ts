@@ -36,7 +36,7 @@ export async function readAttemptExplanation(
   rejectionCode: string | null;
 }> {
   if (!parseUuid(aid)) throw new DbError("validation_error", "invalid attempt id");
-  const workspaceId = await deps.authorizer.requestWorkspace(db, session);
+  const workspaceId = await deps.authorizer.requestWorkspace(db, session, aid);
   const attempt = await deps.reader.getAttempt(db, workspaceId, aid);
   if (!attempt) throw DbError.notFound("test_attempt", aid);
   const scan = await deps.reader.getScan(db, workspaceId, attempt.scanId);

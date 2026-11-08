@@ -8,7 +8,7 @@ import {
 import { getAttempt, getFinding, listFindingOccurrences, listFindings } from "@highcastle/db";
 import { DbError } from "@highcastle/db";
 import type { BffDeps } from "./deps";
-import { authorizeProject } from "./authz";
+import { authorizeProject, authorizeWorkspaceMutation } from "./authz";
 import type { RouteResult } from "./scans";
 
 /**
@@ -172,6 +172,7 @@ export async function fixPromptFlow(
   const row = await getFinding(deps.db, input.workspaceId, input.findingId);
   if (!row) throw DbError.notFound("finding", input.findingId);
   await authorizeProject(deps.db, deps.session, input.workspaceId, row.projectId);
+  await authorizeWorkspaceMutation(deps.db, deps.session, input.workspaceId, "fix-prompt");
   let observed = "No recorded execution evidence yet.";
   if (row.latestConfirmedAttemptId) {
     const attempt = await getAttempt(

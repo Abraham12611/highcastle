@@ -81,7 +81,8 @@ export async function authorizeWorkspaceAction(
   const role = await membership.getWorkspaceRole(action.workspaceId, session.userId);
   if (!role) return false;
   if (role === "owner" || role === "admin") return action.type !== "write-verdict";
-  if (role === "developer") return READ_ACTIONS.has(action.type) || MEMBER_MUTATIONS.has(action.type);
+  if (role === "developer")
+    return READ_ACTIONS.has(action.type) || MEMBER_MUTATIONS.has(action.type);
   return READ_ACTIONS.has(action.type); // viewer
 }
 

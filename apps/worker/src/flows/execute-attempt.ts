@@ -22,6 +22,7 @@ import {
 import type { OrchestratorDeps } from "./deps.js";
 import type { AttemptAdjudication, AttemptRecord, PlanDecision } from "../adapters/ports.js";
 import { emit } from "./events.js";
+import { runPostOracleExplanation } from "./explain-attempt.js";
 
 export type ApprovedPlan = Extract<PlanDecision, { allowed: true }>;
 
@@ -47,6 +48,41 @@ export interface AttemptRunResult {
   reproduced: boolean;
 }
 
+/**
+ * Post-oracle explanation hook (Engineer 8). Runs after the verdict is
+ * persisted, explains from trusted observations + persisted evidence,
+ * and never alters the attempt outcome, scan success, or oracle verdict
+ * — the explanation service is fail-safe by contract.
+ */
+async function explainAfterVerdict(
+  deps: OrchestratorDeps,
+  input: {
+    workspaceId: string;
+    scanId: string;
+    targetRevision: string;
+    attempt: AttemptRecord;
+    adjudication: AttemptAdjudication;
+  },
+): Promise<void> {
+  await runPostOracleExplanation(
+    {
+      store: deps.store,
+      events: deps.events,
+      ...(deps.explainer === undefined ? {} : { inference: deps.explainer }),
+    },
+    {
+      workspaceId: input.workspaceId,
+      scanId: input.scanId,
+      attemptId: input.attempt.id,
+      packId: input.attempt.packId,
+      packVersion: input.attempt.packVersion,
+      targetRevision: input.targetRevision,
+      oracleVerdict: input.adjudication.verdict,
+      adjudication: input.adjudication,
+    },
+  );
+}
+
 /** Deterministic plan hash for idempotent attempt rows (resume-safe). */
 export function computePlanHash(parts: {
   scanId: string;
@@ -61,6 +97,17 @@ export function computePlanHash(parts: {
 
 function newNonce(): string {
   return randomBytes(24).toString("hex");
+}
+
+/**
+ * Persist an oracle leg as the nullable tri-state the contract declares:
+ * pass→true, fail→false, unknown→null. An unobserved or ambiguous leg is
+ * NEVER a definitive negative — persisting `false` for `unknown` rewrites
+ * "we could not measure" into "the control failed", which is fabricated
+ * evidence. Both verdict paths below must agree on this mapping.
+ */
+function legFlag(outcome: "pass" | "fail" | "unknown"): boolean | null {
+  return outcome === "pass" ? true : outcome === "fail" ? false : null;
 }
 
 function sha256Hex(text: string): string {
@@ -251,15 +298,9 @@ export async function runAttempt(
     await store.recordAttemptVerdict(workspaceId, attempt.id, {
       oracleVersion: adjudication.oracleVersion,
       verdict: adjudication.verdict,
-      reasonCode: adjudication.reasons[0]?.split(" ")[0] ?? null,
-      positiveControlPassed:
-        adjudication.baseline === "pass" ? true : adjudication.baseline === "fail" ? false : null,
-      negativeSecurityConditionMet:
-        adjudication.securityCheck === "pass"
-          ? true
-          : adjudication.securityCheck === "fail"
-            ? false
-            : null,
+      reasonCode: adjudication.reasons.join(" | ").slice(0, 128) || null,
+      positiveControlPassed: legFlag(adjudication.baseline),
+      negativeSecurityConditionMet: legFlag(adjudication.securityCheck),
     });
     await store.createEvidenceArtifact({
       workspaceId,
@@ -287,6 +328,7 @@ export async function runAttempt(
       },
       attemptId: attempt.id,
     });
+    await explainAfterVerdict(deps, { workspaceId, scanId, targetRevision: input.targetRevision, attempt, adjudication });
     const updated = await store.getAttempt(workspaceId, attempt.id);
     return {
       attempt: updated ?? attempt,
@@ -316,6 +358,7 @@ export async function runAttempt(
       positiveControlPassed: null,
       negativeSecurityConditionMet: null,
     });
+    await explainAfterVerdict(deps, { workspaceId, scanId, targetRevision: input.targetRevision, attempt, adjudication });
     return { attempt: updated, outcome: "completed", adjudication, reproduced: false };
   }
 
@@ -324,8 +367,8 @@ export async function runAttempt(
     oracleVersion: adjudication.oracleVersion,
     verdict: adjudication.verdict,
     reasonCode: adjudication.reasons.join(" | ").slice(0, 128),
-    positiveControlPassed: adjudication.baseline === "pass",
-    negativeSecurityConditionMet: adjudication.securityCheck === "pass",
+    positiveControlPassed: legFlag(adjudication.baseline),
+    negativeSecurityConditionMet: legFlag(adjudication.securityCheck),
   });
 
   // Persist the verdict payload as a redacted oracle artifact (hash pinned).
@@ -340,6 +383,8 @@ export async function runAttempt(
     byteSize: JSON.stringify(adjudication).length,
     contentType: "application/json",
   });
+
+  await explainAfterVerdict(deps, { workspaceId, scanId, targetRevision: input.targetRevision, attempt: updatedAttempt, adjudication });
 
   return {
     attempt: updatedAttempt,

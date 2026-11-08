@@ -26,11 +26,13 @@ import {
   checkScopeRelations,
   checkScopeStatus,
 } from "@highcastle/security";
+import { scanAdmissionFor } from "./admission";
 import type { BffDeps } from "./deps";
 import { requestTime } from "./deps";
 import {
   assertExecutionBinding,
   authorizeProject,
+  authorizeWorkspaceMutation,
   loadExecutionScope,
 } from "./authz";
 import {
@@ -217,6 +219,7 @@ export async function createScanFlow(
     throw new DbError("validation_error", "Idempotency-Key header is required");
   }
   await authorizeProject(deps.db, deps.session, input.workspaceId, input.projectId);
+  await authorizeWorkspaceMutation(deps.db, deps.session, input.workspaceId, "create-scan");
   assertExecutionBinding(deps.session, {
     projectId: input.projectId,
     targetId: parsed.data.targetId,
@@ -254,6 +257,10 @@ export async function createScanFlow(
     requestedByUserId: requestedBy,
     idempotencyKey: input.idempotencyKey,
     publicDemo: deps.session.kind === "demo",
+    // Issue #83: atomic admission control — the cap is enforced inside the
+    // scan-creation transaction under a per-workspace lock, so a rejected
+    // request produces no scan row, no event and no queued job.
+    admission: scanAdmissionFor(deps.session),
   });
   // Idempotent retry: a prior `scan.requested` event means this key already
   // created (and possibly already enqueued) the scan. Skip the second history
@@ -374,6 +381,7 @@ export async function cancelScanFlow(
   const row = await getScan(deps.db, input.workspaceId, input.scanId);
   if (!row) throw DbError.notFound("scan", input.scanId);
   await authorizeProject(deps.db, deps.session, input.workspaceId, row.projectId);
+  await authorizeWorkspaceMutation(deps.db, deps.session, input.workspaceId, "cancel-scan");
   const updated = await requestScanCancel(deps.db, input.workspaceId, input.scanId);
   // Best effort: the DB flag is the mechanism the worker honors, so a dead
   // queue must not block cancellation — but the response says honestly

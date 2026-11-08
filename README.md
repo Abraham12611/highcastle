@@ -1,89 +1,90 @@
-# HighCastle
+# HighCastle — Prove the risk. Prove the fix.
 
-**Your personal AI hacker — finding vulnerabilities, safely proving them in isolated test environments, and verifying the fixes.**
+HighCastle is a containment-first AI security investigation application, built for the **Vultr Agent Rush / Blast Radius Zero** hackathon. It runs a real, bounded security check inside an isolated Docker environment on Vultr, captures verifiable observations, and independently verifies whether a patch fixes the issue.
 
-> Status: architecture and hackathon specification; the application has not yet been implemented. All sample findings are synthetic. Product security claims must be supported by executed evidence.
+**Live app:** [https://high-castle.online](https://high-castle.online)  
+**Controlled demo:** [https://high-castle.online/demo](https://high-castle.online/demo)  
+**Get started:** [https://high-castle.online/get-started](https://high-castle.online/get-started)
 
-HighCastle is a web-based application-security investigation platform for vibe coders, AI-assisted developers, indie founders and eventually teams. The differentiator is the **Proof Engine**: source-aware security hypotheses are translated into narrowly scoped, executable checks against an authorized, disposable test application. HighCastle records what actually happened, explains it, prepares fix guidance, and replays the original check after a patch.
+The public demo exercises **HighCastle's own synthetic invoice application**. It does not scan arbitrary customer URLs, connect to third-party apps, or grant a guest access to unrestricted pentesting.
 
-## Where to begin
+## Real demo workflow
 
-1. **[AGENTS.md](AGENTS.md)** — mandatory rules and entry point for all coding agents.
-2. **[Documentation index](docs/00_INDEX.md)** — every product, architecture, UX, and delivery document.
-3. **[Hackathon build plan](docs/delivery/01_HACKATHON_PLAN.md)** — the dependency-gated work sequence.
-4. **[Parallel workstreams](docs/delivery/02_PARALLEL_WORKSTREAMS.md)** — ownership of up to 20 independent agent lanes.
-5. **[Safety boundary](docs/security/02_CONTAINMENT_AND_AUTHORIZATION.md)** — non-negotiable authorization and isolation controls.
-6. **[Design system](docs/design/01_DESIGN_SYSTEM.md)** — original HighCastle visual identity inspired by retro-technical interfaces, not a Sandchest copy.
+1. Open the controlled demo and grant the displayed, fixed synthetic-lab scope.
+2. Vultr Serverless Inference generates a bounded security program/hypothesis; the independent policy gate checks allowed operations.
+3. The worker dispatches the approved work to an ephemeral, hardened Docker sandbox on the Vultr VM (not the web/app process).
+4. The sandbox exercises a vulnerable synthetic invoice app under test accounts Alice and Bob. The **independent oracle**, not the LLM, checks whether Alice can read Bob's invoice.
+5. HighCastle persists the scan events, evidence digests, containment actions and finding. The UI exposes live/resumable SSE updates and remediation guidance.
+6. A patched replay checks that Alice can still read her own invoice but cannot read Bob's, before marking the finding `verified_fixed`.
+7. The runner is destroyed and cleanup is recorded.
 
-## Hackathon scope (November 6–8, 2026)
+A real Vultr deployment run reported on **November 8, 2026** demonstrated this chain on application revision `2380dcac`:
 
-The release candidate must demonstrate: an actual Vultr-hosted web application, central control plane on a Vultr VM, LLM calls through Vultr Serverless Inference, real sandboxed code/browser execution, a deterministic cross-account authorization failure against our own synthetic invoice SaaS, an evidence-backed finding, fix guidance, replay against a patched version, and at least one real sandbox containment event. See `docs/delivery/05_DEMO_SCRIPT_AND_SUBMISSION.md`.
+| Proof | Real persisted result |
+|---|---|
+| Vulnerable scan | `d10c63a5-8b0f-4477-9f6e-7ce35448f686` — completed |
+| Original test attempt | `2783683d-ba8c-450e-8b32-e17965f1a762` — reproduced |
+| Confirmed finding | `ad9a8d1c-2466-48f5-adc2-b73128cef866` — synthetic BOLA |
+| Patched replay | `68d85b0c-e1c0-4cf9-a749-4ea0a338f405` — `verified_fixed` |
+| Runtime | Docker runner with network/process/filesystem containment and cleanup |
 
-**Not hackathon commitments:** arbitrary production pentesting; URL-wide crawling; automatic GitHub PR gates; payments; enterprise auth; unsupervised exploit generation; self-hosted custom GPU models.
+These are **operator-reported live execution records**, not a claim that every later browser test or every account feature passes. See [release evidence and remaining acceptance gates](docs/delivery/06_SUBMISSION_CHECKLIST.md) and [the architecture diagram](docs/delivery/demo-assets/architecture.md). The exact public serving SHA must be rechecked after each deployment.
 
-## Repository layout (target; bootstrap phase creates it)
+## Architecture
 
-~~~text
-apps/
-  web/                 Next.js App Router: landing, dashboard, API, Better Auth
-  worker/              background orchestrator and scan event publisher
-  target-lab/          deliberately vulnerable and patched test SaaS; synthetic data
-packages/
-  contracts/           Zod schemas, API and event types, enums
-  db/                  Drizzle schema, migrations, repositories
-  ui/                  HighCastle UI primitives/tokens
-  security/            authorization, scope validation, secret redaction
-  inference/           Vultr Serverless Inference adapter
-  test-packs/          deterministic security test pack definitions
-  sandbox/             sandbox controller and execution adapters
-infra/
-  docker/              sandbox/target images, compose files
-  vultr/               provisioning/deployment scripts
-docs/                  canonical specifications
-.github/workflows/     CI
-~~~
+| Component | Implementation |
+|---|---|
+| UI and API | Next.js 16, React 19, TypeScript, original Nocturne Signal UI components |
+| Control plane | Vultr Cloud Compute VM, Caddy HTTPS, Docker Compose |
+| Agent model | **Vultr Serverless Inference**, OpenAI-compatible endpoint; agent calls stay server-side |
+| Orchestration | Node.js worker, PostgreSQL 16, pg-boss durable jobs and scan events |
+| Execution boundary | Disposable non-root Docker runners, caps dropped, read-only filesystem, scoped internal network, CPU/memory/time/request budgets |
+| Verification | `bola-invoice-v1` deterministic test pack + independent evidence-based oracle |
+| Storage | PostgreSQL / Drizzle, persisted evidence metadata, replay linkage and cleanup ledger |
+| Accounts | Clerk integration and workspace tenancy in source; public production configuration is verified separately |
 
-Do not mistake the target layout for already-created source files. The initial documentation PR is intentionally documentation-only.
+**Trust boundary:** Model-generated code never executes inside the web server or trusted worker process. It enters only the authorized container runtime, where execution and egress restrictions apply. The oracle—not the model—determines whether a finding is reproduced or fixed.
 
-## Development
+## Repository layout
 
-**Prerequisites:** Node.js 24 LTS (see `.node-version`) and pnpm 10 via Corepack.
+- `apps/web`: landing, onboarding, dashboard, authorized demo, scan/finding/replay pages and BFF.
+- `apps/worker`: durable scan/replay execution, sandbox and inference adapters, post-verdict explanation.
+- `apps/target-lab`: owned synthetic invoice lab in vulnerable and patched revisions.
+- `packages/sandbox`: runner controller, authorization and containment.
+- `packages/test-packs`: deterministic BOLA checks and independent oracle.
+- `packages/security`: policy, scope validation and safe egress primitives.
+- `packages/inference`: Vultr LLM adapter.
+- `packages/db`: Drizzle schemas, migrations, repositories and durable events.
+- `packages/ui`: original Nocturne Signal tokens, components and fortress identity.
+- `infra/docker/deploy`, `infra/vultr`: reproducible Vultr deployment instructions and examples.
+
+## Local development
+
+Requirements: Node.js 24, Corepack/pnpm, Docker with Compose, and a PostgreSQL database (or the documented local stack).
 
 ```bash
-corepack enable          # activates the pnpm version pinned in package.json
-pnpm install             # installs the workspace lockfile
-pnpm dev                 # runs apps/web (next dev :3000) and apps/worker (:3010/healthz)
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+pnpm lint
+pnpm typecheck
+pnpm test
 ```
 
-| Command              | Status      | Notes |
-| -------------------- | ----------- | ----- |
-| `pnpm build`         | implemented | builds all workspace packages |
-| `pnpm lint`          | implemented | ESLint flat config per package |
-| `pnpm typecheck`     | implemented | `tsc --noEmit`; web runs `next typegen` first |
-| `pnpm test`          | implemented | Vitest unit tests |
-| `pnpm format`        | implemented | Prettier check (`format:write` to fix) |
-| `pnpm test:e2e`      | placeholder | fails closed; Playwright suite is lane L20 (phase F4) |
-| `pnpm test:security` | placeholder | fails closed; needs packages/security (L04) + runner (L14) |
-| `pnpm db:migrate`    | placeholder | fails closed; migrations are lane L02 in packages/db |
+See [environment template](.env.example) and [Vultr deployment docs](infra/vultr/ENVIRONMENT.md). Supply secrets only through local ignored env files or server-side secret configuration; **never commit keys**. A complete scan requires the database, queue, synthetic target lab, correct immutable image digest, approved scope and container runtime. Running only `pnpm dev` does not provision these dependencies.
 
-Placeholder commands exit non-zero on purpose — a green shim would masquerade as a
-passing check. New packages under `packages/*` join the workspace automatically;
-reference shared toolchain versions with `"pkg": "catalog:"` and depend on sibling
-packages as `"@highcastle/<name>": "workspace:*"`.
+## Explicit limitations and safety
 
-## Product principles
+- The hackathon demo is a **fixed, authorized synthetic BOLA test**, not a general-purpose or autonomous public bug-bounty tool.
+- Source/GitHub and verified-URL onboarding are separate integration lanes; do **not** assume they are available just because UI placeholders appear.
+- Clerk account authentication requires correctly configured production keys and an actual browser acceptance test; guest demo sessions are not real customer accounts.
+- Never use the demo to target a real third-party website or repository without specific authorization.
+- Treat the [submission checklist](docs/delivery/06_SUBMISSION_CHECKLIST.md) as a release gate; real recorded video, exact deployed SHA and evidence remain independently verifiable.
 
-- **Authorization before action.** Possession of a URL does not grant permission to attack it.
-- **Executed evidence over confident prose.** Model text never by itself confirms a vulnerability.
-- **Fix + replay closes the loop.** A disappearing attack plus passing legitimate behavior is the test.
-- **One platform, two modes.** Builder and Developer modes share state, routes and findings.
-- **Vultr first for the event.** All agent LLM calls use Vultr Serverless Inference; the control plane and isolated execution are hosted on Vultr.
-- **Original identity and independently developed code.** Sandchest is a product inspiration, not a component or UI to copy.
+## Documentation
 
-## Source materials
+Start with [architecture](docs/00_INDEX.md), [hackathon implementation plan](docs/delivery/01_HACKATHON_PLAN.md), [containment and authorization](docs/security/02_CONTAINMENT_AND_AUTHORIZATION.md), [agent engineering rules](AGENTS.md), and [submission storyboard](docs/delivery/demo-assets/video-storyboard.md).
 
-Hackathon: https://community.vultr.com/e/vultr-agent-rush-hackathon
+## License
 
-Sandchest: https://www.sandchest.com/docs/scans (feature-reference only; observe license and originality).
-
-The work is organized to enable many AI engineering workers, **not** to assume the competition accepts 20 human teammates.
+See [LICENSE](LICENSE). HighCastle's original code and visual identity are distinct from Sandchest. Any future directly adapted AGPL component must go through a separate license/source-compliance review before being incorporated into the public application.

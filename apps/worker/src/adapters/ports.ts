@@ -23,6 +23,7 @@
  * "cannot observe" as inconclusive, never as confirmation.
  */
 
+import type { AuthorizedModelProgram } from "@highcastle/sandbox";
 import type {
   ActorType,
   AgentProposal,
@@ -338,6 +339,60 @@ export interface OrchestratorStore {
 
   /** Runner rows for janitor/cancel paths. */
   listActiveRunnerIds(workspaceId: string, scanId: string): Promise<RunnerInstanceId[]>;
+
+  /**
+   * Persisted evidence artifacts for one attempt, workspace-scoped.
+   * The explanation service (E8) cites only these rows — never
+   * caller-supplied IDs and never raw response bodies.
+   */
+  listEvidenceForAttempt(
+    workspaceId: string,
+    scanId: string,
+    attemptId: string,
+  ): Promise<EvidenceArtifactRef[]>;
+  /**
+   * Persist a validated post-oracle explanation. The L02 repo verifies
+   * attempt/evidence linkage and verdict equality — this write cannot
+   * change the oracle result.
+   */
+  recordExplanation(input: RecordExplanationInput): Promise<ExplanationRecord>;
+}
+
+/** Minimal persisted-evidence shape for explanation grounding. */
+export interface EvidenceArtifactRef {
+  id: string;
+  workspaceId: string;
+  scanId: string;
+  attemptId: string | null;
+  artifactKind: string;
+  sha256: string;
+  byteSize: number;
+}
+
+export interface RecordExplanationInput {
+  workspaceId: string;
+  scanId: string;
+  attemptId: string;
+  /** Must all be persisted rows for this workspace/scan/attempt. */
+  evidenceIds: string[];
+  requestedModel: string;
+  responseModel?: string | null;
+  requestId?: string | null;
+  latencyMs?: number | null;
+  tokensInput?: number | null;
+  tokensOutput?: number | null;
+  outcome: "success" | "malformed" | "policy_conflict" | "timeout" | "rate_limited" | "error";
+  errorCode?: string | null;
+  oracleVerdict: "reproduced" | "not_reproduced" | "inconclusive";
+  replayVerdict?: "verified_fixed" | "still_vulnerable" | "regression" | "inconclusive" | null;
+  explanation?: unknown;
+  rawExplanationRedacted: unknown;
+}
+
+export interface ExplanationRecord {
+  id: string;
+  attemptId: string;
+  oracleVerdict: "reproduced" | "not_reproduced" | "inconclusive";
 }
 
 // ----------------------------------------------------- events (L17) ---
@@ -528,6 +583,22 @@ export type SandboxRunOutcome =
        * may substitute runner booleans for this.
        */
       observations: AttemptObservations | null;
+      /**
+       * Pattern A provenance + real execution outcome, present when a
+       * model-authored program was dispatched. `result` is the guest's
+       * actual bounded output — evidence, never a verdict.
+       */
+      program?: {
+        sha256: string;
+        model: string;
+        generatedAt: string;
+        result: {
+          status: "ok" | "program_error" | "budget_exceeded" | "timeout" | "denied";
+          output: string;
+          requestsMade: number;
+          durationMs: number;
+        } | null;
+      };
       containmentEvents: ContainmentEvent[];
       exitCode: number | null;
       resultError: string | null;
@@ -553,6 +624,13 @@ export interface SandboxExecutor {
       signal?: AbortSignal | undefined;
       /** Scan's pinned lab revision (expectedRevision for the pack run). */
       expectedRevision?: string | undefined;
+      /**
+       * Pattern A (issue #54): model-authored, sha-pinned program authorized
+       * via `authorizeModelProgram`. Present ⇒ the runner executes it inside
+       * the hardened container via the constrained `lab.get` API — never on
+       * the host. Absent ⇒ the fixed built-in pack path (unchanged).
+       */
+      program?: AuthorizedModelProgram | undefined;
     },
   ): Promise<SandboxRunOutcome>;
   cancel(runnerId: RunnerInstanceId, reason: string): Promise<void>;

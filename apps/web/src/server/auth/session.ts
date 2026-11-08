@@ -19,6 +19,8 @@ import {
   readCookie,
   type HighCastleSession,
 } from "../../lib/auth/session-core";
+import { clerkEnv, verifyClerkSession } from "./clerk";
+import { internalUserIdForClerk } from "./membership";
 
 /**
  * Signing secret resolution. `BETTER_AUTH_SECRET` is the provisioned auth
@@ -31,7 +33,9 @@ export function sessionSecret(env: NodeJS.ProcessEnv = process.env): string | nu
   return "dev-only-insecure-session-secret";
 }
 
-function headersOf(input: Headers | Request | { get(name: string): string | null }): { get(name: string): string | null } {
+function headersOf(input: Headers | Request | { get(name: string): string | null }): {
+  get(name: string): string | null;
+} {
   return input instanceof Request ? input.headers : input;
 }
 
@@ -42,9 +46,27 @@ function headersOf(input: Headers | Request | { get(name: string): string | null
 export async function getHighCastleSession(
   input: Headers | Request,
 ): Promise<HighCastleSession | null> {
-  const secret = sessionSecret();
-  if (!secret) return null;
   const headers = headersOf(input);
+
+  // 1. Clerk account session (real path when configured). A valid Clerk
+  //    token maps clerk_user_id → internal UUID; anything else falls through.
+  const clerk = await verifyClerkSession(headers as Headers, clerkEnv());
+  if (clerk) {
+    return {
+      kind: "account",
+      userId: internalUserIdForClerk(clerk.clerkUserId),
+      sessionId: clerk.sessionId,
+      expiresAt: clerk.expiresAt,
+    };
+  }
+
+  // 2. Legacy HMAC account cookie — ONLY honoured when Clerk is NOT
+  //    configured (documented migration path). With Clerk present, an old
+  //    hc_session cookie is deliberately ignored: a fresh public account
+  //    must come from a verified Clerk token, not a mintable shared-secret
+  //    cookie.
+  const secret = clerkEnv() === null ? sessionSecret() : null;
+  if (!secret) return null;
 
   const account = readCookie(headers as Headers, ACCOUNT_COOKIE);
   if (account) {

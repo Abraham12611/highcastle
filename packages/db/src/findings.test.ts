@@ -458,6 +458,40 @@ describe("findings and replays", () => {
     );
   });
 
+  it("persists null — not false — for unobserved replay legs (issue #92)", async () => {
+    // Live evidence 2026-11-08: replay scans whose attempt never executed
+    // (sandbox_precondition) completed with the flow's fallback legs
+    // unknown/unknown — the persisted assertions must stay NULL, not a
+    // fabricated definitive false.
+    const { f, scan, attempt } = await openScanWithAttempt();
+    const { finding } = await upsertFindingFromVerdict(
+      tdb.db,
+      findingInput({
+        workspaceId: f.workspaceId,
+        projectId: f.projectId,
+        scanId: scan.id,
+        attemptId: attempt.id,
+        confidence: "confirmed_by_execution",
+      }),
+    );
+    const { oracleArtifact, replay } = await openPatchedReplay(f, {
+      findingId: finding.id,
+      originalScanId: scan.id,
+      originalAttemptId: attempt.id,
+    });
+    const completed = await completeReplay(tdb.db, f.workspaceId, replay.id, {
+      oracleEvidenceId: oracleArtifact.id,
+      oracleVersion: "unavailable",
+      baseline: "unknown",
+      securityCheck: "unknown",
+      attemptVerdict: "inconclusive",
+      preconditionsOk: false,
+    });
+    expect(completed.verdict).toBe("inconclusive");
+    expect(completed.positiveAssertionPassed).toBeNull();
+    expect(completed.negativeAssertionPassed).toBeNull();
+  });
+
   it("persists evidence and containment alongside attempts", async () => {
     const { f, scan, attempt } = await openScanWithAttempt();
     const artifact = await createEvidenceArtifact(tdb.db, {

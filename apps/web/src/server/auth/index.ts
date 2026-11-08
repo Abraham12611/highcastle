@@ -1,9 +1,4 @@
-export {
-  getHighCastleSession,
-  resolveStreamSession,
-  sessionSecret,
-  unauthorized,
-} from "./session";
+export { getHighCastleSession, resolveStreamSession, sessionSecret, unauthorized } from "./session";
 export {
   authorizeScanRead,
   authorizeWorkspaceAction,

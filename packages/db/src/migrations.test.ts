@@ -16,7 +16,7 @@ const JOURNAL = sql`SELECT hash, created_at FROM "drizzle"."__drizzle_migrations
 /**
  * Migration integrity on the genuine PostgreSQL engine.
  *
- * - Fresh database exposes all 22 domain tables (no drift vs schema).
+ * - Fresh database exposes all 23 domain tables (no drift vs schema).
  * - Re-running the journal is a safe no-op (repeatable migrations).
  * - A second migrate pass applies zero statements and keeps the journal row.
  */
@@ -39,6 +39,7 @@ describe("migrations", () => {
     "test_identities",
     "authorization_scopes",
     "scans",
+    "scan_admissions",
     "scan_events",
     "model_calls",
     "agent_proposals",

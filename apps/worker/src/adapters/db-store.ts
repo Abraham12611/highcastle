@@ -19,11 +19,13 @@ import {
   getScan,
   getScope,
   getTarget,
+  listEvidenceForAttempt,
   listAttempts,
   listTestIdentities,
   recordAgentProposal,
   recordAttemptVerdict,
   recordContainmentEvent,
+  recordExplanation,
   recordModelCall,
   requestScanCancel,
   transitionScan,
@@ -145,6 +147,22 @@ export class DbOrchestratorStore implements OrchestratorStore {
 
   createEvidenceArtifact = (input: Parameters<OrchestratorStore["createEvidenceArtifact"]>[0]) =>
     createEvidenceArtifact(this.db, input as never) as Promise<{ id: string }>;
+
+  listEvidenceForAttempt = async (
+    ws: string,
+    scanId: string,
+    attemptId: string,
+  ): Promise<never> => {
+    const rows = await listEvidenceForAttempt(this.db, ws, attemptId);
+    return rows.filter((r) => (r as { scanId: string }).scanId === scanId) as never;
+  };
+
+  recordExplanation = (input: Parameters<OrchestratorStore["recordExplanation"]>[0]) =>
+    recordExplanation(this.db, input as never) as Promise<never> as Promise<{
+      id: string;
+      attemptId: string;
+      oracleVerdict: "reproduced" | "not_reproduced" | "inconclusive";
+    }>;
   recordContainmentEvent = async (event: never) => {
     await recordContainmentEvent(this.db, event as never);
   };

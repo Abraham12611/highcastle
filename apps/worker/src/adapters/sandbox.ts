@@ -14,10 +14,15 @@
  *   Runner booleans are never verdict input.
  */
 import {
+  authorizeModelProgram,
   DockerCliRuntime,
+  resolveProgramGeneratorConfig,
   SandboxController,
   StaticLabPolicyGate,
   StaticSyntheticCredentialResolver,
+  VultrProgramGenerator,
+  type AuthorizedModelProgram,
+  type ModelProgramGeneratorPort,
   type RunnerRegistry,
   type SandboxExecution,
 } from "@highcastle/sandbox";
@@ -133,11 +138,18 @@ function mapExecution(run: SandboxExecution): SandboxRunOutcome {
 
 export class ContainerExecutor implements SandboxExecutor {
   private readonly controller: SandboxController;
+  private readonly programGenerator: ModelProgramGeneratorPort | null;
 
   constructor(
     controller?: SandboxController,
-    config?: { labOrigin?: string; imageDigest?: string; registry?: RunnerRegistry },
+    config?: {
+      labOrigin?: string;
+      imageDigest?: string;
+      registry?: RunnerRegistry;
+      programGenerator?: ModelProgramGeneratorPort | null;
+    },
   ) {
+    this.programGenerator = config?.programGenerator ?? null;
     this.controller =
       controller ??
       new SandboxController({
@@ -168,11 +180,51 @@ export class ContainerExecutor implements SandboxExecutor {
     request: SandboxRequest,
     ctx: Parameters<SandboxExecutor["execute"]>[1],
   ): Promise<SandboxRunOutcome> {
+    // Pattern A: prefer the caller-authorized program; when the executor is
+    // configured with a generator (HIGHCASTLE_PATTERN_A=1), generate and
+    // authorize a bounded program for this attempt. Generation happens in
+    // the trusted worker — the SOURCE only ever runs inside the container.
+    let program: AuthorizedModelProgram | undefined = ctx.program;
+    if (program === undefined && this.programGenerator !== null) {
+      const draft = await this.programGenerator.generate({
+        objective:
+          "Probe the synthetic invoice lab for broken object authorization " +
+          "using only the authorized paths; report observed facts as JSON.",
+        allowedPaths: [
+          "/health",
+          "/ready",
+          "/api/meta",
+          "/api/auth/whoami",
+          "/api/invoices/invoice_A",
+          "/api/invoices/invoice_B",
+        ],
+        maxRequests: request.limits.maxRequests,
+      });
+      program = authorizeModelProgram(draft);
+    }
     const run = await this.controller.execute(request, {
       workspaceId: ctx.workspaceId as never,
       ...(ctx.signal ? { signal: ctx.signal } : {}),
+      ...(program !== undefined ? { program } : {}),
     });
     const outcome = mapExecution(run);
+    if (outcome.kind === "executed" && program !== undefined) {
+      const pr = run.kind === "executed" ? run.programResult : null;
+      outcome.program = {
+        sha256: program.sha256,
+        model: program.generator.model,
+        generatedAt: program.generator.generatedAt,
+        result:
+          pr === null
+            ? null
+            : {
+                status: pr.status,
+                output: pr.output,
+                requestsMade: pr.requestsMade,
+                durationMs: pr.durationMs,
+              },
+      };
+    }
     // Wire the real runner observations into the oracle-facing shape.
     if (outcome.kind === "executed") {
       outcome.observations = observationsFromRun(
@@ -199,13 +251,28 @@ export interface SandboxExecutorOptions {
   controller?: SandboxController;
   /** durable runner lifecycle registry (L02 runner_instances). */
   registry?: RunnerRegistry;
+  /** test seam — inject a program generator (defaults from env). */
+  programGenerator?: ModelProgramGeneratorPort | null;
 }
 
 export function createSandboxExecutor(options: SandboxExecutorOptions = {}): SandboxExecutor {
   const env = options.env ?? process.env;
-  const config: { labOrigin?: string; imageDigest?: string } = {};
+  const config: {
+    labOrigin?: string;
+    imageDigest?: string;
+    programGenerator?: ModelProgramGeneratorPort | null;
+  } = {};
   if (env.HIGHCASTLE_LAB_BASE_URL) config.labOrigin = env.HIGHCASTLE_LAB_BASE_URL;
   if (env.HIGHCASTLE_TARGET_IMAGE_DIGEST) config.imageDigest = env.HIGHCASTLE_TARGET_IMAGE_DIGEST;
+  // Pattern A opt-in: HIGHCASTLE_PATTERN_A=1 + VULTR_INFERENCE_* wires the
+  // live generator. Absent flag ⇒ fixed pack path — the only fallback is
+  // the preapproved pack, never host-side execution of model source.
+  if (options.programGenerator !== undefined) {
+    config.programGenerator = options.programGenerator;
+  } else if (env.HIGHCASTLE_PATTERN_A === "1") {
+    const gen = resolveProgramGeneratorConfig(env);
+    config.programGenerator = gen === null ? null : new VultrProgramGenerator(gen);
+  }
   return new ContainerExecutor(options.controller, {
     ...config,
     ...(options.registry ? { registry: options.registry } : {}),

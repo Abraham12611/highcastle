@@ -19,6 +19,7 @@ export * from "./schema/index.js";
 export * from "./client.js";
 export * from "./errors.js";
 export * from "./repos/workspaces.js";
+export * from "./repos/tenancy.js";
 export * from "./repos/projects.js";
 export * from "./repos/scopes.js";
 export * from "./repos/scans.js";

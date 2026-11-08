@@ -1,15 +1,12 @@
-import { DbError } from "@highcastle/db";
-import { requestWorkspace } from "@/server/authz";
+import { DbError, findProjectTenant } from "@highcastle/db";
+import { authorizeResourceTenant } from "@/server/authz";
 import { parsePagination, parseUuid } from "@/server/http";
 import { handle } from "@/server/route";
 import { listFindingsFlow } from "@/server/findings";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ pid: string }> },
-) {
+export async function GET(request: Request, context: { params: Promise<{ pid: string }> }) {
   const { pid } = await context.params;
   return handle(
     request,
@@ -23,7 +20,11 @@ export async function GET(
       const remediationStatus = searchParams.get("status") ?? undefined;
       const confidence = searchParams.get("confidence") ?? undefined;
       return listFindingsFlow(deps, {
-        workspaceId: await requestWorkspace(deps.db, deps.session),
+        workspaceId: (
+          await authorizeResourceTenant(deps.db, deps.session, () =>
+            findProjectTenant(deps.db, pid),
+          )
+        ).workspaceId,
         projectId: pid,
         ...(severity === undefined ? {} : { severity }),
         ...(remediationStatus === undefined ? {} : { remediationStatus }),
