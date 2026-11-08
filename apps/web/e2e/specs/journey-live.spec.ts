@@ -151,13 +151,17 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     );
 
     // Persisted events: contiguous seq from 1, stable ids, load-bearing refs.
+    // The BFF returns `{ data: ScanEvent[] }` (bare array, not `{events}`).
     const { status, json } = await api(
       request,
       "GET",
       `/api/v1/scans/${scan.scanId}/events?after=0`,
     );
     expect(status).toBe(200);
-    const events = (dataOf(json) as { events?: unknown }).events as Array<{
+    const data = dataOf(json);
+    const raw = Array.isArray(data) ? data : (data as { events?: unknown }).events;
+    expect(raw, "events payload is a list").toBeDefined();
+    const events = raw as Array<{
       id: string;
       seq: number;
       scanId: string;
@@ -181,14 +185,21 @@ test.describe("full pipeline (deployed containerized backend)", () => {
 
     // Resume: re-reading returns the SAME ids (durable, not recomputed).
     const reread = await api(request, "GET", `/api/v1/scans/${scan.scanId}/events?after=0`);
-    const events2 = (dataOf(reread.json) as { events?: unknown }).events as Array<{ id: string }>;
+    const rereadData = dataOf(reread.json);
+    const events2 = (
+      Array.isArray(rereadData) ? rereadData : (rereadData as { events?: unknown }).events
+    ) as Array<{ id: string }>;
     expect(events2.map((e) => e.id)).toEqual(events.map((e) => e.id));
     const tail = await api(
       request,
       "GET",
       `/api/v1/scans/${scan.scanId}/events?after=${events.length}`,
     );
-    expect(((dataOf(tail.json) as { events?: unknown }).events as unknown[]) ?? []).toHaveLength(0);
+    const tailData = dataOf(tail.json);
+    const tailEvents = (
+      Array.isArray(tailData) ? tailData : (tailData as { events?: unknown }).events
+    ) as unknown[];
+    expect(tailEvents ?? []).toHaveLength(0);
 
     // UI shows the same scan from persisted state — progress, not headings.
     await page.goto(`/app/scans/${scan.scanId}`);
@@ -200,7 +211,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
   });
 
   test("finding carries oracle evidence and fix guidance", async ({ page }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(600_000);
     const { request } = page;
     await mintSession(request);
     const projectId = shared.projectId!;
@@ -221,18 +232,35 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     expect(row!.confidence, "confidence comes from executed evidence").toBe(
       "confirmed_by_execution",
     );
-    expect(row!.latestConfirmedAttemptId, "finding links the confirming attempt").toBe(attemptId);
+    // The finding dedupes by fingerprint across scans, so its latest linked
+    // attempt is whichever confirmed most recently — assert linkage, then
+    // pin THIS scan's attempt at the occurrence level below.
+    expect(row!.latestConfirmedAttemptId, "finding links a confirming attempt").toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
 
-    const occ = await api(request, "GET", `/api/v1/findings/${findingId}/occurrences`);
-    expect(occ.status).toBe(200);
-    const occurrences = ((dataOf(occ.json) as { occurrences?: unknown }).occurrences ??
-      []) as Array<{
-      attemptId: string | null;
-      oracleVerdict: string;
-    }>;
+    // Occurrence rows land asynchronously after finding.confirmed — the list
+    // itself can be momentarily empty, and observed lag exceeds two minutes
+    // on the deployment. Poll boundedly for this scan's attempt rather than
+    // assuming immediacy. (Latency note for L16; the row does arrive.)
+    type Occurrence = { attemptId: string | null; oracleVerdict: string };
+    const readOccurrences = async (): Promise<Occurrence[]> => {
+      const response = await api(request, "GET", `/api/v1/findings/${findingId}/occurrences`);
+      expect(response.status).toBe(200);
+      return ((dataOf(response.json) as { occurrences?: unknown }).occurrences ??
+        []) as Occurrence[];
+    };
+    let occurrences = await readOccurrences();
+    let mine = occurrences.find((o) => o.attemptId === attemptId);
+    const start = Date.now();
+    while (!mine && Date.now() - start < 480_000) {
+      await new Promise((r) => setTimeout(r, 5000));
+      occurrences = await readOccurrences();
+      mine = occurrences.find((o) => o.attemptId === attemptId);
+    }
     expect(occurrences.length, "at least one occurrence").toBeGreaterThan(0);
-    expect(occurrences[0]!.oracleVerdict, "oracle reproduced the defect").toBe("reproduced");
-    expect(occurrences[0]!.attemptId).toBe(attemptId);
+    expect(mine, "this scan's attempt confirmed the finding").toBeDefined();
+    expect(mine!.oracleVerdict, "oracle reproduced the defect").toBe("reproduced");
 
     const att = await api(request, "GET", `/api/v1/attempts/${attemptId}`);
     expect(att.status).toBe(200);

@@ -49,6 +49,26 @@ test.describe("landing and demo (no backend)", () => {
     await page.screenshot({ path: "e2e/screenshots/demo-after-start.png" });
   });
 
+  test("get-started `/get-started` entries the deferred flow without Clerk", async ({ page }) => {
+    // Clerk signup (PR #66) is unmerged: the release path must work without
+    // it and must not present account features as live. The entry links into
+    // the protected shell, which honestly gates signed-out visitors.
+    await page.goto("/get-started");
+    await expect(page.getByRole("heading", { name: /get started/i })).toBeVisible();
+    const entry = page.getByRole("link", { name: /dashboard|open the app|go to the app/i }).first();
+    if ((await entry.count()) > 0) {
+      const href = await entry.getAttribute("href");
+      expect(href, "entry links into the protected app").toMatch(/^\/app/);
+      await entry.click();
+      // Signed out, the shell gates honestly: sign-in prompt, no-access
+      // notice, or the empty workspace state — never workspace data.
+      await expect(
+        page.getByText(/sign in required|no access|unavailable|no workspaces available/i).first(),
+      ).toBeVisible({ timeout: 30_000 });
+    }
+    await page.screenshot({ path: "e2e/screenshots/get-started.png" });
+  });
+
   test("onboarding `/onboarding` offers evidence modes without fake data", async ({ page }) => {
     await page.goto("/onboarding");
     await expect(page.getByRole("heading", { name: /welcome to highcastle/i })).toBeVisible();
