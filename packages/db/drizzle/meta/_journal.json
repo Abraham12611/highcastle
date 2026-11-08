@@ -15,6 +15,13 @@
       "when": 1794040054402,
       "tag": "0002_replay_oracle_evidence",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794123433696,
+      "tag": "0003_github_source_connections",
+      "breakpoints": true
     }
   ]
 }
