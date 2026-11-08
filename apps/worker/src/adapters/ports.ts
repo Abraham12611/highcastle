@@ -23,6 +23,7 @@
  * "cannot observe" as inconclusive, never as confirmation.
  */
 
+import type { AuthorizedModelProgram } from "@highcastle/sandbox";
 import type {
   ActorType,
   AgentProposal,
@@ -528,6 +529,22 @@ export type SandboxRunOutcome =
        * may substitute runner booleans for this.
        */
       observations: AttemptObservations | null;
+      /**
+       * Pattern A provenance + real execution outcome, present when a
+       * model-authored program was dispatched. `result` is the guest's
+       * actual bounded output — evidence, never a verdict.
+       */
+      program?: {
+        sha256: string;
+        model: string;
+        generatedAt: string;
+        result: {
+          status: "ok" | "program_error" | "budget_exceeded" | "timeout" | "denied";
+          output: string;
+          requestsMade: number;
+          durationMs: number;
+        } | null;
+      };
       containmentEvents: ContainmentEvent[];
       exitCode: number | null;
       resultError: string | null;
@@ -553,6 +570,13 @@ export interface SandboxExecutor {
       signal?: AbortSignal | undefined;
       /** Scan's pinned lab revision (expectedRevision for the pack run). */
       expectedRevision?: string | undefined;
+      /**
+       * Pattern A (issue #54): model-authored, sha-pinned program authorized
+       * via `authorizeModelProgram`. Present ⇒ the runner executes it inside
+       * the hardened container via the constrained `lab.get` API — never on
+       * the host. Absent ⇒ the fixed built-in pack path (unchanged).
+       */
+      program?: AuthorizedModelProgram | undefined;
     },
   ): Promise<SandboxRunOutcome>;
   cancel(runnerId: RunnerInstanceId, reason: string): Promise<void>;
