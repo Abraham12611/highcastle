@@ -41,6 +41,7 @@ export async function GET(request: Request, context: { params: Promise<{ aid: st
             sha256: item.sha256,
             byteSize: item.byteSize,
             contentType: item.contentType,
+            redacted: item.redacted,
           })),
         },
       },
