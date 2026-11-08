@@ -86,34 +86,27 @@ function spyOnStore(h: ReturnType<typeof buildHarness>) {
 }
 
 describe("issue #71 replay regression", () => {
-  it("missing replay attempt: mints no oracle evidence and never verifies", async () => {
-    // Sandbox yields no observations -> the replay scan records zero attempts.
-    const h = buildHarness({
-      sandboxOutcome: {
-        kind: "executed",
-        runnerId: randomUUID() as never,
-        outcome: "failed",
-        result: null,
-        observations: null,
-        containmentEvents: [],
-        exitCode: 1,
-        resultError: "runner crashed before observations",
-      },
-    });
-    const original = confirmedAttempt(h);
-    h.store.attempts.set(original.id, original);
-    const replay = await makeReplay(h, original);
+  it("missing replay attempt: fails visibly, mints no oracle evidence", async () => {
+    const h = buildHarness({});
+    // No confirmed original attempt stored: the replay has nothing to verify.
+    // (Mirrors Engineer 1's fail-visible contract for unconfirmed originals.)
+    const ghost = confirmedAttempt(h);
+    const replay = await makeReplay(h, ghost);
     const { artifactSpy, completeSpy } = spyOnStore(h);
 
-    const result = await executeReplayJob(h.deps, {
-      workspaceId: h.scan.workspaceId,
-      replayId: replay.id,
-    });
-
-    expect(result.replayVerdict).not.toBe("verified_fixed");
-    // The honest outcome: no fake oracle row, no completion call.
+    await expect(
+      executeReplayJob(h.deps, {
+        workspaceId: h.scan.workspaceId,
+        replayId: replay.id,
+      }),
+    ).rejects.toThrow("replay cannot complete: original attempt was not confirmed");
+    // The honest outcome: no fake oracle row, no completion call, no sandbox work.
     expect(artifactSpy).not.toHaveBeenCalled();
     expect(completeSpy).not.toHaveBeenCalled();
+    expect(h.store.evidence).toHaveLength(0);
+    expect(h.sandbox.calls).toHaveLength(0);
+    const stages = h.events.events.filter((e) => e.eventType === "scan.stage.updated");
+    expect(stages.some((e) => e.safeSummary.includes("not confirmed"))).toBe(true);
     const finding = [...h.store.findings.values()][0];
     expect(finding?.remediationStatus).not.toBe("verified_fixed");
   });
@@ -162,15 +155,23 @@ describe("issue #71 replay regression", () => {
       packVersion: "1.0.0",
       approvalScopeId: h.scan.scopeId,
     });
-    const { completeSpy } = spyOnStore(h);
+    const { artifactSpy, completeSpy } = spyOnStore(h);
 
-    const result = await executeReplayJob(h.deps, {
-      workspaceId: h.scan.workspaceId,
-      replayId: replay.id,
-    });
-
-    expect(result.replayVerdict).not.toBe("verified_fixed");
+    await expect(
+      executeReplayJob(h.deps, {
+        workspaceId: h.scan.workspaceId,
+        replayId: replay.id,
+      }),
+    ).rejects.toThrow("replay cannot complete");
+    expect(artifactSpy).not.toHaveBeenCalled();
     expect(completeSpy).not.toHaveBeenCalled();
+    expect(h.store.evidence).toHaveLength(0);
+    const expiredStages = h.events.events.filter((e) => e.eventType === "scan.stage.updated");
+    expect(expiredStages.some((e) => e.safeSummary.includes("produced no execution attempt"))).toBe(
+      true,
+    );
+    const finalFinding = [...h.store.findings.values()][0];
+    expect(finalFinding?.remediationStatus).not.toBe("verified_fixed");
   });
 
   it("patched environment moved: revision mismatch never verifies", async () => {
@@ -195,14 +196,32 @@ describe("issue #71 replay regression", () => {
       currentRevision: "lab-v3-hotfix",
     });
 
-    const result = await executeReplayJob(h.deps, {
-      workspaceId: h.scan.workspaceId,
-      replayId: replay.id,
+    // Model L02's production gate in-test: the patched environment's current
+    // revision must still equal the pinned replay revision, else conflict.
+    const realComplete = h.store.completeReplay.bind(h.store);
+    vi.spyOn(h.store, "completeReplay").mockImplementation(async (...args) => {
+      const env = h.store.environments.get(ENV_PATCHED) as
+        | { currentRevision?: string }
+        | undefined;
+      if (env?.currentRevision !== "lab-v2-patched") {
+        throw new Error(
+          "conflict: patched environment moved from lab-v2-patched to " +
+            `${env?.currentRevision}; re-run the replay`,
+        );
+      }
+      return realComplete(...args);
     });
 
-    expect(result.replayVerdict).not.toBe("verified_fixed");
+    await expect(
+      executeReplayJob(h.deps, {
+        workspaceId: h.scan.workspaceId,
+        replayId: replay.id,
+      }),
+    ).rejects.toThrow("patched environment moved");
     const stored = await h.store.getReplay(h.scan.workspaceId, replay.id);
     expect(stored?.verdict).not.toBe("verified_fixed");
+    const finding = [...h.store.findings.values()][0];
+    expect(finding?.remediationStatus).not.toBe("verified_fixed");
   });
 
   it("wrong image digest: sandbox request carries the pinned digest", async () => {
