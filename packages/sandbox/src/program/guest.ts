@@ -26,6 +26,23 @@ export const MAX_PROGRAM_OUTPUT_BYTES = 4096;
 export const PROGRAM_WALL_CLOCK_MS = 20_000;
 export const GUEST_SYNC_TIMEOUT_MS = 1_500;
 
+/**
+ * The EXPLICITLY authorized synthetic paths — the six canonical demo
+ * observation endpoints, frozen from the bola-invoice-v1 step manifest +
+ * L11 lab surface. This is a strict set, not a route pattern: any path not
+ * present here (e.g. `/api/invoices/admin`, `/api/users`) is denied BEFORE
+ * any socket is opened. Derived from the signed scope's permittedMethods
+ * (GET) + the frozen pack steps — never from model input.
+ */
+export const ALLOWED_GUEST_PATHS = Object.freeze([
+  "/health",
+  "/ready",
+  "/api/meta",
+  "/api/auth/whoami",
+  "/api/invoices/invoice_A",
+  "/api/invoices/invoice_B",
+] as const);
+
 /** Canonical lab paths map to observation step names for the L15 handoff. */
 const PATH_TO_STEP: Record<string, string> = {
   "/health": "health",
@@ -36,9 +53,7 @@ const PATH_TO_STEP: Record<string, string> = {
   "/api/invoices/invoice_B": "cross_invoice",
 };
 
-/** Path allowlist: lab API only — no traversal, no absolute URLs, no admin. */
-const ALLOWED_PATH = /^\/(api\/[a-zA-Z0-9_/.-]+|health|ready)$/;
-const FORBIDDEN_PATH_PARTS = ["..", "//", "\\", " ", "%"];
+const ALLOWED_PATH_SET = new Set<string>(ALLOWED_GUEST_PATHS);
 
 /**
  * Escape-vector tokens rejected before vm evaluation. This is a filter —
@@ -148,11 +163,10 @@ export async function runGuestProgram(source: string, deps: GuestDeps): Promise<
   }
 
   async function guestGet(path: string): Promise<{ status: number; body: unknown }> {
-    if (typeof path !== "string" || !ALLOWED_PATH.test(path)) {
-      throw new Error(`denied: path not in allowlist: ${String(path).slice(0, 80)}`);
-    }
-    if (FORBIDDEN_PATH_PARTS.some((p) => path.includes(p))) {
-      throw new Error(`denied: path contains forbidden segment: ${String(path).slice(0, 80)}`);
+    // Strict-set check BEFORE any socket is opened — a path not explicitly
+    // authorized never reaches the network, let alone the lab.
+    if (typeof path !== "string" || !ALLOWED_PATH_SET.has(path)) {
+      throw new Error(`denied: path not in authorized set: ${String(path).slice(0, 80)}`);
     }
     if (requestsMade >= budget) {
       throw new Error(`denied: request budget exhausted (${budget})`);

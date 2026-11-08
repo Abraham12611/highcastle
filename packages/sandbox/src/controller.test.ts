@@ -275,6 +275,23 @@ describe("execute — denial and preconditions", () => {
     expect(JSON.stringify(runtime.createdArgs)).not.toContain("probed: true");
   });
 
+  it("pattern-a: program run still destroys + verifies the runner container", async () => {
+    const runtime = new FakeRuntime({ onStart: completedRun(makeRequest()) });
+    const { controller } = harness({ runtime });
+    const program = authorizeModelProgram({
+      source: "return { ok: true }",
+      generator: { provider: "vultr-inference", model: "m", generatedAt: "t" },
+    });
+    const exec = await controller.execute(makeRequest(), { workspaceId: WS, program });
+    expect(exec.kind).toBe("executed");
+    if (exec.kind === "executed") {
+      expect(exec.runner.status).toBe("cleanup_verified");
+      expect(exec.runner.cleanupVerifiedAt).not.toBeNull();
+    }
+    // docker rm issued + inspect-proved absent (cleanup regression)
+    expect(runtime.removed.length).toBeGreaterThan(0);
+  });
+
   it("pattern-a: invalid ctx.program is refused at dispatch", async () => {
     const runtime = new FakeRuntime();
     const { controller } = harness({ runtime });

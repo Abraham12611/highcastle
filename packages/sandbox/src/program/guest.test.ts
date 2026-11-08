@@ -9,7 +9,12 @@ import { describe, expect, it } from "vitest";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { runGuestProgram, validateProgramSource, programDigest } from "./guest.ts";
+import {
+  ALLOWED_GUEST_PATHS,
+  runGuestProgram,
+  validateProgramSource,
+  programDigest,
+} from "./guest.ts";
 import { authorizeModelProgram } from "../modelProgram.ts";
 import { sha256Hex, redactSecrets, truncate } from "./util.ts";
 import type { LabResponse } from "./http.ts";
@@ -127,22 +132,23 @@ describe("runGuestProgram — real execution", () => {
     });
   });
 
-  it("denies paths outside the allowlist", async () => {
+  it("denies paths outside the authorized set BEFORE any request", async () => {
     await withStubLab(async (origin) => {
-      const out = await runGuestProgram('return await lab.get("/etc/passwd")', {
-        labOrigin: origin,
-        bearerToken: "lab-token-alice",
-        maxRequests: 8,
-        labGetFn: labGetForTest,
-      });
-      expect(out.status).toBe("denied");
-      expect(out.requestsMade).toBe(0);
-    });
-  });
-
-  it("denies traversal/absolute-url tricks", async () => {
-    await withStubLab(async (origin) => {
-      for (const p of ["/api/../etc", "//evil.com/x", "/api//x"]) {
+      // Regression (coordinator review): /api/* is too broad — only the six
+      // frozen demo paths are authorized. admin/unknown/drifted routes are
+      // denied without touching the network.
+      for (const p of [
+        "/api/invoices/admin",
+        "/api/users",
+        "/api/admin",
+        "/etc/passwd",
+        "/api/invoices/invoice_C",
+        "/api/auth/whoami/",
+        "/API/META",
+        "/api/../etc",
+        "//evil.com/x",
+        "/api//x",
+      ]) {
         const out = await runGuestProgram(`return await lab.get(${JSON.stringify(p)})`, {
           labOrigin: origin,
           bearerToken: "lab-token-alice",
@@ -150,7 +156,32 @@ describe("runGuestProgram — real execution", () => {
           labGetFn: labGetForTest,
         });
         expect(out.status, p).toBe("denied");
+        expect(out.requestsMade, p).toBe(0);
       }
+    });
+  });
+
+  it("the authorized path set is exactly the six canonical demo paths", () => {
+    expect([...ALLOWED_GUEST_PATHS].sort()).toEqual(
+      [
+        "/api/auth/whoami",
+        "/api/invoices/invoice_A",
+        "/api/invoices/invoice_B",
+        "/api/meta",
+        "/health",
+        "/ready",
+      ].sort(),
+    );
+  });
+
+  it("still permits the six authorized paths", async () => {
+    await withStubLab(async (origin) => {
+      const out = await runGuestProgram(
+        `let n = 0; for (const p of ${JSON.stringify(ALLOWED_GUEST_PATHS)}) { await lab.get(p); n++; } return n;`,
+        { labOrigin: origin, bearerToken: "t", maxRequests: 8, labGetFn: labGetForTest },
+      );
+      expect(out.status).toBe("ok");
+      expect(out.requestsMade).toBe(6);
     });
   });
 
@@ -196,6 +227,18 @@ describe("runGuestProgram — real execution", () => {
 });
 
 describe("authorizeModelProgram — strict contract", () => {
+  it("rejects malformed programs before execution", () => {
+    const gen = { provider: "vultr-inference", model: "m", generatedAt: "t" };
+    for (const bad of [
+      "this is not ( valid javascript",
+      "const x = ;",
+      "}{][",
+      "let y = 'unterminated",
+    ]) {
+      expect(() => authorizeModelProgram({ source: bad, generator: gen }), bad).toThrow();
+    }
+  });
+
   const gen = { provider: "vultr-inference", model: "m", generatedAt: "2026-01-01T00:00:00Z" };
   it("pins sha256 and language on a valid draft", () => {
     const auth = authorizeModelProgram({ source: BOLA_PROGRAM, generator: gen });
