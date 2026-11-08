@@ -323,7 +323,9 @@ describe("issue #71 replay regression", () => {
     expect(replayScan).toBeDefined();
     const attempts = await h.store.listAttempts(h.scan.workspaceId, replayScan!.id);
     expect(attempts.length).toBeGreaterThan(0);
-    const artifact = h.store.evidence.find((e) => e.artifactKind === "oracle");
+    const artifact = h.store.evidence.find(
+      (e) => (e as { artifactKind?: string }).artifactKind === "oracle",
+    ) as unknown as { attemptId: string };
     expect(artifact?.attemptId).toBe(attempts[0]!.id);
   });
 });
