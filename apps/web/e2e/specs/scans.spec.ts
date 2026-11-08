@@ -6,14 +6,14 @@ import { expect, test } from "@playwright/test";
  * asserts the failure contract rather than manufacturing executions.
  */
 test.describe("scan creation and live progress", () => {
-  test("`/app/scans/new` wizard names the authorization boundary", async ({ page }) => {
+  test("`/app/scans/new` wizard names the authorization boundary", async ({ page }, testInfo) => {
     await page.goto("/app/scans/new");
     await expect(page.getByRole("heading", { name: /new assessment/i })).toBeVisible();
     await expect(
       page.getByText(/bounded, authorized checks against owned synthetic targets only/i),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: /start authorized scan/i })).toBeDisabled();
-    await page.screenshot({ path: "e2e/screenshots/scan-new.png" });
+    await page.screenshot({ path: `e2e/screenshots/scan-new-${testInfo.project.name}.png` });
   });
 
   test("wizard reports the real context error (no invented targets)", async ({ page }) => {
@@ -64,13 +64,15 @@ test.describe("scan creation and live progress", () => {
     }
   });
 
-  test("unknown scan `/app/scans/:id` fails closed on SSE, survives refresh", async ({ page }) => {
+  test("unknown scan `/app/scans/:id` fails closed on SSE, survives refresh", async ({
+    page,
+  }, testInfo) => {
     const scanId = "00000000-0000-4000-8000-000000000000";
     await page.goto(`/app/scans/${scanId}`);
     await expect(page.getByRole("heading", { name: /live investigation/i })).toBeVisible();
     const terminal = page.getByText(/stream (failed|closed)/i).or(page.getByRole("alert"));
     await expect(terminal.first()).toBeVisible({ timeout: 30_000 });
-    await page.screenshot({ path: "e2e/screenshots/scan-unknown.png" });
+    await page.screenshot({ path: `e2e/screenshots/scan-unknown-${testInfo.project.name}.png` });
     // Refresh must not lose the failure or fabricate progress.
     await page.reload();
     await expect(page.getByRole("heading", { name: /live investigation/i })).toBeVisible();

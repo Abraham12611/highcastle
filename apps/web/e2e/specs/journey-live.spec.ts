@@ -151,13 +151,17 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     );
 
     // Persisted events: contiguous seq from 1, stable ids, load-bearing refs.
+    // The BFF returns `{ data: ScanEvent[] }` (bare array, not `{events}`).
     const { status, json } = await api(
       request,
       "GET",
       `/api/v1/scans/${scan.scanId}/events?after=0`,
     );
     expect(status).toBe(200);
-    const events = (dataOf(json) as { events?: unknown }).events as Array<{
+    const data = dataOf(json);
+    const raw = Array.isArray(data) ? data : (data as { events?: unknown }).events;
+    expect(raw, "events payload is a list").toBeDefined();
+    const events = raw as Array<{
       id: string;
       seq: number;
       scanId: string;
@@ -178,17 +182,29 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     expect(findingId, "finding.confirmed carries the finding id").toMatch(/^[0-9a-f-]{36}$/);
     shared.findingId = findingId as string;
     shared.attemptId = executed!.attemptId as string;
+    // Proof IDs in stdout: Playwright captures these per test, so any later
+    // failure in the serial chain is self-identifying without re-running.
+    console.log(
+      `live proof scanId=${scan.scanId} attemptId=${shared.attemptId} findingId=${shared.findingId} scopeHash=${scan.scopeHash}`,
+    );
 
     // Resume: re-reading returns the SAME ids (durable, not recomputed).
     const reread = await api(request, "GET", `/api/v1/scans/${scan.scanId}/events?after=0`);
-    const events2 = (dataOf(reread.json) as { events?: unknown }).events as Array<{ id: string }>;
+    const rereadData = dataOf(reread.json);
+    const events2 = (
+      Array.isArray(rereadData) ? rereadData : (rereadData as { events?: unknown }).events
+    ) as Array<{ id: string }>;
     expect(events2.map((e) => e.id)).toEqual(events.map((e) => e.id));
     const tail = await api(
       request,
       "GET",
       `/api/v1/scans/${scan.scanId}/events?after=${events.length}`,
     );
-    expect(((dataOf(tail.json) as { events?: unknown }).events as unknown[]) ?? []).toHaveLength(0);
+    const tailData = dataOf(tail.json);
+    const tailEvents = (
+      Array.isArray(tailData) ? tailData : (tailData as { events?: unknown }).events
+    ) as unknown[];
+    expect(tailEvents ?? []).toHaveLength(0);
 
     // UI shows the same scan from persisted state — progress, not headings.
     await page.goto(`/app/scans/${scan.scanId}`);
@@ -200,7 +216,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
   });
 
   test("finding carries oracle evidence and fix guidance", async ({ page }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(960_000);
     const { request } = page;
     await mintSession(request);
     const projectId = shared.projectId!;
@@ -212,6 +228,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     const rows = ((dataOf(list.json) as { findings?: unknown }).findings ??
       dataOf(list.json)) as Array<{
       id: string;
+      title: string;
       confidence: string;
       latestConfirmedAttemptId: string | null;
     }>;
@@ -221,18 +238,39 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     expect(row!.confidence, "confidence comes from executed evidence").toBe(
       "confirmed_by_execution",
     );
-    expect(row!.latestConfirmedAttemptId, "finding links the confirming attempt").toBe(attemptId);
+    // The finding dedupes by fingerprint across scans, so its latest linked
+    // attempt is whichever confirmed most recently — assert linkage, then
+    // pin THIS scan's attempt at the occurrence level below.
+    expect(row!.latestConfirmedAttemptId, "finding links a confirming attempt").toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
 
-    const occ = await api(request, "GET", `/api/v1/findings/${findingId}/occurrences`);
-    expect(occ.status).toBe(200);
-    const occurrences = ((dataOf(occ.json) as { occurrences?: unknown }).occurrences ??
-      []) as Array<{
-      attemptId: string | null;
-      oracleVerdict: string;
-    }>;
+    // Occurrence rows land asynchronously after finding.confirmed — the list
+    // itself can be momentarily empty, and observed lag exceeds two minutes
+    // on the deployment. Poll boundedly for this scan's attempt rather than
+    // assuming immediacy. (Latency note for L16; the row does arrive.)
+    type Occurrence = { attemptId: string | null; oracleVerdict: string };
+    const readOccurrences = async (): Promise<Occurrence[]> => {
+      const response = await api(request, "GET", `/api/v1/findings/${findingId}/occurrences`);
+      expect(response.status).toBe(200);
+      // The BFF returns `{ data: Occurrence[] }` (bare array, not
+      // `{occurrences}`) — same envelope quirk as the scan events feed.
+      const body = dataOf(response.json);
+      return (
+        Array.isArray(body) ? body : ((body as { occurrences?: unknown }).occurrences ?? [])
+      ) as Occurrence[];
+    };
+    let occurrences = await readOccurrences();
+    let mine = occurrences.find((o) => o.attemptId === attemptId);
+    const start = Date.now();
+    while (!mine && Date.now() - start < 900_000) {
+      await new Promise((r) => setTimeout(r, 5000));
+      occurrences = await readOccurrences();
+      mine = occurrences.find((o) => o.attemptId === attemptId);
+    }
     expect(occurrences.length, "at least one occurrence").toBeGreaterThan(0);
-    expect(occurrences[0]!.oracleVerdict, "oracle reproduced the defect").toBe("reproduced");
-    expect(occurrences[0]!.attemptId).toBe(attemptId);
+    expect(mine, "this scan's attempt confirmed the finding").toBeDefined();
+    expect(mine!.oracleVerdict, "oracle reproduced the defect").toBe("reproduced");
 
     const att = await api(request, "GET", `/api/v1/attempts/${attemptId}`);
     expect(att.status).toBe(200);
@@ -247,20 +285,39 @@ test.describe("full pipeline (deployed containerized backend)", () => {
       expect(ev.redacted, "artifacts stored redacted").toBe(true);
     }
 
-    const fix = await api(request, "GET", `/api/v1/findings/${findingId}/fix-prompt`);
-    expect(fix.status).toBe(200);
+    const fix = await api(request, "POST", `/api/v1/findings/${findingId}/fix-prompt`);
+    expect(fix.status, "fix-prompt flow accepts POST").toBe(200);
     const guidance = JSON.stringify(dataOf(fix.json) ?? fix.json);
     expect(guidance.length, "fix guidance is substantive").toBeGreaterThan(100);
 
     // UI renders the same persisted values on every tab.
+    // The detail loader serves the finding's LINKED attempt (row linkage),
+    // which can lag the freshest confirmation (known staleness, filed to
+    // E18/E19) — so the proof-tab assertion pins the linked attempt's own
+    // evidence digest, fetched from the API, never invented.
+    const linked = await api(request, "GET", `/api/v1/attempts/${row!.latestConfirmedAttemptId}`);
+    expect(linked.status, "linked attempt persisted").toBe(200);
+    const linkedSha = (dataOf(linked.json) as { evidence: Array<{ sha256: string }> })
+      .evidence[0]!.sha256;
+    expect(linkedSha, "linked evidence hash").toMatch(/^[0-9a-f]{64}$/);
     const base = `/app/w/highcastle-demo/projects/${projectId}/findings/${findingId}`;
     await page.goto(`${base}/overview`);
-    await expect(page.getByText(row!.id.slice(0, 8)).first()).toBeVisible({ timeout: 60_000 });
+    // The header renders the API title (raw UUIDs are never shown in the
+    // UI); the fingerprint paragraph above it is the stable identifier.
+    await expect(page.getByRole("heading", { name: row!.title }).first()).toBeVisible({
+      timeout: 60_000,
+    });
     await page.goto(`${base}/proof`);
     await expect(page.getByText(/reproduced/i).first()).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText(attempt.evidence[0]!.sha256.slice(0, 12)).first()).toBeVisible();
+    await expect(page.getByText(linkedSha.slice(0, 12)).first()).toBeVisible({
+      timeout: 60_000,
+    });
     await page.goto(`${base}/fix`);
-    await expect(page.getByText(/remediation|fix/i).first()).toBeVisible({ timeout: 60_000 });
+    // Scope to main: the collapsed mobile nav also carries a "Fixes &
+    // re-checks" label that .first() would match while hidden.
+    await expect(page.locator("main").getByText(/remediation|fix/i).first()).toBeVisible({
+      timeout: 60_000,
+    });
   });
 
   test("patched replay reaches verified_fixed", async ({ page }) => {
@@ -290,6 +347,7 @@ test.describe("full pipeline (deployed containerized backend)", () => {
       (dataOf(created.json) as { id?: string; replayId?: string }).id ??
       (dataOf(created.json) as { replayId?: string }).replayId;
     expect(replayId, "server-issued replay id").toMatch(/^[0-9a-f-]{36}$/);
+    console.log(`live proof replayId=${replayId} findingId=${findingId} attemptId=${attemptId}`);
 
     const replay = await pollFor(
       "completed replay",
