@@ -123,3 +123,51 @@ body {
     border-bottom: none;
   }
 }
+
+/* Account entry pages previously used auth-shell with zero actual styles. */
+.auth-shell {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: min(100% - 36px, 580px);
+  margin: clamp(32px, 7vh, 86px) auto;
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid var(--hc-line);
+  border-radius: 12px;
+  background: var(--hc-surface-1);
+  box-shadow: var(--hc-shadow-elevated);
+}
+.auth-shell > h2 {
+  margin: 0;
+  font-family: var(--hc-font-display);
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  line-height: 1.35;
+  text-align: center;
+}
+.auth-shell > p {
+  max-width: 440px;
+  margin: 0;
+  color: var(--hc-muted);
+  font-size: .87rem;
+  line-height: 1.65;
+  text-align: center;
+}
+.auth-shell > hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--hc-line);
+}
+.auth-shell button {
+  border: 1px solid var(--hc-line-strong);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: var(--hc-primary);
+  background: var(--hc-surface-2);
+  cursor: pointer;
+}
+.auth-shell button:hover { border-color: var(--hc-primary); }
+.auth-shell button:focus-visible { outline: 2px solid var(--hc-focus); outline-offset: 3px; }
+.auth-shell small { display: block; color: var(--hc-muted); font-size: .78rem; line-height: 1.6; margin-top: 8px; }
+.auth-shell [role="alert"] { color: var(--hc-coral); }
