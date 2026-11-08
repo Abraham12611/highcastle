@@ -182,6 +182,11 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     expect(findingId, "finding.confirmed carries the finding id").toMatch(/^[0-9a-f-]{36}$/);
     shared.findingId = findingId as string;
     shared.attemptId = executed!.attemptId as string;
+    // Proof IDs in stdout: Playwright captures these per test, so any later
+    // failure in the serial chain is self-identifying without re-running.
+    console.log(
+      `live proof scanId=${scan.scanId} attemptId=${shared.attemptId} findingId=${shared.findingId} scopeHash=${scan.scopeHash}`,
+    );
 
     // Resume: re-reading returns the SAME ids (durable, not recomputed).
     const reread = await api(request, "GET", `/api/v1/scans/${scan.scanId}/events?after=0`);
@@ -247,8 +252,12 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     const readOccurrences = async (): Promise<Occurrence[]> => {
       const response = await api(request, "GET", `/api/v1/findings/${findingId}/occurrences`);
       expect(response.status).toBe(200);
-      return ((dataOf(response.json) as { occurrences?: unknown }).occurrences ??
-        []) as Occurrence[];
+      // The BFF returns `{ data: Occurrence[] }` (bare array, not
+      // `{occurrences}`) — same envelope quirk as the scan events feed.
+      const body = dataOf(response.json);
+      return (
+        Array.isArray(body) ? body : ((body as { occurrences?: unknown }).occurrences ?? [])
+      ) as Occurrence[];
     };
     let occurrences = await readOccurrences();
     let mine = occurrences.find((o) => o.attemptId === attemptId);
