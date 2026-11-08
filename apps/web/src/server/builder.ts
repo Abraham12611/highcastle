@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 import {
   analyzePassivePages,
   canonicalizeHttpsUrl,
-  isBlockedResolvedAddress,
   newVerificationChallenge,
   normalizeHostname,
   normalizeScopedPath,

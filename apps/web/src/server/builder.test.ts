@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Database } from "@highcastle/db";
 import { DEMO_IDS, createWorkspace, getTarget } from "@highcastle/db";
-import type { DnsResolver, FetchRequest, HttpResponse, SocketFactory } from "@highcastle/security";
+import type { DnsResolver, HttpResponse, SocketFactory } from "@highcastle/security";
 import { createTestDb } from "@/server/db";
 import type { BffDeps } from "@/server/deps";
 import { unavailableQueue } from "@/server/queue";
@@ -58,7 +58,7 @@ const OK_TLS = {
 function fakeFetcher(pages: HttpResponse[]): SocketFactory {
   let i = 0;
   return {
-    httpsGet: async (_req: FetchRequest) => pages[i++] ?? pages[pages.length - 1]!,
+    httpsGet: async () => pages[i++] ?? pages[pages.length - 1]!,
   };
 }
 

@@ -5,7 +5,6 @@ import {
   type DnsResolver,
   type FetchRequest,
   type HttpResponse,
-  type ReconLimits,
   type SocketFactory,
   type TlsSession,
 } from "@highcastle/security";
@@ -66,7 +65,7 @@ function pinnedGet(req: FetchRequest): Promise<HttpResponse> {
     const done = (fn: () => void) => {
       if (settled) return;
       settled = true;
-      timer && clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       sock.destroy();
       fn();
     };

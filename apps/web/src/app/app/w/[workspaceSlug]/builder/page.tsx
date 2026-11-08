@@ -1,11 +1,20 @@
-import { cookies, headers } from "next/headers";
-import { DashboardApiError, getApiBase, getWorkspaces } from "@/features/dashboard/api";
+import { cookies } from "next/headers";
+import {
+  DashboardApiError,
+  getApiBase,
+  getWorkspaces,
+  type WorkspaceSummary,
+} from "@/features/dashboard/api";
 import { FailedPanel } from "@/features/dashboard/panels";
 import { BuilderOnboarding } from "@/features/builder/Onboarding";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: Promise<{ workspaceSlug: string }> }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ workspaceSlug: string }>;
+}) {
   const { workspaceSlug } = await params;
   return { title: `Add a site · ${workspaceSlug} · HighCastle` };
 }
@@ -22,34 +31,40 @@ export default async function BuilderOnboardingPage({
   params: Promise<{ workspaceSlug: string }>;
 }) {
   const { workspaceSlug } = await params;
+  const retryHref = `/app/w/${workspaceSlug}/builder`;
+
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
+  // Resolve data first — JSX is constructed only after try/catch so render
+  // errors surface through the error boundary, never a swallowed catch.
+  let workspaces: WorkspaceSummary[] | null = null;
+  let errorMessage: string | null = null;
   try {
     const baseUrl = await getApiBase();
-    const workspaces = await getWorkspaces(fetch, { baseUrl, cookieHeader });
-    const workspace = workspaces.find((w) => w.slug === workspaceSlug);
-    if (!workspace) {
-      return (
-        <FailedPanel
-          title="Workspace unavailable"
-          message="The workspace could not be resolved — sign in with an account that is a member."
-          retryHref={`/app/w/${workspaceSlug}/builder`}
-        />
-      );
-    }
-    return <BuilderOnboarding workspaceId={workspace.id} />;
+    workspaces = await getWorkspaces(fetch, { baseUrl, cookieHeader });
   } catch (err) {
-    const detail = err instanceof DashboardApiError ? err.message : "The API could not be reached.";
+    errorMessage =
+      err instanceof DashboardApiError ? err.message : "The API could not be reached.";
+  }
+
+  if (errorMessage !== null) {
+    return (
+      <FailedPanel title="Onboarding unavailable" message={errorMessage} retryHref={retryHref} />
+    );
+  }
+  const workspace = workspaces?.find((w) => w.slug === workspaceSlug);
+  if (!workspace) {
     return (
       <FailedPanel
-        title="Onboarding unavailable"
-        message={detail}
-        retryHref={`/app/w/${workspaceSlug}/builder`}
+        title="Workspace unavailable"
+        message="The workspace could not be resolved — sign in with an account that is a member."
+        retryHref={retryHref}
       />
     );
   }
+  return <BuilderOnboarding workspaceId={workspace.id} />;
 }
