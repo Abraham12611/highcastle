@@ -35,7 +35,9 @@ export const appPaths = {
     `${workspacePath(workspaceSlug)}/projects/${projectId}/scans/new`,
   scopePolicy: (workspaceSlug: string, projectId: string) =>
     `${workspacePath(workspaceSlug)}/projects/${projectId}/policy/scope`,
-  signIn: (returnTo: string) => `/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
+  // NOTE: the auth route group /(auth)/sign-in serves public path /sign-in;
+  // /auth/sign-in does not exist (no such route, no rewrite).
+  signIn: (returnTo: string) => `/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
 };
 
 export interface WorkspaceNavCounts {
