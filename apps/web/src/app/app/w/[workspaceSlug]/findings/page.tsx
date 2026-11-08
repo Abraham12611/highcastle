@@ -156,7 +156,16 @@ export default async function WorkspaceFindingsPage({
         </ul>
       </nav>
       {rows.length === 0 ? (
-        <EmptyState title="No findings match">
+        <EmptyState
+          title="No findings match"
+          actions={
+            data.rows.length === 0 ? (
+              <Link href="/demo" className={styles.cta}>
+                See a real finding in the demo
+              </Link>
+            ) : undefined
+          }
+        >
           {data.rows.length === 0
             ? "Findings appear here once a scan confirms one — only oracle-verified results are listed, never model guesses."
             : "Try widening the filters."}

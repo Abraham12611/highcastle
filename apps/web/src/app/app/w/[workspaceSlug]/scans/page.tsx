@@ -122,7 +122,14 @@ export default async function WorkspaceScansPage({
       </nav>
       {active !== "all" && activeNote ? <p role="note">{activeNote}</p> : null}
       {rows.length === 0 ? (
-        <EmptyState title="No scans yet">
+        <EmptyState
+          title="No scans yet"
+          actions={
+            <Link href="/demo" className={styles.cta}>
+              Run the controlled demo
+            </Link>
+          }
+        >
           Scans appear here once an assessment runs. Start one from a
           project, or run the controlled demo — no fake history is shown.
         </EmptyState>
