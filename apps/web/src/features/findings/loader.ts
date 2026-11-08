@@ -13,6 +13,7 @@ import { headers } from "next/headers";
 import { getFixPrompt, type FetchImpl } from "./api-client";
 import {
   getE2Attempt,
+  getE2Explanation,
   getE2Finding,
   getE2Scope,
   listE2Findings,
@@ -29,6 +30,7 @@ import type {
   LoadState,
   ReplayDefaults,
   StoredAttempt,
+  StoredExplanation,
 } from "./types";
 
 async function apiBaseUrl(): Promise<string> {
@@ -36,6 +38,22 @@ async function apiBaseUrl(): Promise<string> {
   const host = incoming.get("host") ?? "localhost:3000";
   const proto = incoming.get("x-forwarded-proto") ?? "http";
   return `${proto}://${host}`;
+}
+
+/**
+ * Server-side fetch that forwards the incoming session cookie so
+ * workspace-authorized BFF reads succeed from server components.
+ * Server `fetch` never sends cookies unless asked; without this hop
+ * every live finding would render as signed-out.
+ */
+async function authedFetchImpl(): Promise<FetchImpl> {
+  const cookie = (await headers()).get("cookie");
+  if (cookie === null) return fetch;
+  return (input: string | URL | Request, init?: RequestInit) =>
+    fetch(input, {
+      ...init,
+      headers: { ...(init?.headers as Record<string, string> | undefined), cookie },
+    });
 }
 
 function toSummary(row: {
@@ -53,10 +71,11 @@ function toSummary(row: {
 
 export async function loadFindingList(
   projectId: string,
-  fetchImpl: FetchImpl = fetch,
+  fetchImpl?: FetchImpl,
   baseUrl?: string,
 ): Promise<LoadState<FindingSummary[]>> {
-  const state = await listE2Findings(baseUrl ?? (await apiBaseUrl()), projectId, fetchImpl);
+  const run = fetchImpl ?? (await authedFetchImpl());
+  const state = await listE2Findings(baseUrl ?? (await apiBaseUrl()), projectId, run);
   if (state.status !== "ok") return state;
   return {
     status: "ok",
@@ -95,22 +114,23 @@ function toStoredAttempt(
 
 export async function loadFindingDetail(
   findingId: string,
-  fetchImpl: FetchImpl = fetch,
+  fetchImpl?: FetchImpl,
   baseUrl?: string,
 ): Promise<LoadState<FindingDetail>> {
   if (findingId === DEMO_FINDING_ID) {
     const detail = demoFindingDetail();
     return { status: "ok", data: detail, source: detail.source };
   }
+  const run = fetchImpl ?? (await authedFetchImpl());
   const base = baseUrl ?? (await apiBaseUrl());
-  const finding = await getE2Finding(base, findingId, fetchImpl);
+  const finding = await getE2Finding(base, findingId, run);
   if (finding.status !== "ok") return finding;
   const row = finding.data;
 
   const [occurrences, guidance, scope] = await Promise.all([
-    listE2Occurrences(base, findingId, fetchImpl),
-    getFixPrompt(base, findingId, fetchImpl),
-    row.projectId === null ? Promise.resolve(null) : getE2Scope(base, row.projectId, fetchImpl),
+    listE2Occurrences(base, findingId, run),
+    getFixPrompt(base, findingId, run),
+    row.projectId === null ? Promise.resolve(null) : getE2Scope(base, row.projectId, run),
   ]);
 
   const storedAttempts: StoredAttempt[] = [];
@@ -118,7 +138,7 @@ export async function loadFindingDetail(
     row.latestConfirmedAttemptId ??
     (occurrences.status === "ok" ? (occurrences.data[0]?.attemptId ?? null) : null);
   if (confirmingId !== null) {
-    const attempt = await getE2Attempt(base, confirmingId, fetchImpl);
+    const attempt = await getE2Attempt(base, confirmingId, run);
     if (attempt.status === "ok") {
       const occurrence = occurrences.status === "ok" ?
         occurrences.data.find((item) => item.attemptId === confirmingId) ?? null
@@ -153,6 +173,32 @@ export async function loadFindingDetail(
     };
   }
 
+  // Stored model explanation for the confirming attempt. Any failure or
+  // absence maps to null — the panel renders its unavailable state and the
+  // oracle verdict stands unchanged. Never a client-assigned verdict.
+  let explanation: StoredExplanation | null = null;
+  if (confirmingId !== null) {
+    const stored = await getE2Explanation(base, confirmingId, run);
+    if (stored.status === "ok") {
+      explanation = {
+        attemptId: stored.data.attemptId,
+        oracleVerdict: stored.data.oracleVerdict,
+        replayVerdict: stored.data.replayVerdict,
+        summary: stored.data.summary,
+        whatHappened: stored.data.whatHappened,
+        whyVerdict: stored.data.whyVerdict,
+        replayMeaning: stored.data.replayMeaning,
+        followUp: stored.data.followUp,
+        evidenceIds: stored.data.evidenceIds,
+        requestedModel: stored.data.requestedModel,
+        responseModel: stored.data.responseModel,
+        requestId: stored.data.requestId,
+        latencyMs: stored.data.latencyMs,
+        rejectionCode: stored.data.rejectionCode,
+      };
+    }
+  }
+
   return {
     status: "ok",
     data: {
@@ -183,6 +229,7 @@ export async function loadFindingDetail(
       replay: null,
       patchedAttempt: null,
       replayDefaults,
+      explanation,
       source: { kind: "api" },
     },
     source: { kind: "api" },
