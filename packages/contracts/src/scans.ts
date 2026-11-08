@@ -173,6 +173,13 @@ export const ScanSummarySchema = z
     status: ScanStatusSchema,
     terminal: z.boolean(),
     phase: ScanPhaseSchema.nullable(),
+    /**
+     * Persisted failure code (`scans.failure_code`) surfaced verbatim.
+     * Without it a failed scan's summary cannot say WHY it failed — the
+     * persisted row carries `sandbox_precondition`/`policy_denied`/etc.
+     * while the summary reported nothing (live QA observed exactly this).
+     */
+    failureCode: z.string().min(1).max(128).nullable(),
     plannedCount: z.number().int().min(0),
     executedCount: z.number().int().min(0),
     confirmedCount: z.number().int().min(0),
@@ -200,6 +207,7 @@ export function toScanSummary(
     status: scan.status,
     terminal: isTerminalScanStatus(scan.status),
     phase: scan.phase,
+    failureCode: scan.failureCode,
     plannedCount: scan.plannedCount,
     executedCount: scan.executedCount,
     confirmedCount: scan.confirmedCount,

@@ -69,6 +69,36 @@ describe("observationsFromRun", () => {
     const bad = FULL.map((o) => (o.step === "meta" ? { ...o, status: "200" as never } : o));
     expect(observationsFromRun("a", REV, bad)).toBeNull();
   });
+  it("accepts legs in any order — order is not evidence (issue #92)", () => {
+    const shuffled = [...FULL].reverse();
+    const obs = observationsFromRun("a", REV, shuffled);
+    expect(obs).not.toBeNull();
+    expect(obs?.crossInvoice.status).toBe(403);
+  });
+  it("returns null when whoami resolves an actor but own_invoice owner differs", () => {
+    const bad = FULL.map((o) =>
+      o.step === "own_invoice"
+        ? leg("own_invoice", 200, {
+            invoice: { id: "invoice_A", ownerId: "user_B", tenantId: "tenant_B" },
+          })
+        : o,
+    );
+    expect(observationsFromRun("a", REV, bad)).toBeNull();
+  });
+  it("returns null when the own_invoice leg body is not a record", () => {
+    const bad = FULL.map((o) =>
+      o.step === "own_invoice" ? leg("own_invoice", 200, "not-json-body") : o,
+    );
+    expect(observationsFromRun("a", REV, bad)).toBeNull();
+  });
+  it("tolerates a primitive cross_invoice body — the oracle grades it, not the mapper", () => {
+    const raw = FULL.map((o) =>
+      o.step === "cross_invoice" ? leg("cross_invoice", 403, "opaque-denial") : o,
+    );
+    const obs = observationsFromRun("a", REV, raw);
+    expect(obs).not.toBeNull();
+    expect(obs?.crossInvoice.body).toBe("opaque-denial");
+  });
 });
 
 describe("ContainerExecutor — Pattern A program passthrough", () => {

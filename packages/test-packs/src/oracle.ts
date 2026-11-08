@@ -196,7 +196,9 @@ export function checkPreconditions(input: BolaAttemptInput): {
   if (input.health.status !== 200) {
     reasons.push(`P0 health check failed (HTTP ${input.health.status})`);
   } else if (input.health.revisionEcho !== input.expectedRevision) {
-    reasons.push(`P0 revision mismatch (expected ${input.expectedRevision})`);
+    reasons.push(
+      `P0 revision mismatch (expected ${input.expectedRevision}, observed ${input.health.revisionEcho ?? "none"})`,
+    );
   }
   if (input.ready.status !== 200) {
     reasons.push(`P0 readiness check failed (HTTP ${input.ready.status})`);
@@ -205,7 +207,9 @@ export function checkPreconditions(input: BolaAttemptInput): {
     reasons.push(`P0 fixture manifest unreachable (HTTP ${input.meta.status})`);
   } else {
     if (input.meta.revisionEcho !== input.expectedRevision) {
-      reasons.push(`P0 manifest revision mismatch (expected ${input.expectedRevision})`);
+      reasons.push(
+        `P0 manifest revision mismatch (expected ${input.expectedRevision}, observed ${input.meta.revisionEcho ?? "none"})`,
+      );
     }
     if (stringField(input.meta.body, "fixtureVersion") !== TRUSTED_FIXTURE_VERSION) {
       reasons.push("P0 fixture version drift");

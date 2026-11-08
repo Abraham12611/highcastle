@@ -99,6 +99,17 @@ function newNonce(): string {
   return randomBytes(24).toString("hex");
 }
 
+/**
+ * Persist an oracle leg as the nullable tri-state the contract declares:
+ * pass→true, fail→false, unknown→null. An unobserved or ambiguous leg is
+ * NEVER a definitive negative — persisting `false` for `unknown` rewrites
+ * "we could not measure" into "the control failed", which is fabricated
+ * evidence. Both verdict paths below must agree on this mapping.
+ */
+function legFlag(outcome: "pass" | "fail" | "unknown"): boolean | null {
+  return outcome === "pass" ? true : outcome === "fail" ? false : null;
+}
+
 function sha256Hex(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
@@ -287,15 +298,9 @@ export async function runAttempt(
     await store.recordAttemptVerdict(workspaceId, attempt.id, {
       oracleVersion: adjudication.oracleVersion,
       verdict: adjudication.verdict,
-      reasonCode: adjudication.reasons[0]?.split(" ")[0] ?? null,
-      positiveControlPassed:
-        adjudication.baseline === "pass" ? true : adjudication.baseline === "fail" ? false : null,
-      negativeSecurityConditionMet:
-        adjudication.securityCheck === "pass"
-          ? true
-          : adjudication.securityCheck === "fail"
-            ? false
-            : null,
+      reasonCode: adjudication.reasons.join(" | ").slice(0, 128) || null,
+      positiveControlPassed: legFlag(adjudication.baseline),
+      negativeSecurityConditionMet: legFlag(adjudication.securityCheck),
     });
     await store.createEvidenceArtifact({
       workspaceId,
@@ -362,8 +367,8 @@ export async function runAttempt(
     oracleVersion: adjudication.oracleVersion,
     verdict: adjudication.verdict,
     reasonCode: adjudication.reasons.join(" | ").slice(0, 128),
-    positiveControlPassed: adjudication.baseline === "pass",
-    negativeSecurityConditionMet: adjudication.securityCheck === "pass",
+    positiveControlPassed: legFlag(adjudication.baseline),
+    negativeSecurityConditionMet: legFlag(adjudication.securityCheck),
   });
 
   // Persist the verdict payload as a redacted oracle artifact (hash pinned).
