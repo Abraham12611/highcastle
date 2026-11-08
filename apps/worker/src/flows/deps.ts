@@ -53,11 +53,17 @@ export interface OrchestratorConfig {
   targetImageDigest: string;
   /** Max total hypothesis calls per scan before failing the plan stage. */
   maxModelReplans: number;
+  /**
+   * Bounded execution age: a scan still in a non-terminal in-flight state
+   * older than this is failed (never left stuck) on the next delivery.
+   */
+  maxScanAgeMs: number;
 }
 
 export const DEFAULT_ORCHESTRATOR_CONFIG: OrchestratorConfig = {
   targetImageDigest: "target-lab@sha256:unresolved-pending-l19",
   maxModelReplans: 2,
+  maxScanAgeMs: 20 * 60 * 1000,
 };
 
 export interface OrchestratorDeps {
