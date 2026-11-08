@@ -12,7 +12,7 @@ import { FixPanel } from "./FixPanel";
 import { ProofPanel } from "./ProofPanel";
 import { ReplayPanel } from "./ReplayPanel";
 
-export type FindingTabKey = "overview" | "attack-path" | "proof" | "replay" | "fix";
+export type FindingTabKey = "overview" | "attack-path" | "proof" | "replay" | "explanation" | "fix";
 
 function MissingEvidence({ what }: { what: string }) {
   return (
