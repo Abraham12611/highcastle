@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 test.describe("get started (no backend)", () => {
   test("/get-started shows the 3-step entry with working demo path", async ({ page }, testInfo) => {
     await page.goto("/get-started");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/get started/i);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/security testing starts/i);
     // Step 1: real Clerk sign-in/up routes (E5) or the guest demo entry.
     await expect(page.getByRole("link", { name: /^sign in$/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /create an account/i })).toBeVisible();
@@ -19,13 +19,21 @@ test.describe("get started (no backend)", () => {
     await expect(page.getByRole("button", { name: /developer/i }).first()).toBeVisible();
     // Step 3: source lanes honestly pending; skip reaches the app shell.
     await expect(page.getByText(/coming soon/i).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: /skip to the dashboard/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /open dashboard/i })).toBeVisible();
+    // Guard against the exact public regression: Tailwind reset + bare markup
+    // rendered every section edge-to-edge with no meaningful spacing.
+    const accountCard = page.locator('section[aria-labelledby="gs-account"]');
+    const padding = await accountCard.evaluate((el) => parseFloat(getComputedStyle(el).paddingTop));
+    expect(padding).toBeGreaterThan(15);
+    await expect(accountCard).toHaveCSS("border-top-style", "solid");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: `e2e/screenshots/get-started-${testInfo.project.name}.png` });
   });
 
   test("/sign-up mirrors sign-in with the guest session path", async ({ page }, testInfo) => {
     await page.goto("/sign-up");
-    await expect(page.getByRole("heading", { name: /create your account/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /create account/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /try the live demo/i })).toBeVisible();
     await page.screenshot({ path: `e2e/screenshots/sign-up-${testInfo.project.name}.png` });
   });
