@@ -291,6 +291,15 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     expect(guidance.length, "fix guidance is substantive").toBeGreaterThan(100);
 
     // UI renders the same persisted values on every tab.
+    // The detail loader serves the finding's LINKED attempt (row linkage),
+    // which can lag the freshest confirmation (known staleness, filed to
+    // E18/E19) — so the proof-tab assertion pins the linked attempt's own
+    // evidence digest, fetched from the API, never invented.
+    const linked = await api(request, "GET", `/api/v1/attempts/${row!.latestConfirmedAttemptId}`);
+    expect(linked.status, "linked attempt persisted").toBe(200);
+    const linkedSha = (dataOf(linked.json) as { evidence: Array<{ sha256: string }> })
+      .evidence[0]!.sha256;
+    expect(linkedSha, "linked evidence hash").toMatch(/^[0-9a-f]{64}$/);
     const base = `/app/w/highcastle-demo/projects/${projectId}/findings/${findingId}`;
     await page.goto(`${base}/overview`);
     // The header renders the API title (raw UUIDs are never shown in the
@@ -300,7 +309,9 @@ test.describe("full pipeline (deployed containerized backend)", () => {
     });
     await page.goto(`${base}/proof`);
     await expect(page.getByText(/reproduced/i).first()).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText(attempt.evidence[0]!.sha256.slice(0, 12)).first()).toBeVisible();
+    await expect(page.getByText(linkedSha.slice(0, 12)).first()).toBeVisible({
+      timeout: 60_000,
+    });
     await page.goto(`${base}/fix`);
     await expect(page.getByText(/remediation|fix/i).first()).toBeVisible({ timeout: 60_000 });
   });
