@@ -35,6 +35,8 @@ import { cancelScanFlow, createScanFlow, getScanFlow } from "@/server/scans";
 import { createReplayFlow } from "@/server/replays";
 import { preflightFlow } from "@/server/preflight";
 import { fixPromptFlow } from "@/server/findings";
+import { getHighCastleSession, sessionSecret } from "@/server/auth/session";
+import { ACCOUNT_COOKIE, issueSessionCookieValue } from "@/lib/auth/session-core";
 import { accountSession, demoSession } from "@/server/test-helpers";
 
 /**
@@ -662,5 +664,62 @@ describe("role enforcement on mutations (issue #72 release gate)", () => {
     // And lazy provisioning does not hand them a route back into that tenant.
     const list = dataOf<{ id: string }[]>(await listWorkspacesFlow(deps));
     expect(list.map((w) => w.id)).not.toContain(t.workspaceId);
+  });
+});
+
+describe("real signed-in journey (issue #72 release evidence)", () => {
+  it("Clerk-mapped identity → workspace once → preference persisted → foreign denied", async () => {
+    // A real signed cookie through the REAL verification path
+    // (getHighCastleSession — HMAC verification, not a hand-built session).
+    const clerkSub = "user_e12_journey";
+    const internalId = internalUserIdForClerk(clerkSub);
+    const secret = sessionSecret();
+    if (!secret) throw new Error("session secret unavailable");
+    const signed = issueSessionCookieValue(
+      accountSession(internalId),
+      secret,
+    );
+    const session = await getHighCastleSession(
+      new Request("https://app.test/api/v1/me", {
+        headers: { cookie: `${ACCOUNT_COOKIE}=${signed}` },
+      }),
+    );
+    if (!session || session.kind !== "account") throw new Error("session did not resolve");
+    expect(session.userId).toBe(internalId);
+
+    const deps: BffDeps = { db, queue, session };
+
+    // First login → exactly one owned workspace, idempotent.
+    const me1 = dataOf(await meFlow(deps));
+    const ws1 = me1.workspaces as { id: string; role: string }[];
+    expect(ws1).toHaveLength(1);
+    expect(ws1[0]!.role).toBe("owner");
+    const me2 = dataOf(await meFlow(deps));
+    expect((me2.workspaces as { id: string }[])[0]!.id).toBe(ws1[0]!.id);
+
+    // Onboarding preference persists across requests.
+    await updatePreferencesFlow(deps, { body: { experienceMode: "developer" } });
+    const me3 = dataOf(await meFlow(deps));
+    expect(me3.preferences).toMatchObject({ experienceMode: "developer" });
+
+    // Usable dashboard: workspace discovery + project listing succeed.
+    const listed = dataOf<{ id: string; slug: string }[]>(await listWorkspacesFlow(deps));
+    expect(listed[0]!.id).toBe(ws1[0]!.id);
+    const projects = dataOf<unknown[]>(await listProjectsFlow(deps, { workspaceId: ws1[0]!.id }));
+    expect(projects).toEqual([]);
+
+    // Foreign workspace access denied: another tenant exists but is invisible.
+    const foreign = await seedOwnedTenant(USER_B, "journeyforeign");
+    await expect(
+      authorizeResourceTenant(db, session, () => findProjectTenant(db, foreign.projectId)),
+    ).rejects.toMatchObject({ code: "not_found" });
+
+    // "Logout" analogue: forged/expired cookie resolves to no session.
+    const forged = await getHighCastleSession(
+      new Request("https://app.test/api/v1/me", {
+        headers: { cookie: `${ACCOUNT_COOKIE}=${signed}tampered` },
+      }),
+    );
+    expect(forged).toBeNull();
   });
 });
