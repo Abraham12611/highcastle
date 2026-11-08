@@ -40,6 +40,22 @@ async function apiBaseUrl(): Promise<string> {
   return `${proto}://${host}`;
 }
 
+/**
+ * Server-side fetch that forwards the incoming session cookie so
+ * workspace-authorized BFF reads succeed from server components.
+ * Server `fetch` never sends cookies unless asked; without this hop
+ * every live finding would render as signed-out.
+ */
+async function authedFetchImpl(): Promise<FetchImpl> {
+  const cookie = (await headers()).get("cookie");
+  if (cookie === null) return fetch;
+  return (input: string | URL | Request, init?: RequestInit) =>
+    fetch(input, {
+      ...init,
+      headers: { ...(init?.headers as Record<string, string> | undefined), cookie },
+    });
+}
+
 function toSummary(row: {
   id: string;
   title: string;
@@ -55,10 +71,11 @@ function toSummary(row: {
 
 export async function loadFindingList(
   projectId: string,
-  fetchImpl: FetchImpl = fetch,
+  fetchImpl?: FetchImpl,
   baseUrl?: string,
 ): Promise<LoadState<FindingSummary[]>> {
-  const state = await listE2Findings(baseUrl ?? (await apiBaseUrl()), projectId, fetchImpl);
+  const run = fetchImpl ?? (await authedFetchImpl());
+  const state = await listE2Findings(baseUrl ?? (await apiBaseUrl()), projectId, run);
   if (state.status !== "ok") return state;
   return {
     status: "ok",
@@ -97,22 +114,23 @@ function toStoredAttempt(
 
 export async function loadFindingDetail(
   findingId: string,
-  fetchImpl: FetchImpl = fetch,
+  fetchImpl?: FetchImpl,
   baseUrl?: string,
 ): Promise<LoadState<FindingDetail>> {
   if (findingId === DEMO_FINDING_ID) {
     const detail = demoFindingDetail();
     return { status: "ok", data: detail, source: detail.source };
   }
+  const run = fetchImpl ?? (await authedFetchImpl());
   const base = baseUrl ?? (await apiBaseUrl());
-  const finding = await getE2Finding(base, findingId, fetchImpl);
+  const finding = await getE2Finding(base, findingId, run);
   if (finding.status !== "ok") return finding;
   const row = finding.data;
 
   const [occurrences, guidance, scope] = await Promise.all([
-    listE2Occurrences(base, findingId, fetchImpl),
-    getFixPrompt(base, findingId, fetchImpl),
-    row.projectId === null ? Promise.resolve(null) : getE2Scope(base, row.projectId, fetchImpl),
+    listE2Occurrences(base, findingId, run),
+    getFixPrompt(base, findingId, run),
+    row.projectId === null ? Promise.resolve(null) : getE2Scope(base, row.projectId, run),
   ]);
 
   const storedAttempts: StoredAttempt[] = [];
@@ -120,7 +138,7 @@ export async function loadFindingDetail(
     row.latestConfirmedAttemptId ??
     (occurrences.status === "ok" ? (occurrences.data[0]?.attemptId ?? null) : null);
   if (confirmingId !== null) {
-    const attempt = await getE2Attempt(base, confirmingId, fetchImpl);
+    const attempt = await getE2Attempt(base, confirmingId, run);
     if (attempt.status === "ok") {
       const occurrence = occurrences.status === "ok" ?
         occurrences.data.find((item) => item.attemptId === confirmingId) ?? null
@@ -160,7 +178,7 @@ export async function loadFindingDetail(
   // oracle verdict stands unchanged. Never a client-assigned verdict.
   let explanation: StoredExplanation | null = null;
   if (confirmingId !== null) {
-    const stored = await getE2Explanation(base, confirmingId, fetchImpl);
+    const stored = await getE2Explanation(base, confirmingId, run);
     if (stored.status === "ok") {
       explanation = {
         attemptId: stored.data.attemptId,
