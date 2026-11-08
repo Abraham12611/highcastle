@@ -22,6 +22,7 @@ import {
 import type { OrchestratorDeps } from "./deps.js";
 import type { AttemptAdjudication, AttemptRecord, PlanDecision } from "../adapters/ports.js";
 import { emit } from "./events.js";
+import { runPostOracleExplanation } from "./explain-attempt.js";
 
 export type ApprovedPlan = Extract<PlanDecision, { allowed: true }>;
 
@@ -45,6 +46,41 @@ export interface AttemptRunResult {
   adjudication: AttemptAdjudication | null;
   /** True only when the trusted verifier returned `reproduced`. */
   reproduced: boolean;
+}
+
+/**
+ * Post-oracle explanation hook (Engineer 8). Runs after the verdict is
+ * persisted, explains from trusted observations + persisted evidence,
+ * and never alters the attempt outcome, scan success, or oracle verdict
+ * — the explanation service is fail-safe by contract.
+ */
+async function explainAfterVerdict(
+  deps: OrchestratorDeps,
+  input: {
+    workspaceId: string;
+    scanId: string;
+    targetRevision: string;
+    attempt: AttemptRecord;
+    adjudication: AttemptAdjudication;
+  },
+): Promise<void> {
+  await runPostOracleExplanation(
+    {
+      store: deps.store,
+      events: deps.events,
+      ...(deps.explainer === undefined ? {} : { inference: deps.explainer }),
+    },
+    {
+      workspaceId: input.workspaceId,
+      scanId: input.scanId,
+      attemptId: input.attempt.id,
+      packId: input.attempt.packId,
+      packVersion: input.attempt.packVersion,
+      targetRevision: input.targetRevision,
+      oracleVerdict: input.adjudication.verdict,
+      adjudication: input.adjudication,
+    },
+  );
 }
 
 /** Deterministic plan hash for idempotent attempt rows (resume-safe). */
@@ -287,6 +323,7 @@ export async function runAttempt(
       },
       attemptId: attempt.id,
     });
+    await explainAfterVerdict(deps, { workspaceId, scanId, targetRevision: input.targetRevision, attempt, adjudication });
     const updated = await store.getAttempt(workspaceId, attempt.id);
     return {
       attempt: updated ?? attempt,
@@ -316,6 +353,7 @@ export async function runAttempt(
       positiveControlPassed: null,
       negativeSecurityConditionMet: null,
     });
+    await explainAfterVerdict(deps, { workspaceId, scanId, targetRevision: input.targetRevision, attempt, adjudication });
     return { attempt: updated, outcome: "completed", adjudication, reproduced: false };
   }
 
@@ -340,6 +378,8 @@ export async function runAttempt(
     byteSize: JSON.stringify(adjudication).length,
     contentType: "application/json",
   });
+
+  await explainAfterVerdict(deps, { workspaceId, scanId, targetRevision: input.targetRevision, attempt: updatedAttempt, adjudication });
 
   return {
     attempt: updatedAttempt,

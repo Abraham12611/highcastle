@@ -68,11 +68,26 @@ export class InMemoryStore implements OrchestratorStore {
   environments = new Map<string, Environment>();
   identities = new Map<string, TestIdentity>();
   attempts = new Map<string, AttemptRecord>();
+  explanations = new Map<string, {
+    id: string;
+    workspaceId: string;
+    scanId: string;
+    attemptId: string;
+    oracleVerdict: "reproduced" | "not_reproduced" | "inconclusive";
+  }>();
   modelCalls = new Map<string, ModelCall>();
   proposals = new Map<string, AgentProposal>();
   findings = new Map<string, FindingRecord>();
   replays = new Map<string, ReplayRecord>();
-  evidence: object[] = [];
+  evidence: {
+    id: string;
+    workspaceId: string;
+    scanId: string;
+    attemptId: string | null;
+    artifactKind: string;
+    sha256: string;
+    byteSize: number;
+  }[] = [];
   containment: ContainmentEvent[] = [];
   runners: { id: string; scanId: string; terminal: boolean }[] = [];
 
@@ -362,8 +377,52 @@ export class InMemoryStore implements OrchestratorStore {
 
   async createEvidenceArtifact(input: Parameters<OrchestratorStore["createEvidenceArtifact"]>[0]) {
     const id = randomUUID();
-    this.evidence.push({ id, ...input });
+    this.evidence.push({
+      id,
+      workspaceId: input.workspaceId,
+      scanId: input.scanId,
+      attemptId: input.attemptId,
+      artifactKind: input.artifactKind,
+      sha256: input.sha256,
+      byteSize: input.byteSize ?? 0,
+    });
     return { id };
+  }
+
+  async listEvidenceForAttempt(ws: string, scanId: string, attemptId: string) {
+    return this.evidence.filter(
+      (e) => e.workspaceId === ws && e.scanId === scanId && e.attemptId === attemptId,
+    );
+  }
+
+  async recordExplanation(input: Parameters<OrchestratorStore["recordExplanation"]>[0]) {
+    const attempt = [...this.attempts.values()].find(
+      (a) => a.id === input.attemptId && a.workspaceId === input.workspaceId && a.scanId === input.scanId,
+    );
+    if (!attempt) throw new ScanStateConflictError(`attempt ${input.attemptId} not found`);
+    if (attempt.verifierVerdict !== input.oracleVerdict) {
+      throw new ScanStateConflictError("explanation verdict must match the persisted oracle verdict");
+    }
+    for (const evidenceId of input.evidenceIds) {
+      const row = this.evidence.find((e) => e.id === evidenceId);
+      if (
+        !row ||
+        row.workspaceId !== input.workspaceId ||
+        row.scanId !== input.scanId ||
+        row.attemptId !== input.attemptId
+      ) {
+        throw new ScanStateConflictError(`evidence ${evidenceId} not found`);
+      }
+    }
+    const id = randomUUID();
+    this.explanations.set(id, {
+      id,
+      workspaceId: input.workspaceId,
+      scanId: input.scanId,
+      attemptId: input.attemptId,
+      oracleVerdict: input.oracleVerdict,
+    });
+    return { id, attemptId: input.attemptId, oracleVerdict: input.oracleVerdict };
   }
 
   async recordContainmentEvent(event: ContainmentEvent) {

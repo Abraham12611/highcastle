@@ -14,6 +14,7 @@ import type {
   SandboxExecutor,
   ScanEventPublisher,
 } from "../adapters/ports.js";
+import type { ExplanationClientLike } from "./explain-attempt.js";
 
 /** Cooperative, in-process cancel signals (same-machine fast path). */
 export class CancelRegistry {
@@ -63,6 +64,12 @@ export interface OrchestratorDeps {
   store: OrchestratorStore;
   events: ScanEventPublisher;
   inference: InferencePlanner;
+  /**
+   * Post-oracle explanation caller (Engineer 8). Injected in tests;
+   * production defaults to the server-configured Vultr client inside
+   * the explanation service, which fails safe when unconfigured.
+   */
+  explainer?: ExplanationClientLike;
   policy: PolicyGate;
   sandbox: SandboxExecutor;
   verifier: AttemptVerifier;
