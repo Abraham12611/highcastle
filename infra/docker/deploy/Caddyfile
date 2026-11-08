@@ -14,6 +14,11 @@
 	admin off
 }
 
+# Redirect www to the canonical apex HTTPS hostname.
+www.{$HIGHCASTLE_DOMAIN} {
+	redir https://{$HIGHCASTLE_DOMAIN}{uri} permanent
+}
+
 {$HIGHCASTLE_DOMAIN} {
 	encode zstd gzip
 

@@ -37,7 +37,12 @@ export async function getRequestDb(): Promise<Database> {
   if (!cached || cached.url !== url) {
     await cached?.close().catch(() => undefined);
     const created = createDb({ connectionString: url });
-    await migrateNodeDb(created.db);
+    // Production DB schema is migrated by the dedicated compose "migrate" job
+    // before web startup. Serverless/standalone runtime paths have no SQL
+    // migration journal, so request handlers must not run file-based migrations.
+    if (process.env.NODE_ENV !== "production") {
+      await migrateNodeDb(created.db);
+    }
     cached = { db: created.db, close: created.close, url };
   }
   return cached.db;
