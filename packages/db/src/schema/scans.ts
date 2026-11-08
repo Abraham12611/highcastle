@@ -92,6 +92,40 @@ export const scans = pgTable(
   ],
 );
 
+/**
+ * Scan admission ledger (issue #83).
+ *
+ * One durable row per *newly admitted* scan, written inside the same
+ * transaction as the scan insert. `subject` is the server-derived actor
+ * identity (`demo:<sessionId>`, `account:<userId>`, `worker:<kind>`) — never
+ * a client header — and backs per-guest/per-user window limits that the
+ * scans table cannot express (all demo scans share the seeded owner id).
+ * Idempotent replays never reach this table: `createScan` returns the
+ * original scan before the ledger is touched, so retries cannot consume
+ * budget twice.
+ */
+export const scanAdmissions = pgTable(
+  "scan_admissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subject: text("subject").notNull(),
+    idempotencyKey: text("idempotency_key"),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_scan_admissions_subject_window").on(t.workspaceId, t.subject, t.createdAt),
+    uniqueIndex("uq_scan_admissions_idempotency")
+      .on(t.workspaceId, t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} IS NOT NULL`),
+  ],
+);
+
 export const scanEvents = pgTable(
   "scan_events",
   {

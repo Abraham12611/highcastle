@@ -23,6 +23,7 @@ export const dbSchema = {
   testIdentities: schema.testIdentities,
   authorizationScopes: schema.authorizationScopes,
   scans: schema.scans,
+  scanAdmissions: schema.scanAdmissions,
   scanEvents: schema.scanEvents,
   modelCalls: schema.modelCalls,
   agentProposals: schema.agentProposals,
