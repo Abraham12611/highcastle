@@ -10,13 +10,15 @@ test.describe("get started (no backend)", () => {
   test("/get-started shows the 3-step entry with working demo path", async ({ page }, testInfo) => {
     await page.goto("/get-started");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/get started/i);
-    // Step 1: real mode choice (posts to /onboarding/mode).
+    // Step 1: real Clerk sign-in/up routes (E5) or the guest demo entry.
+    await expect(page.getByRole("link", { name: /^sign in$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /create an account/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /try the live demo/i }).first()).toBeVisible();
+    // Step 2: real mode choice (posts to /onboarding/mode).
     await expect(page.getByRole("button", { name: /builder/i }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /developer/i }).first()).toBeVisible();
-    // Step 2: demo works now; E9/E10 lanes are honestly pending.
-    await expect(page.getByRole("button", { name: /try the live demo/i }).first()).toBeVisible();
+    // Step 3: source lanes honestly pending; skip reaches the app shell.
     await expect(page.getByText(/coming soon/i).first()).toBeVisible();
-    // Step 3: skip link reaches the app shell entry.
     await expect(page.getByRole("link", { name: /skip to the dashboard/i })).toBeVisible();
     await page.screenshot({ path: `e2e/screenshots/get-started-${testInfo.project.name}.png` });
   });

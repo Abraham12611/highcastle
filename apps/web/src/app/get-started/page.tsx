@@ -6,11 +6,11 @@ import { DemoEntryButton } from "../../features/auth/demo-entry";
 export const metadata = { title: "Get started — HighCastle" };
 
 /**
- * Get started — step 1 of the ≤3-step onboarding (mode → source/target →
- * dashboard). Steps 2's GitHub/URL paths belong to the E9/E10 lanes and
- * render as honest Coming Soon until they land; the controlled demo and
- * skip-to-dashboard paths work today. No Clerk imports, no shared auth
- * provider changes — account registration arrives with E5 (PR #66).
+ * Get started — the account entry path. Step 1 signs in (real Clerk
+ * pages) or continues as guest; step 2 persists Builder/Developer to the
+ * cookie today and to server preferences when E12's endpoint is live;
+ * step 3 adds a source (E9/E10 lanes) or skips to a dashboard that E12's
+ * lazy provisioning fills on first request.
  */
 export default function GetStartedPage() {
   return (
@@ -19,23 +19,27 @@ export default function GetStartedPage() {
       <p>Three short steps. You can skip ahead at any point.</p>
       <Stepper
         steps={[
+          { key: "account", label: "Sign in" },
           { key: "mode", label: "Choose experience" },
-          { key: "source", label: "Add source or target" },
-          { key: "dashboard", label: "Open dashboard" },
+          { key: "source", label: "Add source or open dashboard" },
         ]}
         current={0}
       />
+      <section aria-labelledby="gs-account">
+        <h2 id="gs-account">1. Sign in, or continue as guest</h2>
+        <p>
+          <Link href="/sign-in">Sign in</Link> · <Link href="/sign-up">Create an account</Link>
+        </p>
+        <p>Just looking around? No account needed:</p>
+        <DemoEntryButton href="/demo" />
+      </section>
       <section aria-labelledby="gs-mode">
-        <h2 id="gs-mode">1. Choose how you want to see HighCastle</h2>
+        <h2 id="gs-mode">2. Choose how you want to see HighCastle</h2>
         <ModeChoice />
       </section>
       <section aria-labelledby="gs-source">
-        <h2 id="gs-source">2. Add a website or connect GitHub</h2>
+        <h2 id="gs-source">3. Add a source, or open your dashboard</h2>
         <ul>
-          <li>
-            <DemoEntryButton href="/demo" /> — runs now against the owned
-            synthetic invoice lab.
-          </li>
           <li>
             Add a website (verified ownership) — <em>coming soon</em> (E10
             URL verification lane).
@@ -45,14 +49,12 @@ export default function GetStartedPage() {
             Server-side OAuth credentials are provisioned; the connect
             endpoint and repo picker land with the E9 lane.
           </li>
+          <li>
+            <Link href="/app">Skip to the dashboard</Link> — empty states
+            guide you from there; first sign-in provisions a workspace via
+            the account flow.
+          </li>
         </ul>
-      </section>
-      <section aria-labelledby="gs-go">
-        <h2 id="gs-go">3. Open your dashboard</h2>
-        <p>
-          <Link href="/app">Skip to the dashboard</Link> — empty states
-          guide you from there.
-        </p>
       </section>
     </main>
   );
