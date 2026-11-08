@@ -13,7 +13,7 @@
  */
 
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { clerkConfigured } from "./server/auth/clerk";
 
 const isProtected = createRouteMatcher(["/app(.*)"]);
