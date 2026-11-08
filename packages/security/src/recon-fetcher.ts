@@ -4,7 +4,7 @@ import {
   evaluateRedirect,
   normalizeHostname,
 } from "./url-policy.js";
-import { checkPathPermitted } from "./paths.js";
+import { checkPathPermitted, normalizeScopedPath } from "./paths.js";
 
 /**
  * Strictly-passive outbound fetcher for builder (URL-only) reconnaissance.
@@ -274,6 +274,7 @@ export async function runPassiveRecon(opts: {
         fetcher: opts.fetcher,
         limits,
         deadline,
+        scopePaths: { allowedPaths: opts.allowedPaths, deniedPaths: [] },
       });
       bytesReceived += res.body.byteLength;
       pages.push({
@@ -321,6 +322,10 @@ async function fetchWithSameHostRedirects(opts: {
   fetcher: SocketFactory;
   limits: ReconLimits;
   deadline: number;
+  /** The user's granted scope — every redirect target must match it BEFORE
+   *  any socket connection. A `/` grant covers only the landing page, not
+   *  the site tree (`GET /` → `302 /admin/secret` is never followed). */
+  scopePaths: { allowedPaths: readonly string[]; deniedPaths: readonly string[] };
 }): Promise<HttpResponse> {
   let current = opts.url;
   let redirectsUsed = 0;
@@ -355,6 +360,8 @@ async function fetchWithSameHostRedirects(opts: {
       currentUrl: current,
       location: loc,
       allowedHosts: [host],
+      allowedPaths: redirectAllowedPrefixes(opts.scopePaths.allowedPaths),
+      deniedPaths: opts.scopePaths.deniedPaths,
       redirectsUsed,
       maxRedirects: opts.limits.maxRedirects,
     });
@@ -363,7 +370,35 @@ async function fetchWithSameHostRedirects(opts: {
       // redirect as an observation instead of following it.
       return res;
     }
+    if (!redirectPathPermitted(decision.url.pathname, opts.scopePaths)) {
+      return res;
+    }
     redirectsUsed = decision.redirectsUsed;
     current = decision.url.toString();
   }
+}
+
+/**
+ * Redirect scope check — run before any socket connection to a redirect
+ * target. `/` is an EXACT match (the submitted landing page only), never a
+ * wildcard for the site tree; every other granted entry keeps its prefix
+ * semantics from checkPathPermitted (`/login` covers `/login/*`).
+ */
+function redirectPathPermitted(
+  pathname: string,
+  scope: { allowedPaths: readonly string[]; deniedPaths: readonly string[] },
+): boolean {
+  const norm = normalizeScopedPath(pathname);
+  if (norm === null) return false;
+  if (norm === "/") return true; // the submitted origin is always permitted
+  return checkPathPermitted(
+    { allowedPaths: scope.allowedPaths.filter((p) => p !== "/"), deniedPaths: scope.deniedPaths },
+    norm,
+  ).permitted;
+}
+
+function redirectAllowedPrefixes(allowedPaths: readonly string[]): readonly string[] {
+  // evaluateRedirect applies prefix matching; "/" entry is exact-only for
+  // redirects, so strip it — redirectPathPermitted handles the root case.
+  return allowedPaths.filter((p) => p !== "/");
 }

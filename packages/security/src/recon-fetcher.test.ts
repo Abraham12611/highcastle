@@ -143,15 +143,17 @@ describe("runPassiveRecon — redirects, scope, quotas", () => {
     const { factory, calls } = recorder([
       page(301, { location: ["https://site.test/home"] }),
       page(200),
+      page(200),
     ]);
     const r = await runPassiveRecon({
       canonicalOrigin: ORIGIN,
-      allowedPaths: [],
+      allowedPaths: ["/home"],
       resolver,
       fetcher: factory,
     });
     expect(r.pages[0]?.status).toBe(200);
-    expect(calls.map((c) => c.path)).toEqual(["/", "/home"]);
+    expect(calls[0]?.path).toBe("/");
+    expect(calls.some((c) => c.path === "/home")).toBe(true);
   });
 
   it("refuses to follow cross-host redirects — returns the 3xx as evidence", async () => {
@@ -187,12 +189,14 @@ describe("runPassiveRecon — redirects, scope, quotas", () => {
     );
     await runPassiveRecon({
       canonicalOrigin: ORIGIN,
-      allowedPaths: [],
+      allowedPaths: ["/r0", "/r1", "/r2"],
       resolver,
       fetcher: factory,
       limits: { maxRedirects: 2 },
     });
-    expect(calls.length).toBe(3); // initial + 2 follows, then returned unfollowed
+    // "/" request followed ≤2 hops (/r0, /r1) then refused the chain —
+    // granted paths are also probed as their own requests afterwards.
+    expect(calls.slice(0, 3).map((c) => c.path)).toEqual(["/", "/r0", "/r1"]);
   });
 
   it("enforces the per-run request budget over permitted paths", async () => {
@@ -245,5 +249,56 @@ describe("runPassiveRecon — redirects, scope, quotas", () => {
     });
     expect(r.pages.length).toBeLessThan(3);
     expect(r.limitations.some((l) => l.includes("deadline"))).toBe(true);
+  });
+});
+
+describe("runPassiveRecon — redirect path-scope (security review fix)", () => {
+  const resolver = resolverWith({ "site.test": ["93.184.216.34"] });
+
+  it("root grant must NOT permit following / -> /admin/secret (zero requests)", async () => {
+    const { factory, calls } = recorder((_req) =>
+      page(302, { location: ["/admin/secret"] }),
+    );
+    const r = await runPassiveRecon({
+      canonicalOrigin: ORIGIN,
+      allowedPaths: ["/"],
+      resolver,
+      fetcher: factory,
+    });
+    // The 3xx is recorded as evidence; no socket ever connected to /admin/secret.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.path).toBe("/");
+    expect(r.pages[0]?.status).toBe(302);
+    expect(r.pages[0]?.redirectLocation).toBe("/admin/secret");
+  });
+
+  it("granted subtree redirects ARE followed (control case)", async () => {
+    const { factory, calls } = recorder((_req, i) =>
+      i === 0 ? page(302, { location: ["/login/sso"] }) : page(200),
+    );
+    const r = await runPassiveRecon({
+      canonicalOrigin: ORIGIN,
+      allowedPaths: ["/login"],
+      resolver,
+      fetcher: factory,
+    });
+    expect(calls.map((c) => c.path)).toEqual(["/", "/login/sso", "/login"]);
+    expect(r.pages[0]?.status).toBe(200);
+  });
+
+  it("redirect to an unlisted same-host path is refused before socket (zero requests)", async () => {
+    const { factory, calls } = recorder((_req) =>
+      page(302, { location: ["/private/data"] }),
+    );
+    await runPassiveRecon({
+      canonicalOrigin: ORIGIN,
+      allowedPaths: ["/login"],
+      resolver,
+      fetcher: factory,
+    });
+    // "/" probed (redirect refused, recorded), then granted /login probed.
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.path).toBe("/");
+    expect(calls[1]?.path).toBe("/login");
   });
 });
