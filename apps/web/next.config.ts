@@ -13,6 +13,23 @@ const nextConfig: NextConfig = {
    */
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
+  turbopack: {
+    resolveAlias: {
+      /*
+       * @composio/core imports zod/v3 + zod/v4 (subpaths added in zod
+       * 3.25). The workspace pins zod 3.23.8 for contract parity — the
+       * SDK gets its own zod-compat instance via these aliases instead
+       * of a global upgrade.
+       */
+      "zod/v3": "zod-compat/v3",
+      "zod/v4": "zod-compat/v4",
+    },
+  },
+  webpack: (config) => {
+    config.resolve.alias["zod/v3"] = "zod-compat/v3";
+    config.resolve.alias["zod/v4"] = "zod-compat/v4";
+    return config;
+  },
 };
 
 export default nextConfig;
