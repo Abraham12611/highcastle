@@ -51,27 +51,27 @@ test.describe("landing and demo (no backend)", () => {
     await page.screenshot({ path: `e2e/screenshots/demo-after-start-${testInfo.project.name}.png` });
   });
 
-  test("get-started `/get-started` entries the deferred flow without Clerk", async ({
+  test("get-started `/get-started` dashboard entry gates signed-out visitors", async ({
     page,
   }, testInfo) => {
-    // Clerk signup (PR #66) is merged but unconfigured on this deployment:
-    // the release path must work without it and must not present account
-    // features as live. The entry links into the protected shell, which
-    // honestly gates signed-out visitors.
+    // Post-#93/#96 the entry is account-first (E6's ui-shell test covers the
+    // page copy, links, styling and overflow). This test owns the navigation
+    // outcome: the "Open dashboard" skip link must land in the protected
+    // shell, which honestly gates signed-out visitors — never workspace data.
     await page.goto("/get-started");
-    await expect(page.getByRole("heading", { name: /get started/i })).toBeVisible();
-    const entry = page.getByRole("link", { name: /dashboard|open the app|go to the app/i }).first();
-    if ((await entry.count()) > 0) {
-      const href = await entry.getAttribute("href");
-      expect(href, "entry links into the protected app").toMatch(/^\/app/);
-      await entry.click();
-      // Signed out, the shell gates honestly: sign-in prompt, no-access
-      // notice, or the empty workspace state — never workspace data.
-      await expect(
-        page.getByText(/sign in required|no access|unavailable|no workspaces available/i).first(),
-      ).toBeVisible({ timeout: 30_000 });
-    }
-    await page.screenshot({ path: `e2e/screenshots/get-started-${testInfo.project.name}.png` });
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      /security testing starts/i,
+    );
+    const entry = page.getByRole("link", { name: /open dashboard/i });
+    await expect(entry).toBeVisible();
+    expect(await entry.getAttribute("href"), "entry links into the protected app").toBe("/app");
+    await entry.click();
+    await expect(
+      page.getByText(/sign in required|no access|unavailable|no workspaces available/i).first(),
+    ).toBeVisible({ timeout: 30_000 });
+    await page.screenshot({
+      path: `e2e/screenshots/get-started-dashboard-gate-${testInfo.project.name}.png`,
+    });
   });
 
   test("onboarding `/onboarding` offers evidence modes without fake data", async ({ page }) => {
@@ -93,6 +93,26 @@ test.describe("landing and demo (no backend)", () => {
     const entry = page.getByRole("button", { name: /try the live demo/i });
     await expect(entry).toBeVisible();
     await page.screenshot({ path: `e2e/screenshots/sign-in-${testInfo.project.name}.png` });
+  });
+
+  test("public routes render one header, styled CSS, no horizontal overflow", async ({
+    page,
+  }) => {
+    // Layout acceptance (desktop + mobile via viewport projects): every
+    // public route loads stylesheets, exposes exactly one h1, and never
+    // scrolls sideways. Buttons/inputs inherit the design-system styling
+    // through the loaded CSS — unstyled bare markup would fail the h1 and
+    // overflow guards on at least one viewport.
+    for (const route of ["/", "/demo", "/get-started", "/onboarding", "/sign-in", "/sign-up"]) {
+      await page.goto(route);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+      const css = await page.evaluate(() => document.styleSheets.length);
+      expect(css, `${route} loads stylesheets`).toBeGreaterThan(0);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
+      expect(overflow, `${route} has no horizontal scrollbar`).toBeLessThanOrEqual(1);
+    }
   });
 
   test("guest entry mints a server session and forwards to /demo", async ({ page }) => {
