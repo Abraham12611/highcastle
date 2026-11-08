@@ -254,6 +254,86 @@ describe("adjudicateAttempt", () => {
   });
 });
 
+describe("adjudicateAttempt — exhaustive leg matrix (issue #92)", () => {
+  /**
+   * Every (baseline × securityCheck) row under BOTH precondition states.
+   * The persisted contract is: legs are always reported honestly, and the
+   * verdict follows the canonical matrix ONLY when P0/P2 preconditions
+   * hold — otherwise inconclusive, even when the legs resemble a row.
+   */
+  type Outcome = "pass" | "fail" | "unknown";
+  const legByOutcome: Record<Outcome, { own: ObservedHttpResponse; cross: ObservedHttpResponse }> =
+    {
+      pass: {
+        own: resp(200, aliceInvoiceBody()),
+        cross: resp(404, deniedBody("lab-v1-vulnerable", 404)),
+      },
+      fail: {
+        own: resp(403, deniedBody("lab-v1-vulnerable", 403)),
+        cross: resp(200, bobInvoiceBody("lab-v1-vulnerable")),
+      },
+      unknown: {
+        own: resp(500, { error: { code: "INTERNAL" } }),
+        cross: resp(502, { error: { code: "BAD_GATEWAY" } }),
+      },
+    };
+  const expectedMatrix: Record<`${Outcome}/${Outcome}`, string> = {
+    "pass/pass": "not_reproduced",
+    "pass/fail": "reproduced",
+    "pass/unknown": "inconclusive",
+    "fail/pass": "inconclusive",
+    "fail/fail": "inconclusive",
+    "fail/unknown": "inconclusive",
+    "unknown/pass": "inconclusive",
+    "unknown/fail": "inconclusive",
+    "unknown/unknown": "inconclusive",
+  };
+  for (const [combo, expected] of Object.entries(expectedMatrix)) {
+    const [baseline, security] = combo.split("/") as [Outcome, Outcome];
+    it(`${combo} -> ${expected} with preconditions ok`, () => {
+      const input = vulnerableInput();
+      input.ownInvoice = legByOutcome[baseline].own;
+      input.crossInvoice = legByOutcome[security].cross;
+      const result = adjudicateAttempt(input);
+      expect(result.baseline).toBe(baseline);
+      expect(result.securityCheck).toBe(security);
+      expect(result.preconditionsOk).toBe(true);
+      expect(result.verdict).toBe(expected);
+    });
+    it(`${combo} -> inconclusive with preconditions failed (legs still honest)`, () => {
+      const input = vulnerableInput();
+      input.ownInvoice = legByOutcome[baseline].own;
+      input.crossInvoice = legByOutcome[security].cross;
+      input.health = resp(200, { revision: "lab-v2-patched" }, "lab-v2-patched");
+      const result = adjudicateAttempt(input);
+      expect(result.baseline).toBe(baseline);
+      expect(result.securityCheck).toBe(security);
+      expect(result.preconditionsOk).toBe(false);
+      expect(result.verdict).toBe("inconclusive");
+    });
+  }
+
+  it("live attempt f9bc1955 — names the OBSERVED revision in its reasons", () => {
+    // 2026-11-08 07:54Z: vulnerable-pinned scan executed while the lab
+    // alias served the patched image (S1 denied 404, revision echo
+    // lab-v2-patched). Verdict must be inconclusive — never not_reproduced —
+    // and the persisted reason must say what was actually observed.
+    const input = patchedInput();
+    input.expectedRevision = "lab-v1-vulnerable";
+    const result = adjudicateAttempt(input);
+    expect(result.verdict).toBe("inconclusive");
+    expect(result.preconditionsOk).toBe(false);
+    expect(result.baseline).toBe("pass");
+    expect(result.securityCheck).toBe("pass");
+    expect(result.reasons).toContain(
+      "P0 revision mismatch (expected lab-v1-vulnerable, observed lab-v2-patched)",
+    );
+    expect(result.reasons).toContain(
+      "P0 manifest revision mismatch (expected lab-v1-vulnerable, observed lab-v2-patched)",
+    );
+  });
+});
+
 describe("adjudicateReplay", () => {
   function adjudicationOf(input: BolaAttemptInput): BolaAttemptAdjudication {
     return adjudicateAttempt(input);

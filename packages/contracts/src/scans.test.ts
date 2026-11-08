@@ -4,6 +4,7 @@ import {
   ScanEventSchema,
   ScanHistoryQuerySchema,
   ScanSchema,
+  ScanSummarySchema,
   isNextEventSeq,
   toScanSummary,
   type Scan,
@@ -40,12 +41,8 @@ describe("CreateScanRequestSchema", () => {
   });
 
   it("rejects an unknown pack and an empty pack list", () => {
-    expect(() =>
-      CreateScanRequestSchema.parse({ ...base, testPackIds: ["nmap-full"] }),
-    ).toThrow();
-    expect(() =>
-      CreateScanRequestSchema.parse({ ...base, testPackIds: [] }),
-    ).toThrow();
+    expect(() => CreateScanRequestSchema.parse({ ...base, testPackIds: ["nmap-full"] })).toThrow();
+    expect(() => CreateScanRequestSchema.parse({ ...base, testPackIds: [] })).toThrow();
   });
 });
 
@@ -210,6 +207,44 @@ describe("toScanSummary", () => {
     expect(summary.terminal).toBe(true);
     expect(summary.coverage.oracleVersion).toBe("bola-oracle-v1");
     expect(summary.versions.targetRevision).toBe("lab-v1-vulnerable");
+  });
+
+  it("surfaces the persisted failureCode verbatim (issue #92)", async () => {
+    const scan: Scan = ScanSchema.parse({
+      id: SCAN_ID,
+      workspaceId: WORKSPACE_ID,
+      projectId: PROJECT_ID,
+      scopeId: SCOPE_ID,
+      sourceSnapshotRef: null,
+      targetId: TARGET_ID,
+      environmentId: ENV_ID,
+      targetRevision: "lab-v1-vulnerable",
+      fixtureVersion: "1.0.0",
+      scanType: "targeted_red_team",
+      testPackIds: ["bola-invoice-v1"],
+      testPackVersions: { "bola-invoice-v1": "1.0.0" },
+      requestedByUserId: USER_ID,
+      idempotencyKey: null,
+      status: "failed",
+      phase: "executing",
+      planVersion: 1,
+      plannedCount: 1,
+      executedCount: 0,
+      confirmedCount: 0,
+      startedAt: "2026-11-08T08:00:00Z",
+      endedAt: "2026-11-08T08:00:07Z",
+      cancelRequestedAt: null,
+      failureCode: "sandbox_precondition",
+      publicDemo: false,
+      createdAt: "2026-11-08T07:59:00Z",
+      updatedAt: "2026-11-08T08:00:07Z",
+    });
+    const summary = toScanSummary(scan, {
+      oracleVersion: "bola-oracle-v1",
+      scopeHash: "a".repeat(64),
+    });
+    expect(summary.failureCode).toBe("sandbox_precondition");
+    expect(ScanSummarySchema.parse(summary).failureCode).toBe("sandbox_precondition");
   });
 });
 
