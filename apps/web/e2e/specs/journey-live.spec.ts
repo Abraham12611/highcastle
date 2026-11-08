@@ -284,8 +284,8 @@ test.describe("full pipeline (deployed containerized backend)", () => {
       expect(ev.redacted, "artifacts stored redacted").toBe(true);
     }
 
-    const fix = await api(request, "GET", `/api/v1/findings/${findingId}/fix-prompt`);
-    expect(fix.status).toBe(200);
+    const fix = await api(request, "POST", `/api/v1/findings/${findingId}/fix-prompt`);
+    expect(fix.status, "fix-prompt flow accepts POST").toBe(200);
     const guidance = JSON.stringify(dataOf(fix.json) ?? fix.json);
     expect(guidance.length, "fix guidance is substantive").toBeGreaterThan(100);
 
