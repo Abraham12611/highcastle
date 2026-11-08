@@ -1,0 +1,45 @@
+# Local convenience only — runs both revisions side by side on an isolated lab
+# network. Ports are bound to loopback so nothing is exposed off-host.
+#
+# ALIAS CONTRACT (packages/contracts TargetServiceAliasSchema): the ONLY alias
+# a sandboxed test pack may name is `target-lab`. In deployment the service
+# named `target-lab` IS the vulnerable scan target; the patched image is rolled
+# out under the SAME `target-lab` alias for replay, with the new image digest
+# pinned in the replay snapshot. `target-lab-patched` below exists ONLY for
+# local before/after verification — never put it in a scope document.
+name: highcastle-target-lab
+
+services:
+  # Canonical alias `target-lab` — the scan target (vulnerable revision).
+  target-lab:
+    build:
+      context: .
+      args:
+        LAB_REVISION: lab-v1-vulnerable
+        SOURCE_GIT_SHA: ${SOURCE_GIT_SHA:-}
+    image: highcastle/target-lab:lab-v1-vulnerable
+    ports:
+      - "127.0.0.1:3030:3000"
+    networks:
+      - lab
+    restart: unless-stopped
+
+  # Local-only side-by-side comparison target (patched revision). NOT the
+  # in-scope alias — deployment binds `target-lab` to this image for replay.
+  target-lab-patched:
+    build:
+      context: .
+      args:
+        LAB_REVISION: lab-v2-patched
+        SOURCE_GIT_SHA: ${SOURCE_GIT_SHA:-}
+    image: highcastle/target-lab:lab-v2-patched
+    ports:
+      - "127.0.0.1:3031:3000"
+    networks:
+      - lab
+    restart: unless-stopped
+
+networks:
+  lab:
+    name: highcastle-lab
+    driver: bridge

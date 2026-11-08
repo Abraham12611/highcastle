@@ -1,0 +1,36 @@
+{
+  "name": "@highcastle/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "pnpm --filter @highcastle/contracts build && tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "typecheck": "pnpm --filter @highcastle/contracts build && tsc --noEmit",
+    "test": "pnpm --filter @highcastle/contracts build && vitest run"
+  },
+  "dependencies": {
+    "@highcastle/contracts": "workspace:*",
+    "@highcastle/db": "workspace:*",
+    "@highcastle/inference": "workspace:*",
+    "@highcastle/sandbox": "workspace:*",
+    "@highcastle/security": "workspace:*",
+    "@highcastle/test-packs": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1",
+    "pg-boss": "12.38.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

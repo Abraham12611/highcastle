@@ -1,0 +1,6 @@
+Silkscreen — Copyright 2020 Jason Kottke.
+Licensed under the SIL Open Font License, Version 1.1.
+Source: https://github.com/googlefonts/silkscreen (google/fonts mirror)
+License text: https://openfontlicense.org
+Files: silkscreen-latin-400-normal.woff2, silkscreen-latin-700-normal.woff2
+(woff2 builds via Fontsource, same OFL coverage.)

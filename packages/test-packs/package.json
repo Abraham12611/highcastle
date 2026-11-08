@@ -1,0 +1,40 @@
+{
+  "name": "@highcastle/test-packs",
+  "version": "0.1.0",
+  "description": "Deterministic BOLA security test pack (bola-invoice-v1) and independent verification oracle against the owned synthetic invoice lab. Lane L15.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @highcastle/contracts build && tsc -p tsconfig.build.json",
+    "typecheck": "pnpm --filter @highcastle/contracts build && tsc --noEmit",
+    "test": "pnpm --filter @highcastle/contracts build && vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@highcastle/contracts": "workspace:*",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  }
+}

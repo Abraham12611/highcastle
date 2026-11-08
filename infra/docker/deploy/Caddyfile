@@ -1,0 +1,44 @@
+# HighCastle edge proxy — Caddyfile (L19).
+#
+# Terminates public HTTPS and proxies EVERYTHING to the Next.js web service.
+# The worker, Postgres, target-lab and sandbox runners are unreachable here:
+# they have no published ports and live on separate Docker networks.
+#
+# HIGHCASTLE_DOMAIN is injected from the compose environment. For the Vultr
+# deployment it is the public demo hostname (A/AAAA record -> VM). For local
+# bring-up use `localhost` (Caddy issues an internal-CA cert) or `:80`.
+
+{
+	# No admin endpoint, no metrics surface. Certificate material lives in the
+	# caddy_data volume; logs go to stdout -> docker json-file (rotated).
+	admin off
+}
+
+# Redirect www to the canonical apex HTTPS hostname.
+www.{$HIGHCASTLE_DOMAIN} {
+	redir https://{$HIGHCASTLE_DOMAIN}{uri} permanent
+}
+
+{$HIGHCASTLE_DOMAIN} {
+	encode zstd gzip
+
+	# Next.js serves UI, /api/* route handlers and SSE streams. flush_interval
+	# -1 makes reverse_proxy stream SSE immediately instead of buffering.
+	reverse_proxy web:3000 {
+		flush_interval -1
+	}
+
+	header {
+		# Minimal baseline headers. Strict CSP is an app-layer (L06/L18)
+		# responsibility — don't double-inject a policy that breaks Next.
+		-Server
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

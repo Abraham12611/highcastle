@@ -1,0 +1,37 @@
+<!-- HighCastle social cover — original composition, token colors. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#080D1A"/>
+  <g stroke="#18263B" stroke-width="1">
+    <path d="M60 0V630"/>
+    <path d="M140 0V630"/>
+    <path d="M220 0V630"/>
+    <path d="M300 0V630"/>
+    <path d="M380 0V630"/>
+    <path d="M460 0V630"/>
+    <path d="M540 0V630"/>
+    <path d="M620 0V630"/>
+    <path d="M700 0V630"/>
+    <path d="M780 0V630"/>
+    <path d="M860 0V630"/>
+    <path d="M940 0V630"/>
+    <path d="M1020 0V630"/>
+    <path d="M1100 0V630"/>
+    <path d="M1180 0V630"/>
+    <path d="M0 60H1200"/>
+    <path d="M0 130H1200"/>
+    <path d="M0 200H1200"/>
+    <path d="M0 270H1200"/>
+    <path d="M0 340H1200"/>
+    <path d="M0 410H1200"/>
+    <path d="M0 480H1200"/>
+    <path d="M0 550H1200"/>
+    <path d="M0 620H1200"/>
+  </g>
+  <rect x="80" y="90" width="1040" height="450" rx="10" fill="none" stroke="#63CFFF" stroke-width="2" stroke-dasharray="14 8" opacity="0.5"/>
+  <g transform="translate(120 150) scale(26)">
+    <path d="M0 0h1v1h-1zM1 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM11 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1z" fill="#62F5D1"/>
+  </g>
+  <text x="500" y="290" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="86" letter-spacing="10" fill="#EFF8F7">HIGHCASTLE</text>
+  <text x="503" y="360" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="30" letter-spacing="4" fill="#63CFFF">PROVE THE BUG. PROVE THE FIX.</text>
+  <text x="503" y="420" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="20" letter-spacing="2" fill="#778CA4">Authorized testing on owned, synthetic targets.</text>
+</svg>

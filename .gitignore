@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# generated Next.js types
+next-env.d.ts
+
+# env / secrets — never commit real values
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# test / coverage artifacts
+coverage/
+.vitest/
+playwright-report/
+test-results/
+
+# os / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# misc
+.turbo/
+.vercel/

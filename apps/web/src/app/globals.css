@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@import "@highcastle/ui/theme.css";
+@import "@highcastle/ui/styles.css";
+
+/* Tailwind v4: generate hc-* utilities referenced by @highcastle/ui sources. */
+@source "../../../packages/ui/src";
+
+/*
+ * HighCastle theme — Nocturne Signal tokens + component classes ship in
+ * @highcastle/ui (lane L06). This file wires them into the app shell
+ * and adds only marketing/demo-specific presentation on top.
+ */
+@import "@highcastle/ui/styles.css";
+@import "@highcastle/ui/theme.css";
+
+/* Scan packages/ui source so Tailwind sees hc-* utility usage there too. */
+@source "../../../../packages/ui/src";
+
+/* Display face: self-hosted OFL Silkscreen for controlled headline
+   moments only; body/mono stacks remain system fonts. */
+@font-face {
+  font-family: "Silkscreen";
+  src: url("/fonts/silkscreen-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Silkscreen";
+  src: url("/fonts/silkscreen-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --hc-font-display:
+    "Silkscreen", "Departure Mono", "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo,
+    Consolas, monospace;
+}
+
+body {
+  background: var(--hc-bg);
+  color: var(--hc-text);
+  font-family: var(--hc-font-body);
+}
+
+/* ---------- marketing-only presentation ---------- */
+
+/* Staggered hero entrance — gated on reduced motion below. */
+@keyframes hc-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.mkt-reveal {
+  animation: hc-hero-in 0.6s var(--hc-ease) both;
+}
+.mkt-reveal-1 {
+  animation-delay: 0.05s;
+}
+.mkt-reveal-2 {
+  animation-delay: 0.15s;
+}
+.mkt-reveal-3 {
+  animation-delay: 0.25s;
+}
+.mkt-reveal-4 {
+  animation-delay: 0.35s;
+}
+
+/* Perimeter packet drift: the dashed boundary marches slowly. */
+@keyframes hc-perimeter {
+  to {
+    stroke-dashoffset: -64;
+  }
+}
+.mkt-perimeter-march {
+  stroke-dashoffset: 0;
+  animation: hc-perimeter 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-reveal,
+  .mkt-reveal-1,
+  .mkt-reveal-2,
+  .mkt-reveal-3,
+  .mkt-reveal-4,
+  .mkt-perimeter-march {
+    animation: none !important;
+  }
+}
+
+/* Stepped workflow connector — right-angle pixel path, not a borrowed motif. */
+.mkt-step-flow {
+  position: relative;
+}
+.mkt-step-flow::after {
+  content: "";
+  position: absolute;
+  right: -22px;
+  top: 26px;
+  width: 20px;
+  height: 12px;
+  border-top: 2px solid var(--hc-line-strong);
+  border-right: 2px solid var(--hc-line-strong);
+}
+.mkt-step-flow:last-child::after {
+  display: none;
+}
+@media (max-width: 767px) {
+  .mkt-step-flow::after {
+    right: auto;
+    left: 24px;
+    top: auto;
+    bottom: -16px;
+    width: 12px;
+    height: 20px;
+    border-top: none;
+    border-left: 2px solid var(--hc-line-strong);
+    border-right: none;
+    border-bottom: none;
+  }
+}

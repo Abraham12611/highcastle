@@ -45,6 +45,32 @@ docs/                  canonical specifications
 
 Do not mistake the target layout for already-created source files. The initial documentation PR is intentionally documentation-only.
 
+## Development
+
+**Prerequisites:** Node.js 24 LTS (see `.node-version`) and pnpm 10 via Corepack.
+
+```bash
+corepack enable          # activates the pnpm version pinned in package.json
+pnpm install             # installs the workspace lockfile
+pnpm dev                 # runs apps/web (next dev :3000) and apps/worker (:3010/healthz)
+```
+
+| Command              | Status      | Notes |
+| -------------------- | ----------- | ----- |
+| `pnpm build`         | implemented | builds all workspace packages |
+| `pnpm lint`          | implemented | ESLint flat config per package |
+| `pnpm typecheck`     | implemented | `tsc --noEmit`; web runs `next typegen` first |
+| `pnpm test`          | implemented | Vitest unit tests |
+| `pnpm format`        | implemented | Prettier check (`format:write` to fix) |
+| `pnpm test:e2e`      | placeholder | fails closed; Playwright suite is lane L20 (phase F4) |
+| `pnpm test:security` | placeholder | fails closed; needs packages/security (L04) + runner (L14) |
+| `pnpm db:migrate`    | placeholder | fails closed; migrations are lane L02 in packages/db |
+
+Placeholder commands exit non-zero on purpose — a green shim would masquerade as a
+passing check. New packages under `packages/*` join the workspace automatically;
+reference shared toolchain versions with `"pkg": "catalog:"` and depend on sibling
+packages as `"@highcastle/<name>": "workspace:*"`.
+
 ## Product principles
 
 - **Authorization before action.** Possession of a URL does not grant permission to attack it.

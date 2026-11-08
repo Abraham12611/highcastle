@@ -1,0 +1,28 @@
+{
+  "name": "@highcastle/target-lab",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deliberately vulnerable synthetic invoice SaaS — owned HighCastle security test target (lane L11). Synthetic fixtures only. Not a production service.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "node src/server.ts --revision=lab-v1-vulnerable",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node src/server.ts",
+    "start:vulnerable": "node src/server.ts --revision=lab-v1-vulnerable",
+    "start:patched": "node src/server.ts --revision=lab-v2-patched",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

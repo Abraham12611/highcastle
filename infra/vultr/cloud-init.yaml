@@ -1,0 +1,82 @@
+#cloud-config
+# HighCastle control-plane VM bootstrap (L19) — Ubuntu 24.04 on Vultr.
+#
+# Applied at first boot by provision-vm.sh (--userdata-file). Installs a
+# pinned Docker Engine + Compose plugin, hardens sshd, enables UFW with the
+# documented port policy, and prepares the secrets/repo directories.
+#
+# Defence in depth: the Vultr FIREWALL GROUP (created by provision-vm.sh)
+# restricts SSH to the admin CIDR; UFW allows 22 from anywhere only as a
+# fallback layer if the group is detached. No application secrets exist on
+# this host until deploy.sh is run over SSH.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+  - ufw
+  - unattended-upgrades
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/90-highcastle.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin prohibit-password
+      MaxAuthTries 4
+
+  - path: /etc/apt/apt.conf.d/51highcastle-unattended
+    permissions: "0644"
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "false";
+
+runcmd:
+  # --- swap: 2GiB file so `next build` + concurrent containers stay safe on
+  #     small plans (account fee cap forced vc2-1c-2gb). Idempotent.
+  - |
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile \
+        && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+  - sysctl -w vm.swappiness=10 && echo 'vm.swappiness=10' > /etc/sysctl.d/99-highcastle.conf
+
+  # --- Docker Engine (official apt repo, current stable channel) -----------
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+      https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+      > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+
+  # --- node + pnpm on the HOST: needed only to run the sandbox controller
+  #     CLI / pnpm builds during bring-up and smoke testing. App services
+  #     themselves are containerized. NodeSource is not used; Ubuntu's
+  #     nodejs is too old for our >=24 engines, so install the official
+  #     tarball for the host toolchain.
+  - curl -fsSL https://nodejs.org/dist/v24.11.0/node-v24.11.0-linux-x64.tar.xz -o /tmp/node.tar.xz
+  - tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+  - rm /tmp/node.tar.xz
+  - corepack enable && corepack prepare pnpm@10.34.9 --activate
+
+  # --- host firewall -------------------------------------------------------
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp # Vultr firewall group is the real SSH restriction
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw allow 443/udp # HTTP/3
+  - ufw --force enable
+
+  # --- layout ---------------------------------------------------------------
+  - install -d -m 0700 /etc/highcastle
+  - install -d -m 0755 /opt/highcastle
+  - printf 'HighCastle VM bootstrap complete. Next: clone repo to /opt/highcastle, install /etc/highcastle/*.env, run infra/vultr/deploy.sh\n' > /etc/motd

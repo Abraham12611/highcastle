@@ -1,0 +1,118 @@
+/*
+ * HighCastle "Nocturne Signal" design tokens — runtime layer.
+ *
+ * Original palette: midnight blue-black surfaces, luminous mint primary,
+ * cyan evidence, ultraviolet/violet model context, coral signal risk.
+ * Authored for this project; NOT derived from Sandchest assets.
+ *
+ * This file is plain CSS and works without Tailwind. For Tailwind v4
+ * utilities (bg-hc-primary, text-hc-muted, ...), also import ./theme.css.
+ * Keep both files in sync — src/tokens.test.ts asserts parity.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — blue-black rampart tones */
+  --hc-bg: #080d1a;
+  --hc-surface-1: #10192a;
+  --hc-surface-2: #18263b;
+  --hc-surface-3: #22344c;
+  --hc-line: #30445b;
+  --hc-line-strong: #46607f;
+
+  /* Text */
+  --hc-text: #eff8f7;
+  --hc-muted: #9fb2c5;
+  --hc-subtle: #829cb2;
+
+  /* Signal accents */
+  --hc-primary: #62f5d1;
+  --hc-primary-deep: #0d5b58;
+  --hc-primary-ink: #052423;
+  --hc-violet: #a48bff;
+  --hc-violet-deep: #3d3377;
+  --hc-cyan: #63cfff;
+  --hc-cyan-deep: #134d6b;
+  --hc-coral: #ff708a;
+  --hc-coral-deep: #6b2033;
+  --hc-orange: #ffa66b;
+  --hc-orange-deep: #6b3d1d;
+  --hc-amber: #ffd46b;
+  --hc-amber-deep: #5d4a1c;
+  --hc-low: #8cabc1;
+  --hc-success: #75e7b4;
+  --hc-success-deep: #14503b;
+  --hc-focus: #b8fff0;
+
+  /* Translucent washes for tinted panels/badges */
+  --hc-primary-wash: rgb(98 245 209 / 0.12);
+  --hc-violet-wash: rgb(164 139 255 / 0.12);
+  --hc-cyan-wash: rgb(99 207 255 / 0.12);
+  --hc-coral-wash: rgb(255 112 138 / 0.13);
+  --hc-orange-wash: rgb(255 166 107 / 0.12);
+  --hc-amber-wash: rgb(255 212 107 / 0.1);
+  --hc-slate-wash: rgb(140 171 193 / 0.1);
+  --hc-success-wash: rgb(117 231 180 / 0.12);
+
+  /* Typography — no bundled font files; consumers may self-host a
+     licensed pixel/bitmap face for --hc-font-display headings. */
+  --hc-font-display:
+    "Departure Mono", "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --hc-font-body:
+    Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --hc-font-mono:
+    ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  --hc-text-xs: 0.75rem;
+  --hc-text-sm: 0.8125rem;
+  --hc-text-base: 0.9375rem;
+  --hc-text-lg: 1.125rem;
+  --hc-text-xl: 1.375rem;
+  --hc-text-2xl: 1.75rem;
+  --hc-text-3xl: 2.25rem;
+  --hc-text-4xl: 3rem;
+
+  /* Shape — subtle notched/cut geometry lives in components.css */
+  --hc-radius-sm: 4px;
+  --hc-radius: 6px;
+  --hc-radius-lg: 10px;
+
+  /* Pixel offset shadow (CTA + key proof stats only) */
+  --hc-shadow-pixel: 3px 3px 0 0 rgb(0 0 0 / 0.45);
+  --hc-shadow-pixel-primary: 3px 3px 0 0 var(--hc-primary-deep);
+  --hc-shadow-elevated:
+    0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -12px rgb(0 0 0 / 0.65);
+
+  --hc-focus-ring: 0 0 0 2px var(--hc-bg), 0 0 0 4px var(--hc-focus);
+
+  /* Motion */
+  --hc-dur-fast: 120ms;
+  --hc-dur: 200ms;
+  --hc-ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+
+  /* Layout rhythm */
+  --hc-rail-width: 240px;
+  --hc-topbar-height: 64px;
+}
+
+/* Minimal global base — safe to import once at app root. */
+.hc-root,
+body {
+  background: var(--hc-bg);
+  color: var(--hc-text);
+}
+
+.hc-root {
+  font-family: var(--hc-font-body);
+  font-size: var(--hc-text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--hc-primary-wash);
+  color: var(--hc-text);
+}
