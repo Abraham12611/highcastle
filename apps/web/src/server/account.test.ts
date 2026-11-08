@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   DEMO_IDS,
   addWorkspaceMember,
+  createAttempt,
   createAuthorizationScope,
   createEnvironment,
   createProject,
@@ -11,6 +12,7 @@ import {
   findProjectTenant,
   findScanTenant,
   getScan,
+  upsertFindingFromVerdict,
   removeWorkspaceMember,
   verifyTarget,
   type Database,
@@ -22,13 +24,17 @@ import { internalUserIdForClerk } from "@/server/auth/membership";
 import { authorizeResourceTenant } from "@/server/authz";
 import {
   createProjectFlow,
+  createTargetFlow,
   createWorkspaceFlow,
   listProjectsFlow,
   listWorkspacesFlow,
   meFlow,
   updatePreferencesFlow,
 } from "@/server/me";
-import { getScanFlow } from "@/server/scans";
+import { cancelScanFlow, createScanFlow, getScanFlow } from "@/server/scans";
+import { createReplayFlow } from "@/server/replays";
+import { preflightFlow } from "@/server/preflight";
+import { fixPromptFlow } from "@/server/findings";
 import { accountSession, demoSession } from "@/server/test-helpers";
 
 /**
@@ -447,5 +453,214 @@ describe("stable internal user mapping (E5 seam)", () => {
     expect(internalUserIdForClerk(CLERK_A)).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
+  });
+});
+
+describe("role enforcement on mutations (issue #72 release gate)", () => {
+  const VIEWER = internalUserIdForClerk("user_e12_viewer");
+  const DEVELOPER = internalUserIdForClerk("user_e12_dev");
+
+  async function seedRoles() {
+    const tenant = await seedOwnedTenant(USER_A, "roles");
+    await addWorkspaceMember(db, {
+      workspaceId: tenant.workspaceId,
+      userId: VIEWER,
+      role: "viewer",
+    });
+    await addWorkspaceMember(db, {
+      workspaceId: tenant.workspaceId,
+      userId: DEVELOPER,
+      role: "developer",
+    });
+    return tenant;
+  }
+
+  function scanBody(t: OwnedTenant) {
+    return {
+      type: "targeted_red_team",
+      environmentId: t.environmentId,
+      targetId: t.targetId,
+      authorizationScopeId: t.scopeId,
+      testPackIds: ["bola-invoice-v1"],
+    };
+  }
+
+  it("viewer is read-only: every mutation answers 403 forbidden", async () => {
+    const t = await seedRoles();
+    const deps = depsFor(VIEWER);
+    const scan = await createScan(db, {
+      workspaceId: t.workspaceId,
+      projectId: t.projectId,
+      scopeId: t.scopeId,
+      targetId: t.targetId,
+      environmentId: t.environmentId,
+      targetRevision: t.envRevision,
+      testPackIds: ["bola-invoice-v1"],
+      requestedByUserId: USER_A,
+    });
+    const attempt = await createAttempt(db, {
+      workspaceId: t.workspaceId,
+      scanId: scan.id,
+      packId: "bola-invoice-v1",
+      packVersion: "1.0.0",
+      planHash: "c".repeat(64),
+      scopeHash: "d".repeat(64),
+      targetRevision: t.envRevision,
+    });
+    const finding = await upsertFindingFromVerdict(db, {
+      workspaceId: t.workspaceId,
+      projectId: t.projectId,
+      stableFingerprint: "fp-roles",
+      title: "t",
+      summary: "s",
+      category: "broken_object_authorization",
+      severity: "high",
+      confidence: "confirmed_by_execution",
+      scanId: scan.id,
+      attemptId: attempt.id,
+      targetRevision: t.envRevision,
+      oracleVerdict: "reproduced",
+    });
+    const mutations: Promise<unknown>[] = [
+      createScanFlow(deps, {
+        workspaceId: t.workspaceId,
+        projectId: t.projectId,
+        body: scanBody(t),
+        idempotencyKey: "viewer-scan",
+      }),
+      cancelScanFlow(deps, { workspaceId: t.workspaceId, scanId: scan.id }),
+      createReplayFlow(deps, {
+        workspaceId: t.workspaceId,
+        projectId: t.projectId,
+        findingId: finding.finding.id,
+        body: {
+          originalAttemptId: attempt.id,
+          patchedEnvironmentId: t.environmentId,
+          patchedRevision: "rev-2",
+          authorizationScopeId: t.scopeId,
+        },
+      }),
+      preflightFlow(deps, {
+        workspaceId: t.workspaceId,
+        projectId: t.projectId,
+        body: {
+          targetId: t.targetId,
+          environmentId: t.environmentId,
+          authorizationScopeId: t.scopeId,
+        },
+      }),
+      fixPromptFlow(deps, {
+        workspaceId: t.workspaceId,
+        findingId: finding.finding.id,
+      }),
+      createProjectFlow(deps, {
+        workspaceId: t.workspaceId,
+        body: { name: "v" },
+      }),
+      createTargetFlow(deps, {
+        workspaceId: t.workspaceId,
+        projectId: t.projectId,
+        body: {
+          label: "x",
+          canonicalOrigin: "https://x.example",
+          targetKind: "staging",
+        },
+      }),
+    ];
+    for (const mutation of mutations) {
+      await expect(mutation).rejects.toMatchObject({ code: "forbidden" });
+    }
+  });
+
+  it("developer gets operational actions but not management actions", async () => {
+    const t = await seedRoles();
+    const deps = depsFor(DEVELOPER);
+    // Operational: create a scan inside the approved scope → accepted.
+    const created = await createScanFlow(deps, {
+      workspaceId: t.workspaceId,
+      projectId: t.projectId,
+      body: scanBody(t),
+      idempotencyKey: "dev-scan",
+    });
+    expect(created.status).toBe(202);
+    const scanId = (dataOf(created) as { scanId: string }).scanId;
+    // Operational: cancel it.
+    const canceled = await cancelScanFlow(deps, {
+      workspaceId: t.workspaceId,
+      scanId,
+    });
+    expect(canceled.status).toBe(200);
+    // Operational: preflight (launch reconnaissance check).
+    const pre = await preflightFlow(deps, {
+      workspaceId: t.workspaceId,
+      projectId: t.projectId,
+      body: {
+        targetId: t.targetId,
+        environmentId: t.environmentId,
+        authorizationScopeId: t.scopeId,
+      },
+    });
+    expect(pre.status).toBe(200);
+    // Management: denied.
+    await expect(
+      createProjectFlow(deps, { workspaceId: t.workspaceId, body: { name: "x" } }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(
+      createTargetFlow(deps, {
+        workspaceId: t.workspaceId,
+        projectId: t.projectId,
+        body: { label: "x", canonicalOrigin: "https://x.example", targetKind: "staging" },
+      }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("owner can register a draft target; demo and non-members cannot", async () => {
+    const t = await seedRoles();
+    const deps = depsFor(USER_A);
+    const created = await createTargetFlow(deps, {
+      workspaceId: t.workspaceId,
+      projectId: t.projectId,
+      body: {
+        label: "staging-site",
+        canonicalOrigin: "https://staging.example.internal",
+        targetKind: "staging",
+      },
+    });
+    expect(created.status).toBe(201);
+    expect(dataOf(created)).toMatchObject({ state: "draft" });
+    // Non-member: 404 (existence hidden), not 403.
+    const stranger = depsFor(internalUserIdForClerk("user_e12_stranger2"));
+    await expect(
+      createTargetFlow(stranger, {
+        workspaceId: t.workspaceId,
+        projectId: t.projectId,
+        body: { label: "x", canonicalOrigin: "https://x.example", targetKind: "staging" },
+      }),
+    ).rejects.toMatchObject({ code: "not_found" });
+    // Demo session: still forbidden — the lab binding is unchanged.
+    await expect(
+      createTargetFlow({ db, queue, session: demoSession() }, {
+        workspaceId: DEMO_IDS.workspaceId,
+        projectId: DEMO_IDS.projectId,
+        body: { label: "x", canonicalOrigin: "https://x.example", targetKind: "demo" },
+      }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("revoked membership restores nothing: mutations read as missing", async () => {
+    const t = await seedRoles();
+    const deps = depsFor(DEVELOPER);
+    await removeWorkspaceMember(db, t.workspaceId, DEVELOPER);
+    await expect(
+      createScanFlow(deps, {
+        workspaceId: t.workspaceId,
+        projectId: t.projectId,
+        body: scanBody(t),
+        idempotencyKey: "revoked-scan",
+      }),
+    ).rejects.toMatchObject({ code: "not_found" });
+    // And lazy provisioning does not hand them a route back into that tenant.
+    const list = dataOf<{ id: string }[]>(await listWorkspacesFlow(deps));
+    expect(list.map((w) => w.id)).not.toContain(t.workspaceId);
   });
 });

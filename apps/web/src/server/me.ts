@@ -1,13 +1,17 @@
 import { z } from "zod";
-import { CreateProjectRequestSchema, ExperienceModeSchema } from "@highcastle/contracts";
+import {
+  CreateProjectRequestSchema,
+  CreateTargetRequestSchema,
+  ExperienceModeSchema,
+} from "@highcastle/contracts";
 import {
   createProject,
+  createTarget,
   createWorkspace,
   ensureAccountWorkspace,
   getActiveScopeForTarget,
   getTarget,
   getUserPreferences,
-  getWorkspaceMember,
   listEnvironments,
   listProjects,
   listTargets,
@@ -15,7 +19,12 @@ import {
 } from "@highcastle/db";
 import { DbError } from "@highcastle/db";
 import type { BffDeps } from "./deps";
-import { authorizeProject, authorizeWorkspace, demoBinding } from "./authz";
+import {
+  authorizeProject,
+  authorizeWorkspace,
+  authorizeWorkspaceMutation,
+  demoBinding,
+} from "./authz";
 import { mapEnvironment, mapProject, mapScope, mapTarget } from "./mappers";
 import type { RouteResult } from "./scans";
 
@@ -254,14 +263,12 @@ export async function createProjectFlow(
   deps: BffDeps,
   input: { workspaceId: string; body: unknown },
 ): Promise<RouteResult> {
-  if (deps.session.kind === "demo") {
-    throw new DbError("forbidden", "demo sessions cannot create projects");
-  }
-  await authorizeWorkspace(deps.db, deps.session, input.workspaceId);
-  const member = await getWorkspaceMember(deps.db, input.workspaceId, deps.session.userId);
-  if (!member || (member.role !== "owner" && member.role !== "admin")) {
-    throw new DbError("forbidden", "project creation requires owner or admin role");
-  }
+  await authorizeWorkspaceMutation(
+    deps.db,
+    deps.session,
+    input.workspaceId,
+    "create-project",
+  );
   const parsed = CreateProjectRequestSchema.safeParse(input.body);
   if (!parsed.success) {
     throw new DbError("validation_error", "invalid project request");
@@ -284,6 +291,39 @@ export async function createProjectFlow(
     throw error;
   }
   return { status: 201, body: { data: mapProject(project) } };
+}
+
+/**
+ * POST /api/v1/projects/:pid/targets — register a target DRAFT (owner/admin).
+ * The row starts `draft`/unverified: it cannot authorize execution until an
+ * ownership-verification lane (E10) and an approved scope exist. This is
+ * the "granting website permissions" write — management role required, and
+ * no role can exceed an explicitly approved assessment scope regardless.
+ */
+export async function createTargetFlow(
+  deps: BffDeps,
+  input: { workspaceId: string; projectId: string; body: unknown },
+): Promise<RouteResult> {
+  await authorizeProject(deps.db, deps.session, input.workspaceId, input.projectId);
+  await authorizeWorkspaceMutation(
+    deps.db,
+    deps.session,
+    input.workspaceId,
+    "create-target",
+  );
+  const parsed = CreateTargetRequestSchema.safeParse(input.body);
+  if (!parsed.success) {
+    throw new DbError("validation_error", "invalid target request");
+  }
+  const target = await createTarget(deps.db, {
+    workspaceId: input.workspaceId,
+    projectId: input.projectId,
+    label: parsed.data.label,
+    canonicalOrigin: parsed.data.canonicalOrigin,
+    targetKind: parsed.data.targetKind,
+    environmentId: parsed.data.environmentId ?? null,
+  });
+  return { status: 201, body: { data: mapTarget(target) } };
 }
 
 export async function listProjectsFlow(

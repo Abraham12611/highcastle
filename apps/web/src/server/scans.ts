@@ -32,6 +32,7 @@ import { requestTime } from "./deps";
 import {
   assertExecutionBinding,
   authorizeProject,
+  authorizeWorkspaceMutation,
   loadExecutionScope,
 } from "./authz";
 import {
@@ -218,6 +219,7 @@ export async function createScanFlow(
     throw new DbError("validation_error", "Idempotency-Key header is required");
   }
   await authorizeProject(deps.db, deps.session, input.workspaceId, input.projectId);
+  await authorizeWorkspaceMutation(deps.db, deps.session, input.workspaceId, "create-scan");
   assertExecutionBinding(deps.session, {
     projectId: input.projectId,
     targetId: parsed.data.targetId,
@@ -379,6 +381,7 @@ export async function cancelScanFlow(
   const row = await getScan(deps.db, input.workspaceId, input.scanId);
   if (!row) throw DbError.notFound("scan", input.scanId);
   await authorizeProject(deps.db, deps.session, input.workspaceId, row.projectId);
+  await authorizeWorkspaceMutation(deps.db, deps.session, input.workspaceId, "cancel-scan");
   const updated = await requestScanCancel(deps.db, input.workspaceId, input.scanId);
   // Best effort: the DB flag is the mechanism the worker honors, so a dead
   // queue must not block cancellation — but the response says honestly

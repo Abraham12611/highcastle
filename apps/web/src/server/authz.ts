@@ -192,4 +192,72 @@ export async function authorizeResourceTenant(
   return ref;
 }
 
+/**
+ * Role-based mutation gate (issue #72 release gate).
+ *
+ * Membership alone is not write authority. Roles:
+ * - `viewer`  — read-only; every mutation is denied.
+ * - `developer` — approved *operational* actions only (create/cancel scans,
+ *   create replays, run preflight, request fix guidance). Operational
+ *   actions still cannot exceed an explicitly approved assessment scope —
+ *   the scope gate (`loadExecutionScope` + L04 policy) runs downstream of
+ *   this check in every execution flow.
+ * - `owner`/`admin` — management actions additionally (create projects,
+ *   register target drafts, manage scopes/permissions).
+ *
+ * Demo sessions stay pinned to the fixed lab: they may perform the same
+ * operational actions a developer can (assessment, replay, preflight,
+ * cancel, fix guidance), and the actual binding is still verified by
+ * `assertExecutionBinding`/`assertDemoExecutionBinding` downstream —
+ * this check never grants anything on its own. Management actions
+ * (project/target/scope writes) are denied for guests.
+ *
+ * A non-member reads as not-found (existence stays hidden); a member with
+ * an insufficient role gets `forbidden` — they may know the tenant exists.
+ */
+export type WorkspaceMutation =
+  | "create-scan"
+  | "cancel-scan"
+  | "create-replay"
+  | "run-preflight"
+  | "fix-prompt"
+  | "create-project"
+  | "create-target"
+  | "manage-scope";
+
+const OPERATIONAL_MUTATIONS: ReadonlySet<WorkspaceMutation> = new Set([
+  "create-scan",
+  "cancel-scan",
+  "create-replay",
+  "run-preflight",
+  "fix-prompt",
+]);
+
+export async function authorizeWorkspaceMutation(
+  db: DbExecutor,
+  session: Session,
+  workspaceId: string,
+  mutation: WorkspaceMutation,
+): Promise<void> {
+  if (session.kind === "demo") {
+    // Demo guests run the same *operational* actions a developer does, but
+    // every one is additionally pinned to the fixed lab binding downstream
+    // (`assertExecutionBinding`, pinned workspace/project). Management
+    // actions (project/target/scope writes) are never available to guests.
+    if (OPERATIONAL_MUTATIONS.has(mutation)) return;
+    throw new DbError(
+      "forbidden",
+      "demo sessions may only run the pinned assessment and replay",
+    );
+  }
+  const member = await getWorkspaceMember(db, workspaceId, session.userId);
+  if (!member) throw DbError.notFound("workspace", workspaceId);
+  if (member.role === "owner" || member.role === "admin") return;
+  if (member.role === "developer" && OPERATIONAL_MUTATIONS.has(mutation)) return;
+  throw new DbError("forbidden", `role ${member.role} cannot ${mutation}`, {
+    mutation,
+    role: member.role,
+  });
+}
+
 export type { Database };

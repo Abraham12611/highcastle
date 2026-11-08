@@ -7,7 +7,11 @@ import { checkScopeRelations, checkScopeStatus } from "@highcastle/security";
 import { isKnownPackId } from "@highcastle/security";
 import type { BffDeps } from "./deps";
 import { requestTime } from "./deps";
-import { authorizeProject, loadExecutionScope } from "./authz";
+import {
+  authorizeProject,
+  authorizeWorkspaceMutation,
+  loadExecutionScope,
+} from "./authz";
 import { mapEnvironment, mapProject, mapScope, mapTarget } from "./mappers";
 import type { RouteResult } from "./scans";
 
@@ -28,6 +32,7 @@ export async function preflightFlow(
     throw new DbError("validation_error", "invalid preflight request");
   }
   await authorizeProject(deps.db, deps.session, input.workspaceId, input.projectId);
+  await authorizeWorkspaceMutation(deps.db, deps.session, input.workspaceId, "run-preflight");
   const now = requestTime(deps);
   const checks: { name: string; passed: boolean; detail?: string }[] = [];
 
