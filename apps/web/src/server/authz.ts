@@ -4,6 +4,7 @@ import {
   getEnvironment,
   type Database,
   type DbExecutor,
+  type TenantRef,
 } from "@highcastle/db";
 import { DEMO_IDS } from "@highcastle/db";
 import { DbError } from "@highcastle/db";
@@ -159,31 +160,36 @@ export async function loadExecutionScope(
     scope.targetId !== targetId ||
     scope.permittedEnvironmentId !== environmentId
   ) {
-    throw new DbError(
-      "scope_denied",
-      "scope does not authorize this project/target/environment",
-      { scopeId },
-    );
+    throw new DbError("scope_denied", "scope does not authorize this project/target/environment", {
+      scopeId,
+    });
   }
   return { scope, target, environment };
 }
 
 /**
- * Workspace implied by routes that carry no workspace path segment
- * (`GET /scans/:sid`, ...). Demo sessions resolve to their pinned workspace.
- * Account sessions fail closed here: without a user→workspaces listing in
- * L02, mapping an unscoped id to a tenant would be guessing. Callers needing
- * account access must use the workspace-scoped routes.
+ * Tenant resolution for routes that carry no workspace path segment
+ * (`GET /scans/:sid`, `GET /findings/:fid`, ... — issue #72 / E12).
+ *
+ * The resource id identifies its owning tenant; the session must then prove
+ * access to that tenant:
+ * - demo sessions stay pinned to the fixed lab workspace — the scoped fetch
+ *   downstream 404s any foreign id, so the lookup is skipped entirely;
+ * - account sessions resolve the resource's tenant via `lookup`, then must
+ *   hold a real `workspace_members` row for it. Missing resources and
+ *   missing memberships both read as not-found — cross-tenant existence is
+ *   never distinguishable.
  */
-export async function requestWorkspace(
+export async function authorizeResourceTenant(
   db: DbExecutor,
   session: Session,
-): Promise<string> {
-  if (session.kind === "demo") return session.workspaceId;
-  throw new DbError(
-    "unavailable",
-    "account sessions require workspace-scoped routes; unscoped lookup is not supported yet",
-  );
+  lookup: () => Promise<TenantRef | null>,
+): Promise<TenantRef> {
+  if (session.kind === "demo") return { workspaceId: session.workspaceId };
+  const ref = await lookup();
+  if (!ref) throw DbError.notFound("resource", "unscoped");
+  await authorizeWorkspace(db, session, ref.workspaceId);
+  return ref;
 }
 
 export type { Database };
