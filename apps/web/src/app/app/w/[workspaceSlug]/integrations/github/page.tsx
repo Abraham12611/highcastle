@@ -11,7 +11,7 @@ import { MODE_COOKIE, resolveMode } from "@/features/dashboard/mode";
 import { appPaths } from "@/features/dashboard/nav";
 import { FailedPanel, UnauthorizedPanel } from "@/features/dashboard/panels";
 import { PageCrumbs } from "@/features/dashboard/shell";
-import { ComingSoon } from "@/features/dashboard/coming-soon";
+import { GithubIntegration } from "@/features/integrations/github-connect";
 import styles from "@/features/dashboard/panels.module.css";
 
 export const dynamic = "force-dynamic";
@@ -74,12 +74,7 @@ export default async function GithubIntegrationPage({
       <h1 className={styles.pageTitle}>GitHub integration</h1>
       <section aria-labelledby="gh-connect">
         <h2 id="gh-connect">Repository connection</h2>
-        <ComingSoon title="GitHub connection" owner="the E9 GitHub-connection lane">
-          Read-only repo analysis and explicit commit pinning land with that
-          lane&apos;s connect endpoint and repo picker (server-side OAuth
-          credentials are already provisioned under E9-owned env names).
-          No repositories are connected today.
-        </ComingSoon>
+        <GithubIntegration />
       </section>
       <section aria-labelledby="gh-targets">
         <h2 id="gh-targets">Verified URL targets</h2>

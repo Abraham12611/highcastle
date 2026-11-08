@@ -12,6 +12,7 @@
     "test": "pnpm --filter @highcastle/contracts --filter @highcastle/ui --filter @highcastle/db --filter @highcastle/security --filter @highcastle/test-packs build && vitest run"
   },
   "dependencies": {
+    "@composio/core": "0.28.0",
     "@highcastle/contracts": "workspace:*",
     "@highcastle/db": "workspace:*",
     "@highcastle/security": "workspace:*",
@@ -22,7 +23,8 @@
     "pg-boss": "12.38.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "zod": "3.23.8"
+    "zod": "3.23.8",
+    "zod-compat": "npm:zod@3.25.76"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",
